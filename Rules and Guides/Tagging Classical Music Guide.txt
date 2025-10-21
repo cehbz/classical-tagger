@@ -1,0 +1,106 @@
+Note: You may also find it useful to read the guide on uploading classical music, which can be found here.
+
+Tagging Classical Music
+
+
+These are guidelines and rules for how classical music files should be tagged using ID3 tags and Vorbis comments as appropriate. Classical music organization on the site should follow the guidelines in the upload rules. Tagging classical music properly usually requires a little research. In order to begin tagging, we first need to identify three pieces of information: the composer(s), the performers, and the name(s) of the piece(s) being performed.
+
+List of tags
+
+
+Artist - The artist tag should reflect the people performing the work. This includes soloists, orchestras/ensembles, and conductors. All principal soloists, ensembles, and conductors should be reflected by this tag, though it need only be set on a per-work basis, meaning that if in a given work different soloists are featured in different movements or tracks (as is commonly the case with opera), the soloists can be set for the work as a whole and needn't be done on a track-by-track basis. For example, when tagging Mahler's Das Lied von der Erde, in which a tenor and contralto alternate songs, one can tag the entire work with both of them as soloists. For more information, see the Further Explanations section below.
+Composer - The composer should be included in the composer tag. Ideally this should include both the composer's first and last names and reflect the normal manner of referring to this composer (Wikipedia is an excellent reference for this). For example, Bach's Art of Fugue should have "Johann Sebastian Bach" as the composer, though "J.S. Bach," "Johann Bach," plain "Bach," or even "Johnnie Bach" would not be grounds to trump. On an album containing works by multiple composers, this should be set individually for each track or work.
+Date - This is the date the recording was issued, not the date of composition.
+Album Title - The album title should in theory reflect the title on the spine of the disc. However, given that classical album titles are often too long for the spine and are thus abbreviated to fit, it is recommended that one check the label's web site to determine the album's actual title. When this is not possible, please consult the guide below.
+Track Title - The title should include the name of the work, the movement number, and the tempo marking or movement name (where applicable). For example, the title tag for the first movement of Beethoven's String Quartet no. 11, Op. 95 might be "String Quartet no. 11 in F minor, Op. 95 'Quartetto serioso' - I. Allegro con brio." Note that it includes the name of the work (String Quartet no. 11 in F minor, Op. 95 'Quartetto serioso'), the movement number (I.) and the tempo marking (Allegro con brio). As far as the work name is concerned, ideally it should be the full title of the piece as described above. However, as long as it is clear which work is being performed, omitting information such as the key or opus number is not grounds to trump. In this case, "String Quartet no. 11 - ..." would pass, though including the full title is obviously preferable. On albums consisting of a single work, it is not necessary to specify the work's title in the track titles as long as it is clearly reflected in the album title. Not including the movement number, though strongly discouraged, is not by itself grounds to trump as long as titles or tempo markings are included. Even on multi-composer albums and compilations, the composer's name should not be included in the title as it is already in the composer tag.
+
+
+Further explanations
+
+
+Throughout this section we will be referring to this album (Presto Classical) for our examples. It consists of two works, Beethoven's Symphony no. 5 in C minor, Op. 67 and Brahms's Concerto for Violin and Orchestra in D major, Op. 77. The Symphony is performed by the Wiener Philharmoniker under Sir Simon Rattle, and the concerto is performed by Kyung-Wha Chung as soloist with the same orchestra and conductor.
+
+Album title
+
+
+Ideally the album title should match the title on the album's spine, however there are some cases where the title has been abbreviated or omitted altogether to fit the limited space available. In those cases, there are a few sources to consult. In order of priority, they are:
+The label's web site. If you can find the album on the label's web page, the title there is definitive and you need look no further. A list of common classical labels and their web sites is provided below.
+The front cover. Sometimes, even when there is no title on the spine (or it is greatly abbreviated), there will be a full title on the front of the disc.
+ArkivMusic. Many, many otherwise unavailable albums are listed on ArkivMusic. If you can't find it on the label's web site, see how it is listed here.
+If all else fails, and you cannot find any source for the album's title, a list of works separated by commas will do. In this case, on albums by a single composer, the composer shouldn't be included in the album title. In albums with works by multiple composers, the works should be listed as "Composer1: Work1, Work2" followed by "Composer2: Work1, Work2" separated by a slash (/) or semicolon (;). In our example album, a reasonable title if all else fails might be "Beethoven: Symphony no. 5 in C minor / Brahms: Violin Concerto in D."
+
+
+Due to the complexity of this tag, an "incorrect" album title will not be grounds to trump as long as it is reasonable, meaning it is a works list or can be traced to an official source.
+
+Track title
+
+
+As explained above, track titles should take the form "<Work Name> - <Movement Number>. <Title or markings>." Again, the only exception is an album consisting of only one work. If that work is made clear in the album title it is not necessary (though it is perfectly acceptable) to also list it in the track titles. As mentioned above, while the work title should be as complete as possible, as long as the work is easily identifiable it is not grounds to trump. On our example album, this means that the ideal title for the first track would be "Symphony No. 5 in C Minor, Op. 67 - I. Allegro Con Brio," but "Symphony No. 5 in C Minor - I. Allegro Con Brio" would be acceptable as would "Symphony No. 5, Op. 67 - I. Allegro Con Brio." Similarly, the fifth track should be titled "Concerto for Violin and Orchestra in D Major, Op. 77 - I. Allegro Non Troppo," but "Concerto for Violin and Orchestra in D - I. Allegro Non Troppo" and "Violin Concerto, Op. 77 - I. Allegro Non Troppo" are also fine (Brahms only wrote one violin concerto).
+
+For operas, tracks should be labeled with the act and scene numbers and some identification of the part being performed (usually the first line being sung or a description such "Entrance of the soldiers").
+
+Artists
+
+
+The artist tag should include the principal soloists, the orchestra(s) and ensemble(s), and the conductor as needed, in that order (soloists, then ensembles, then conductors). It should be set on a per-work basis. This means that on an album with multiple works, there may be different artists tags on different tracks as needed. For example, on our example album, the first four tracks (the symphony) should have Vienna Philharmonic Orchestra and Simon Rattle as the artist, and the last three tracks (the concerto) should have all three of Kyung-Wha Chung, Vienna Philharmonic Orchestra, and Simon Rattle in the artist tags.
+
+For operas, it is not necessary to tag each individual track with just the soloists singing that particular track. The entire work may be tagged with all the principal soloists, the orchestra, chorus, and conductor. The principal soloists are those listed on the front of the album. If none are listed there, try to determine which are the main roles and list the soloists singing those roles. Single works with different movements featuring different soloists may be treated just like opera with all of the artists on all of tracks.
+
+Composer
+
+
+As explained above, the composer tag for each work must be set. In our example album, the first four tracks should have "Ludwig van Beethoven" as the composer ("Beethoven, Ludwig van" is also fine), and the last three should have "Johannes Brahms" (similarly, "Brahms, Johannes" is acceptable).
+
+Trumping
+
+
+Artist/Composer trumping
+
+
+The tagging rules for classical require the presence of the artist and composer tags, and require that the principal soloists, orchestra(s) and ensemble(s), conductor(s), and composer are represented in the torrent's tags. We recommend including all of these performing artists in the artist tag and require the composer in the composer tag. However, it is not grounds to trump if the performing artists are spread across the artist, album artist, performer, conductor, and band tags, or if the composer is additionally included in some of these tags.
+As explained above, a composer should ideally be listed according the manner typical for that person, but so long as they are clearly represented, it is not grounds to trump. Because there are sometimes multiple composers with the same last name (e.g. the Bach family and the unrelated Pyotr Ilyich and Boris Tchaikovsky), the lack of a first name (or at least initial) is grounds to trump.
+Classical soloists and conductors should be listed as their full names just like all non-classical artists. Titles such as "Sir" and "Dame" (where appropriate) are entirely optional.
+Orchestra and ensembles may be listed either in their native language or in English translation. Thus, in the example album above, the orchestra may be listed as either the Wiener Philharmoniker or as the Vienna Philharmonic Orchestra. Abbreviating common terms such as "Philharmonic Orchestra" as e.g. "PO" is strongly discouraged but is not grounds for trumping unless the entire name is abbreviated. For example, "Vienna PO" is discouraged but not trumpable, whereas simply listing the orchestra as VPO would be grounds to trump.
+On albums containing multiple works with differing performers and/or composers, the artist and composer tags must be set correctly on a per-work basis. For example, in our example album, setting the composer across the entire album as "Ludwig van Beethoven and Johannes Brahms" is not acceptable.
+
+
+Track Title trumping
+
+
+Leaving out the hyphen (-) between the work title and the movement number or replacing it with some other delimiting character such as a comma or colon is not grounds to trump.
+Simply using the catalog number as the work name is grounds to trump. In our example album, listing the first track as "Op. 67 - I. Allegro Con Brio" is not acceptable.
+Omitting catalog numbers is never grounds to trump as long as the work is easily identifiable. For example, in our example album, listing the symphony as "Symphony no. 5" would not be grounds to trump, but listing the Brahms Intermezzo in A minor, Op. 118 no. 1 as simply "Intermezzo in A minor" is not acceptable as Brahms wrote two intermezzi in the key of A minor. In general, even if the composer only wrote one work of that form in that particular key, an opus or catalog number should be included, though it is not grounds to trump if the piece is uniquely identified. This means that listing Beethoven's Fifth Symphony from our example as "Symphony in C minor" is strongly discouraged but insufficient to trump.
+Omitting the movement number, while strongly discouraged, is not grounds to trump. If a track title of a multi-track work is missing both movement numbers and tempo markings/movement titles, it may be trumped.
+
+
+File names
+
+
+Ideally, the folder name should contain the composer(s), album title, performers, and year. Due to length considerations, it is perfectly acceptable to use abbreviations for orchestras and to refer to composers (and even performers) only by last names. Additionally, the spine title may be used even if it is abbreviated. The minimum requirement is to include the composer and album title. In our example album, an ideal folder name might be "Beethoven - Symphony no. 5, Brahms - Violin Concerto (Chung, VPO, Rattle) - 2001 [FLAC]." Whenever possible, file names should match track titles (with a track number at the beginning). Please be aware that Windows limits file names to 255 characters, including the full path. As such please limit file names to 180 characters including the folder name per rule 2.3.12. Abbreviation and truncation may be used to meet this limit as long as it is reasonable. This means that the file name must still indicate which work and movement is being performed.
+
+Research
+
+
+There are some very good resources for researching all of this information. In many cases, the label will provide it for you. Some of the major classical labels' web sites are:
+BIS - http://www.bis.se/index.php
+Cedille - http://cedillerecords.org/
+Chandos - http://www.chandos.net/
+Channel Classics - http://www.channelclassics.com/
+CPO - http://www.jpc.de/jpcng/cpo/home/-/lang/en/currency/EUR
+Decca - http://www.deccaclassics.com/
+Deutsche Grammophon - http://www.deutschegrammophon.com/
+EMI Classics - http://www.emiclassics.com/
+Hänssler Classic - http://www.haenssler-classic.de/index.php
+Harmonia Mundi - http://www.harmoniamundi.com/
+Hyperion - http://hyperion-records.co.uk/
+Naxos - http://www.naxos.com/ http://naxosdirect.co.uk
+Nimbus - http://www.wyastone.co.uk/nimbus.html
+PentaTone - http://www.pentatonemusic.com/
+Reference Recordings - http://www.referencerecordings.com/
+
+Some retailers also provide excellent information:
+ArkivMusic - http://arkivmusic.com/
+ClassicalArchives - http://www.classicalarchives.com/
+Naxos - http://www.naxos.com/
+Passionato - http://www.passionato.com/
+Presto Classical - http://www.prestoclassical.co.uk/

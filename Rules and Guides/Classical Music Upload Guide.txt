@@ -1,0 +1,69 @@
+Note: You may also find it useful to read the extensive guide on tagging classical music, which can be found here.
+
+Due to intricacies inherent in the genre, our Uploading Rules are considerably more demanding towards classical music uploads in terms of metadata required. This affects both the way FLAC/MP3 files must be tagged, as well as the way the upload.php form should be filled. In this wiki, we will go through everything you need to know in order to ensure that your classical music uploads abide by our rules.
+
+Step 1: Tagging your FLAC/MP3, and DSD DSF files
+
+In order to tag your files properly, it is essential to consult the booklet of the related release — or, in case that's not available to you, look up said release in a reputable classical music database such as classicalarchives.com (more links at the bottom of this wiki). There you'll find all the required information you need.
+
+The following tags are mandatory:
+
+Composer
+Artist Name
+Track Title
+Album Title
+Track Number
+
+The following tags are optional, but strongly recommended:
+
+Year
+Album Artist
+
+We'll go through each one, explaining what it's for and how it's formatted.
+
+Composer
+
+This tag is designed to contain the name of the composer of each track. It should not include the name of any arranger in case of arrangements, nor the name of any lyricist in case of works with lyrics. Names should be complete, but as long as the composer is uniquely identifiable it is not trumpable. The spelling used in the English Wikipedia is preferred. For example, “Johann Sebastian Bach” is recommended, “J. S. Bach” is acceptable, but “Bach” is trumpable because it could also refer to Carl Philipp Emanuel Bach. Names must be in Latin alphabet (eg. Pyotr Ilyich Tchaikovsky instead of Пётр Ильи́ч Чайко́вский), and in case their name includes diacritics you are strongly advised not to drop them (eg. Béla Bartók instead of Bela Bartok).
+
+Artist Name
+
+Since composers have their own designated tag, Artist Name tags must be reserved for the performer(s) and conductor(s) of each track. When there are several performers on a track, which is almost always, the following format should be used: Soloist(s), followed by Orchestra(s)/Ensemble(s), followed by Conductor (example: "Peter Seiffert, Thomas Hampson, City of Birmingham Symphony Orchestra, Simon Rattle").
+
+Track Title
+
+This tag is about the name of the piece, and that alone. Do not repeat the name of the composer inside this tag! Works with multiple movements or otherwise spread across multiple tracks must have the full work title in every track. Inclusion of opus or catalog numbers is preferable but their lack is not grounds for trump as long as the work title is present. For example, a recommended title tag for the second movement of Beethoven’s ninth symphony would be “Symphony No. 9, Op. 125: II. Molto Vivace - Presto” but “Symphony No. 9: II. Molto Vivace - Presto” is also acceptable. “Op. 125: II. Molto Vivace - Presto” and “II. Molto Vivace - Presto” are both trumpable. If the work in question is an arrangement, this is where you can credit the arranger by appending a (arr. by _______) to the track title.
+
+Album Title
+
+This one isn't always so straight-forward. Sometimes there's no concise title on the album cover, just a lengthy list of performed works. A reliable practice is to check the spine of the CD case, where there's usually a brief title. Failing that, just go with the title of the release as it appears in classical music databases.
+
+Track Number
+
+This one needs no explanation.
+
+Year
+
+(optional, but strongly recommended)
+
+A common misconception about this tag is that it should reflect the date of the recording. This is wrong. If you use the Year tag, make sure to put the date of original release. Consult a classical music database when in doubt.
+
+Album Artist
+
+(optional, but strongly recommended)
+
+When the performer(s) do not remain the same throughout all tracks, this tag is used to credit the one who does appear in all tracks, or at least the one who gets the main credit in the album cover.
+
+Step 2: File/folder name guidelines
+
+In classical music, mentioning composer(s) and performer(s) in folder names is even more crucial than in popular music. For example, there are literally thousands of recordings of Symphony No. 9s, not only by various performers but by various composers as well; a folder named simply "Symphony No. 9" is not helpful at all. On the other hand, an overly lengthy and detailed folder name will almost always violate the 180 character limit, so usually you will have to strike a balance between the two extremes. The first step is making sure that your file names are not longer than necessary. Anything more elaborate than "## - Track Title.flac" is considered unnecessarily verbose. If the entire album consists of one work split in separate movements, it's even OK to drop the main title and keep only the name of the movements (however, please note that this is only OK for filenames - NOT for tags). The second step is making sure that your folder name is as concise yet informative as possible. Dropping first names and using common abbreviations (examples: J.S. Bach for Johann Sebastian Bach, LSO for London Symphony Orchestra and SQ for String Quartet) are all allowed. If the character limit remains an issue, feel free to trim the file names as short as necessary.
+
+Step 3: Filling out the upload.php form
+
+If you've tagged your files properly, this step should be relatively easy. All you have to do is copy all unique names from your Artist Name tags and paste them in separate Artist fields in upload.php, each under the appropriate category. Composer for composer(s), Conductor for conductor(s), Main Artist for performer(s). If a certain performer only appears on a few tracks rather than on most or throughout the album, they should be categorized as Guest. Make sure to upload the album cover if you can scan it or find it online, make sure that you fill out the Year field properly (ie. year of original release) and for the love of all that is good and holy, make sure you fill out the Record label field (Catalog number too, if you can find it).
+
+Appendix: Classical music databases
+
+ArkivMusic - http://arkivmusic.com/
+ClassicalArchives - http://www.classicalarchives.com/
+Naxos - http://www.naxos.com/
+Presto Classical - http://www.prestoclassical.co.uk/
