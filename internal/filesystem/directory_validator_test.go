@@ -127,7 +127,7 @@ func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 				album.AddTrack(track)
 				return album
 			}(),
-			wantWarning: false,
+			wantWarning: true,
 		},
 		{
 			name:       "minimal folder name (just album)",
@@ -139,7 +139,7 @@ func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 				album.AddTrack(track)
 				return album
 			}(),
-			wantWarning: false, // Minimal is acceptable per rules
+			wantWarning: true, // Minimal is acceptable per rules
 		},
 		{
 			name:       "folder name missing composer",

@@ -1,11 +1,8 @@
 package tagging
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
-	
-	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestFLACReader_ReadFile(t *testing.T) {
@@ -28,16 +25,17 @@ func TestFLACReader_ReadTrackFromFile(t *testing.T) {
 	
 	t.Skip("Requires FLAC test fixture")
 	
-	reader := NewFLACReader()
-	track, err := reader.ReadTrackFromFile("testdata/01-test.flac", 1, 1)
-	
-	if err != nil {
-		t.Fatalf("ReadTrackFromFile() error = %v", err)
-	}
-	
-	if track.Title() == "" {
-		t.Error("Expected non-empty title")
-	}
+	// Commented out until we have test fixtures
+	// reader := NewFLACReader()
+	// track, err := reader.ReadTrackFromFile("testdata/01-test.flac", 1, 1)
+	// 
+	// if err != nil {
+	// 	t.Fatalf("ReadTrackFromFile() error = %v", err)
+	// }
+	// 
+	// if track.Title() == "" {
+	// 	t.Error("Expected non-empty title")
+	// }
 }
 
 // TestMetadata validates the Metadata structure
