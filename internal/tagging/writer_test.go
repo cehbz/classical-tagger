@@ -3,512 +3,332 @@ package tagging
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// ============================================================================
-// Phase 1: Conversion Logic Tests (No FLAC files needed)
-// ============================================================================
+// TestFLACWriter_WriteTrack tests writing a single track's metadata to a new file.
+func TestFLACWriter_WriteTrack(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 
-func TestTrackToTagData_Basic(t *testing.T) {
-	// Create test album
-	album, _ := domain.NewAlbum("Goldberg Variations", 1981)
-	edition, _ := domain.NewEdition("Sony Classical", 1981)
-	edition = edition.WithCatalogNumber("SMK89245")
-	album = album.WithEdition(edition)
+	// Setup: Create a test FLAC file (we'll need a minimal valid FLAC)
+	// For now, we'll test the interface
+	t.Skip("requires test FLAC file fixture")
+
+	tmpDir := t.TempDir()
+	sourcePath := filepath.Join(tmpDir, "source.flac")
+	destPath := filepath.Join(tmpDir, "dest.flac")
 
 	// Create test track
 	composer, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-	performer, _ := domain.NewArtist("Glenn Gould", domain.RoleSoloist)
-	track, _ := domain.NewTrack(1, 1, "Aria", []domain.Artist{composer, performer})
+	ensemble, _ := domain.NewArtist("Glenn Gould", domain.RoleSoloist)
+	track, _ := domain.NewTrack(1, 1, "Goldberg Variations, BWV 988: Aria", []domain.Artist{composer, ensemble})
 
-	// Convert to tagData
-	tags := trackToTagData(track, album)
-
-	// Verify track-level fields
-	if tags.title != "Aria" {
-		t.Errorf("title = %q, want %q", tags.title, "Aria")
-	}
-	if tags.composer != "Johann Sebastian Bach" {
-		t.Errorf("composer = %q, want %q", tags.composer, "Johann Sebastian Bach")
-	}
-	if tags.artist != "Glenn Gould" {
-		t.Errorf("artist = %q, want %q (composer should be excluded)", tags.artist, "Glenn Gould")
-	}
-	if tags.trackNumber != "1" {
-		t.Errorf("trackNumber = %q, want %q", tags.trackNumber, "1")
-	}
-	if tags.discNumber != "1" {
-		t.Errorf("discNumber = %q, want %q", tags.discNumber, "1")
-	}
-
-	// Verify album-level fields
-	if tags.album != "Goldberg Variations" {
-		t.Errorf("album = %q, want %q", tags.album, "Goldberg Variations")
-	}
-	if tags.date != "1981" {
-		t.Errorf("date = %q, want %q", tags.date, "1981")
-	}
-	if tags.originalDate != "1981" {
-		t.Errorf("originalDate = %q, want %q", tags.originalDate, "1981")
-	}
-	if tags.label != "Sony Classical" {
-		t.Errorf("label = %q, want %q", tags.label, "Sony Classical")
-	}
-	if tags.catalogNumber != "SMK89245" {
-		t.Errorf("catalogNumber = %q, want %q", tags.catalogNumber, "SMK89245")
-	}
-}
-
-func TestTrackToTagData_MultiplePerformers(t *testing.T) {
-	album, _ := domain.NewAlbum("Piano Concerto No. 1", 1976)
-
-	composer, _ := domain.NewArtist("Ludwig van Beethoven", domain.RoleComposer)
-	soloist, _ := domain.NewArtist("Martha Argerich", domain.RoleSoloist)
-	ensemble, _ := domain.NewArtist("London Symphony Orchestra", domain.RoleEnsemble)
-	conductor, _ := domain.NewArtist("Claudio Abbado", domain.RoleConductor)
-
-	track, _ := domain.NewTrack(1, 1, "Piano Concerto No. 1: I. Allegro",
-		[]domain.Artist{composer, soloist, ensemble, conductor})
-
-	tags := trackToTagData(track, album)
-
-	// Artist field should be "Soloist, Ensemble, Conductor" (no composer)
-	expected := "Martha Argerich, London Symphony Orchestra, Claudio Abbado"
-	if tags.artist != expected {
-		t.Errorf("artist = %q, want %q", tags.artist, expected)
-	}
-
-	// Composer should be separate
-	if tags.composer != "Ludwig van Beethoven" {
-		t.Errorf("composer = %q, want %q", tags.composer, "Ludwig van Beethoven")
-	}
-}
-
-func TestTrackToTagData_NoEdition(t *testing.T) {
-	album, _ := domain.NewAlbum("Test Album", 2020)
-	composer, _ := domain.NewArtist("Test Composer", domain.RoleComposer)
-	track, _ := domain.NewTrack(1, 1, "Test Track", []domain.Artist{composer})
-
-	tags := trackToTagData(track, album)
-
-	// Edition fields should be empty
-	if tags.label != "" {
-		t.Errorf("label = %q, want empty", tags.label)
-	}
-	if tags.catalogNumber != "" {
-		t.Errorf("catalogNumber = %q, want empty", tags.catalogNumber)
-	}
-	// Date should still be set to original year
-	if tags.date != "2020" {
-		t.Errorf("date = %q, want %q", tags.date, "2020")
-	}
-	if tags.originalDate != "2020" {
-		t.Errorf("originalDate = %q, want %q", tags.originalDate, "2020")
-	}
-}
-
-func TestTrackToTagData_DifferentEditionYear(t *testing.T) {
-	album, _ := domain.NewAlbum("Test Album", 1960)
-	edition, _ := domain.NewEdition("Reissue Label", 2020)
+	writer := NewFLACWriter()
+	album, _ := domain.NewAlbum("Goldberg Variations", 1981)
+	edition, _ := domain.NewEdition("Sony Classical", 1992)
+	edition = edition.WithCatalogNumber("SK 52594")
 	album = album.WithEdition(edition)
-
-	composer, _ := domain.NewArtist("Test Composer", domain.RoleComposer)
-	track, _ := domain.NewTrack(1, 1, "Test Track", []domain.Artist{composer})
-
-	tags := trackToTagData(track, album)
-
-	// DATE should be edition year, ORIGINALDATE should be original
-	if tags.date != "2020" {
-		t.Errorf("date = %q, want %q (edition year)", tags.date, "2020")
+	err := writer.WriteTrack(sourcePath, destPath, track, album)
+	if err != nil {
+		t.Fatalf("WriteTrack() error = %v", err)
 	}
-	if tags.originalDate != "1960" {
-		t.Errorf("originalDate = %q, want %q (original year)", tags.originalDate, "1960")
+
+	// Verify dest file exists
+	if _, err := os.Stat(destPath); os.IsNotExist(err) {
+		t.Error("Destination file was not created")
 	}
 }
 
-func TestFormatArtists_RoleOrdering(t *testing.T) {
+// TestFLACWriter_PreservesAudio tests that audio data is copied bit-perfect.
+func TestFLACWriter_PreservesAudio(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	t.Skip("requires test FLAC file fixture and audio comparison")
+}
+
+// TestMetadataToVorbisComment tests conversion from domain Track to Vorbis comment tags.
+func TestMetadataToVorbisComment(t *testing.T) {
 	tests := []struct {
 		name     string
-		artists  []domain.Artist
-		expected string
+		track    *domain.Track
+		album    *domain.Album
+		wantTags map[string]string
 	}{
 		{
-			name: "soloist only",
-			artists: []domain.Artist{
-				mustArtist("Glenn Gould", domain.RoleSoloist),
+			name: "single composer, single performer",
+			track: func() *domain.Track {
+				composer, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
+				performer, _ := domain.NewArtist("Glenn Gould", domain.RoleSoloist)
+				track, _ := domain.NewTrack(1, 1, "Goldberg Variations, BWV 988: Aria",
+					[]domain.Artist{composer, performer})
+				return track
+			}(),
+			album: func() *domain.Album {
+				album, _ := domain.NewAlbum("Goldberg Variations", 1981)
+				return album
+			}(),
+			wantTags: map[string]string{
+				"COMPOSER":     "Johann Sebastian Bach",
+				"ARTIST":       "Glenn Gould",
+				"PERFORMER":    "Glenn Gould",
+				"TITLE":        "Goldberg Variations, BWV 988: Aria",
+				"ALBUM":        "Goldberg Variations",
+				"TRACKNUMBER":  "1",
+				"DISCNUMBER":   "1",
+				"ORIGINALDATE": "1981",
 			},
-			expected: "Glenn Gould",
 		},
 		{
-			name: "ensemble only",
-			artists: []domain.Artist{
-				mustArtist("Berlin Philharmonic", domain.RoleEnsemble),
+			name: "multiple performers with roles",
+			track: func() *domain.Track {
+				composer, _ := domain.NewArtist("Johannes Brahms", domain.RoleComposer)
+				soloist, _ := domain.NewArtist("Anne-Sophie Mutter", domain.RoleSoloist)
+				ensemble, _ := domain.NewArtist("Berlin Philharmonic", domain.RoleEnsemble)
+				conductor, _ := domain.NewArtist("Herbert von Karajan", domain.RoleConductor)
+				track, _ := domain.NewTrack(1, 1, "Violin Concerto in D major, Op. 77: I. Allegro non troppo",
+					[]domain.Artist{composer, soloist, ensemble, conductor})
+				return track
+			}(),
+			album: func() *domain.Album {
+				album, _ := domain.NewAlbum("Brahms: Violin Concerto", 1980)
+				return album
+			}(),
+			wantTags: map[string]string{
+				"COMPOSER":     "Johannes Brahms",
+				"ARTIST":       "Anne-Sophie Mutter, Berlin Philharmonic, Herbert von Karajan",
+				"PERFORMER":    "Anne-Sophie Mutter",
+				"ENSEMBLE":     "Berlin Philharmonic",
+				"CONDUCTOR":    "Herbert von Karajan",
+				"TITLE":        "Violin Concerto in D major, Op. 77: I. Allegro non troppo",
+				"ALBUM":        "Brahms: Violin Concerto",
+				"TRACKNUMBER":  "1",
+				"DISCNUMBER":   "1",
+				"ORIGINALDATE": "1980",
 			},
-			expected: "Berlin Philharmonic",
 		},
 		{
-			name: "conductor only",
-			artists: []domain.Artist{
-				mustArtist("Herbert von Karajan", domain.RoleConductor),
+			name: "with edition info",
+			track: func() *domain.Track {
+				composer, _ := domain.NewArtist("Felix Mendelssohn Bartholdy", domain.RoleComposer)
+				ensemble, _ := domain.NewArtist("RIAS Kammerchor", domain.RoleEnsemble)
+				track, _ := domain.NewTrack(1, 1, "Frohlocket, Op. 79/1",
+					[]domain.Artist{composer, ensemble})
+				return track
+			}(),
+			album: func() *domain.Album {
+				album, _ := domain.NewAlbum("Christmas Music", 2013)
+				edition, _ := domain.NewEdition("harmonia mundi", 2013)
+				edition = edition.WithCatalogNumber("HMC902170")
+				album = album.WithEdition(edition)
+				return album
+			}(),
+			wantTags: map[string]string{
+				"COMPOSER":      "Felix Mendelssohn Bartholdy",
+				"ARTIST":        "RIAS Kammerchor",
+				"ENSEMBLE":      "RIAS Kammerchor",
+				"TITLE":         "Frohlocket, Op. 79/1",
+				"ALBUM":         "Christmas Music",
+				"TRACKNUMBER":   "1",
+				"DISCNUMBER":    "1",
+				"ORIGINALDATE":  "2013",
+				"DATE":          "2013", // Edition year
+				"LABEL":         "harmonia mundi",
+				"CATALOGNUMBER": "HMC902170",
 			},
-			expected: "Herbert von Karajan",
 		},
 		{
-			name: "soloist and ensemble",
-			artists: []domain.Artist{
-				mustArtist("Martha Argerich", domain.RoleSoloist),
-				mustArtist("LSO", domain.RoleEnsemble),
+			name: "original recording remastered - different years",
+			track: func() *domain.Track {
+				composer, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
+				performer, _ := domain.NewArtist("Glenn Gould", domain.RoleSoloist)
+				track, _ := domain.NewTrack(1, 1, "Goldberg Variations, BWV 988: Aria",
+					[]domain.Artist{composer, performer})
+				return track
+			}(),
+			album: func() *domain.Album {
+				album, _ := domain.NewAlbum("Goldberg Variations", 1955) // Original recording
+				edition, _ := domain.NewEdition("Sony Classical", 1992)  // Remaster edition
+				edition = edition.WithCatalogNumber("SK 52594")
+				album = album.WithEdition(edition)
+				return album
+			}(),
+			wantTags: map[string]string{
+				"COMPOSER":      "Johann Sebastian Bach",
+				"ARTIST":        "Glenn Gould",
+				"PERFORMER":     "Glenn Gould",
+				"TITLE":         "Goldberg Variations, BWV 988: Aria",
+				"ALBUM":         "Goldberg Variations",
+				"TRACKNUMBER":   "1",
+				"DISCNUMBER":    "1",
+				"ORIGINALDATE":  "1955", // Original recording year
+				"DATE":          "1992", // Remaster/edition year
+				"LABEL":         "Sony Classical",
+				"CATALOGNUMBER": "SK 52594",
 			},
-			expected: "Martha Argerich, LSO",
-		},
-		{
-			name: "all three roles",
-			artists: []domain.Artist{
-				mustArtist("Kyung-Wha Chung", domain.RoleSoloist),
-				mustArtist("Vienna Philharmonic", domain.RoleEnsemble),
-				mustArtist("Simon Rattle", domain.RoleConductor),
-			},
-			expected: "Kyung-Wha Chung, Vienna Philharmonic, Simon Rattle",
-		},
-		{
-			name: "multiple soloists",
-			artists: []domain.Artist{
-				mustArtist("Peter Seiffert", domain.RoleSoloist),
-				mustArtist("Thomas Hampson", domain.RoleSoloist),
-				mustArtist("City of Birmingham Symphony Orchestra", domain.RoleEnsemble),
-				mustArtist("Simon Rattle", domain.RoleConductor),
-			},
-			expected: "Peter Seiffert, Thomas Hampson, City of Birmingham Symphony Orchestra, Simon Rattle",
-		},
-		{
-			name: "with composer (should be excluded)",
-			artists: []domain.Artist{
-				mustArtist("Johann Sebastian Bach", domain.RoleComposer),
-				mustArtist("Glenn Gould", domain.RoleSoloist),
-			},
-			expected: "Glenn Gould",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatArtists(tt.artists)
-			if result != tt.expected {
-				t.Errorf("formatArtists() = %q, want %q", result, tt.expected)
+			tags := MetadataToVorbisComment(tt.track, tt.album)
+
+			for key, want := range tt.wantTags {
+				got, exists := tags[key]
+				if !exists {
+					t.Errorf("MetadataToVorbisComment() missing tag %q", key)
+					continue
+				}
+				if got != want {
+					t.Errorf("MetadataToVorbisComment() tag %q = %q, want %q", key, got, want)
+				}
 			}
-		})
-	}
-}
 
-func TestDetermineAlbumArtist_SingleUniversal(t *testing.T) {
-	album, _ := domain.NewAlbum("Test Album", 2020)
-
-	composer1, _ := domain.NewArtist("Composer 1", domain.RoleComposer)
-	composer2, _ := domain.NewArtist("Composer 2", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Test Ensemble", domain.RoleEnsemble)
-	conductor, _ := domain.NewArtist("Test Conductor", domain.RoleConductor)
-
-	// Track 1
-	track1, _ := domain.NewTrack(1, 1, "Track 1", []domain.Artist{composer1, ensemble, conductor})
-	album.AddTrack(track1)
-
-	// Track 2 - same performers, different composer
-	track2, _ := domain.NewTrack(1, 2, "Track 2", []domain.Artist{composer2, ensemble, conductor})
-	album.AddTrack(track2)
-
-	albumArtist, universal := determineAlbumArtist(album)
-
-	expected := "Test Ensemble, Test Conductor"
-	if albumArtist != expected {
-		t.Errorf("albumArtist = %q, want %q", albumArtist, expected)
-	}
-
-	if len(universal) != 2 {
-		t.Errorf("universal count = %d, want 2", len(universal))
-	}
-}
-
-func TestDetermineAlbumArtist_NoUniversal(t *testing.T) {
-	album, _ := domain.NewAlbum("Test Album", 2020)
-
-	composer, _ := domain.NewArtist("Composer", domain.RoleComposer)
-	soloist1, _ := domain.NewArtist("Soloist 1", domain.RoleSoloist)
-	soloist2, _ := domain.NewArtist("Soloist 2", domain.RoleSoloist)
-
-	// Track 1 - Soloist 1
-	track1, _ := domain.NewTrack(1, 1, "Track 1", []domain.Artist{composer, soloist1})
-	album.AddTrack(track1)
-
-	// Track 2 - Soloist 2 (different)
-	track2, _ := domain.NewTrack(1, 2, "Track 2", []domain.Artist{composer, soloist2})
-	album.AddTrack(track2)
-
-	albumArtist, universal := determineAlbumArtist(album)
-
-	if albumArtist != "" {
-		t.Errorf("albumArtist = %q, want empty (no universal performers)", albumArtist)
-	}
-
-	if len(universal) != 0 {
-		t.Errorf("universal count = %d, want 0", len(universal))
-	}
-}
-
-func TestDetermineAlbumArtist_HarmoniaMundial(t *testing.T) {
-	// Real example from Harmonia Mundi album
-	album, _ := domain.NewAlbum("Noël · Weihnachten · Christmas", 2013)
-
-	mendelssohn, _ := domain.NewArtist("Felix Mendelssohn Bartholdy", domain.RoleComposer)
-	brahms, _ := domain.NewArtist("Johannes Brahms", domain.RoleComposer)
-	poulenc, _ := domain.NewArtist("Francis Poulenc", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("RIAS Kammerchor Berlin", domain.RoleEnsemble)
-	conductor, _ := domain.NewArtist("Hans-Christoph Rademann", domain.RoleConductor)
-
-	// All tracks have same ensemble and conductor, different composers
-	track1, _ := domain.NewTrack(1, 1, "Track 1", []domain.Artist{mendelssohn, ensemble, conductor})
-	track2, _ := domain.NewTrack(1, 2, "Track 2", []domain.Artist{brahms, ensemble, conductor})
-	track3, _ := domain.NewTrack(1, 3, "Track 3", []domain.Artist{poulenc, ensemble, conductor})
-
-	album.AddTrack(track1)
-	album.AddTrack(track2)
-	album.AddTrack(track3)
-
-	albumArtist, universal := determineAlbumArtist(album)
-
-	// Should have both ensemble and conductor
-	if !strings.Contains(albumArtist, "RIAS Kammerchor Berlin") {
-		t.Errorf("albumArtist missing ensemble: %q", albumArtist)
-	}
-	if !strings.Contains(albumArtist, "Hans-Christoph Rademann") {
-		t.Errorf("albumArtist missing conductor: %q", albumArtist)
-	}
-
-	if len(universal) != 2 {
-		t.Errorf("universal count = %d, want 2 (ensemble + conductor)", len(universal))
-	}
-}
-
-// ============================================================================
-// Phase 2: Data Loss Detection Tests
-// ============================================================================
-
-func TestSplitArtists(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected []string
-	}{
-		{
-			name:     "single artist",
-			input:    "Glenn Gould",
-			expected: []string{"Glenn Gould"},
-		},
-		{
-			name:     "two artists comma",
-			input:    "Glenn Gould, Herbert von Karajan",
-			expected: []string{"Glenn Gould", "Herbert von Karajan"},
-		},
-		{
-			name:     "three artists comma",
-			input:    "Kyung-Wha Chung, Vienna Philharmonic, Simon Rattle",
-			expected: []string{"Kyung-Wha Chung", "Vienna Philharmonic", "Simon Rattle"},
-		},
-		{
-			name:     "semicolon separator",
-			input:    "Artist 1; Artist 2; Artist 3",
-			expected: []string{"Artist 1", "Artist 2", "Artist 3"},
-		},
-		{
-			name:     "with extra spaces",
-			input:    "Artist 1 ,  Artist 2  ,Artist 3",
-			expected: []string{"Artist 1", "Artist 2", "Artist 3"},
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: []string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := splitArtists(tt.input)
-			if len(result) != len(tt.expected) {
-				t.Errorf("splitArtists() count = %d, want %d", len(result), len(tt.expected))
-				return
-			}
-			for i, expected := range tt.expected {
-				if result[i] != expected {
-					t.Errorf("splitArtists()[%d] = %q, want %q", i, result[i], expected)
+			// Check no extra tags
+			for key := range tags {
+				if _, expected := tt.wantTags[key]; !expected {
+					t.Errorf("MetadataToVorbisComment() unexpected tag %q = %q", key, tags[key])
 				}
 			}
 		})
 	}
 }
 
-func TestIsArtistSuperset_Safe(t *testing.T) {
+// TestFormatArtists tests formatting multiple artists according to classical music rules.
+func TestFormatArtists(t *testing.T) {
 	tests := []struct {
 		name    string
-		oldVal  string
-		newVal  string
-		wantOK  bool
-		wantMsg string
+		artists []domain.Artist
+		want    string
 	}{
 		{
-			name:   "identical",
-			oldVal: "Glenn Gould",
-			newVal: "Glenn Gould",
-			wantOK: true,
+			name: "single soloist",
+			artists: []domain.Artist{
+				func() domain.Artist { a, _ := domain.NewArtist("Martha Argerich", domain.RoleSoloist); return a }(),
+			},
+			want: "Martha Argerich",
 		},
 		{
-			name:   "adding artist",
-			oldVal: "Glenn Gould",
-			newVal: "Glenn Gould, Vienna Philharmonic",
-			wantOK: true,
+			name: "soloist, ensemble, conductor",
+			artists: []domain.Artist{
+				func() domain.Artist { a, _ := domain.NewArtist("Martha Argerich", domain.RoleSoloist); return a }(),
+				func() domain.Artist { a, _ := domain.NewArtist("Berlin Philharmonic", domain.RoleEnsemble); return a }(),
+				func() domain.Artist { a, _ := domain.NewArtist("Claudio Abbado", domain.RoleConductor); return a }(),
+			},
+			want: "Martha Argerich, Berlin Philharmonic, Claudio Abbado",
 		},
 		{
-			name:   "adding two artists",
-			oldVal: "Glenn Gould",
-			newVal: "Glenn Gould, Vienna Philharmonic, Herbert von Karajan",
-			wantOK: true,
+			name: "multiple soloists, ensemble, conductor",
+			artists: []domain.Artist{
+				func() domain.Artist { a, _ := domain.NewArtist("Anne-Sophie Mutter", domain.RoleSoloist); return a }(),
+				func() domain.Artist { a, _ := domain.NewArtist("Yo-Yo Ma", domain.RoleSoloist); return a }(),
+				func() domain.Artist {
+					a, _ := domain.NewArtist("Boston Symphony Orchestra", domain.RoleEnsemble)
+					return a
+				}(),
+				func() domain.Artist { a, _ := domain.NewArtist("Seiji Ozawa", domain.RoleConductor); return a }(),
+			},
+			want: "Anne-Sophie Mutter, Yo-Yo Ma, Boston Symphony Orchestra, Seiji Ozawa",
 		},
 		{
-			name:   "reordering safe",
-			oldVal: "Karajan, Berlin Philharmonic",
-			newVal: "Berlin Philharmonic, Karajan",
-			wantOK: true,
+			name: "ensemble only",
+			artists: []domain.Artist{
+				func() domain.Artist { a, _ := domain.NewArtist("Vienna Philharmonic", domain.RoleEnsemble); return a }(),
+			},
+			want: "Vienna Philharmonic",
 		},
 		{
-			name:    "removing artist",
-			oldVal:  "Glenn Gould, Vienna Philharmonic, Herbert von Karajan",
-			newVal:  "Glenn Gould",
-			wantOK:  false,
-			wantMsg: "Vienna Philharmonic",
-		},
-		{
-			name:    "completely different",
-			oldVal:  "Artist A",
-			newVal:  "Artist B",
-			wantOK:  false,
-			wantMsg: "Artist A",
-		},
-		{
-			name:   "case insensitive match",
-			oldVal: "glenn gould",
-			newVal: "Glenn Gould",
-			wantOK: true,
+			name: "composer filtered out",
+			artists: []domain.Artist{
+				func() domain.Artist { a, _ := domain.NewArtist("Mozart", domain.RoleComposer); return a }(),
+				func() domain.Artist { a, _ := domain.NewArtist("Vienna Philharmonic", domain.RoleEnsemble); return a }(),
+			},
+			want: "Vienna Philharmonic",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ok, msg := isArtistSuperset(tt.newVal, tt.oldVal)
-			if ok != tt.wantOK {
-				t.Errorf("isArtistSuperset() ok = %v, want %v", ok, tt.wantOK)
-			}
-			if !tt.wantOK && !strings.Contains(msg, tt.wantMsg) {
-				t.Errorf("isArtistSuperset() msg = %q, should contain %q", msg, tt.wantMsg)
+			got := FormatArtists(tt.artists)
+			if got != tt.want {
+				t.Errorf("FormatArtists() = %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
-// ============================================================================
-// Phase 3: FLAC Integration Tests (Skipped without fixture)
-// ============================================================================
+// TestDetermineAlbumArtist tests finding universal performers across tracks.
+func TestDetermineAlbumArtist(t *testing.T) {
+	tests := []struct {
+		name             string
+		setupAlbum       func() *domain.Album
+		wantAlbumArtist  string
+		wantUniversalLen int
+	}{
+		{
+			name: "same ensemble and conductor throughout",
+			setupAlbum: func() *domain.Album {
+				album, _ := domain.NewAlbum("Test Album", 2020)
 
-func TestFLACWriter_DryRun(t *testing.T) {
-	writer := NewFLACWriter()
-	writer.SetDryRun(true)
+				composer1, _ := domain.NewArtist("Composer 1", domain.RoleComposer)
+				composer2, _ := domain.NewArtist("Composer 2", domain.RoleComposer)
+				ensemble, _ := domain.NewArtist("Test Ensemble", domain.RoleEnsemble)
+				conductor, _ := domain.NewArtist("Test Conductor", domain.RoleConductor)
 
-	album, _ := domain.NewAlbum("Test", 2020)
-	composer, _ := domain.NewArtist("Test", domain.RoleComposer)
-	track, _ := domain.NewTrack(1, 1, "Test", []domain.Artist{composer})
+				// Track 1
+				track1, _ := domain.NewTrack(1, 1, "Track 1", []domain.Artist{composer1, ensemble, conductor})
+				album.AddTrack(track1)
 
-	// In dry-run, should not error even with non-existent file
-	err := writer.WriteTrack("/nonexistent/path.flac", track, album)
-	if err != nil {
-		t.Errorf("DryRun should not error, got: %v", err)
-	}
-}
+				// Track 2 - same performers, different composer
+				track2, _ := domain.NewTrack(1, 2, "Track 2", []domain.Artist{composer2, ensemble, conductor})
+				album.AddTrack(track2)
 
-func TestFLACWriter_BackupRestore(t *testing.T) {
-	writer := NewFLACWriter()
+				return album
+			},
+			wantAlbumArtist:  "Test Ensemble, Test Conductor",
+			wantUniversalLen: 2,
+		},
+		{
+			name: "no universal performers",
+			setupAlbum: func() *domain.Album {
+				album, _ := domain.NewAlbum("Test Album", 2020)
 
-	// Create a test file
-	tempDir := t.TempDir()
-	testFile := filepath.Join(tempDir, "test.flac")
-	originalContent := []byte("test flac data")
-	err := os.WriteFile(testFile, originalContent, 0644)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
+				composer, _ := domain.NewArtist("Composer", domain.RoleComposer)
+				soloist1, _ := domain.NewArtist("Soloist 1", domain.RoleSoloist)
+				soloist2, _ := domain.NewArtist("Soloist 2", domain.RoleSoloist)
 
-	// Backup
-	backupPath, err := writer.BackupFile(testFile)
-	if err != nil {
-		t.Fatalf("BackupFile() error = %v", err)
-	}
+				// Track 1 - Soloist 1
+				track1, _ := domain.NewTrack(1, 1, "Track 1", []domain.Artist{composer, soloist1})
+				album.AddTrack(track1)
 
-	// Verify backup exists
-	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
-		t.Error("Backup file was not created")
-	}
+				// Track 2 - Soloist 2 (different)
+				track2, _ := domain.NewTrack(1, 2, "Track 2", []domain.Artist{composer, soloist2})
+				album.AddTrack(track2)
 
-	// Modify original
-	err = os.WriteFile(testFile, []byte("modified"), 0644)
-	if err != nil {
-		t.Fatalf("Failed to modify file: %v", err)
-	}
-
-	// Restore
-	err = writer.RestoreBackup(backupPath, testFile)
-	if err != nil {
-		t.Fatalf("RestoreBackup() error = %v", err)
-	}
-
-	// Verify restored content matches original
-	restoredContent, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Fatalf("Failed to read restored file: %v", err)
+				return album
+			},
+			wantAlbumArtist:  "",
+			wantUniversalLen: 0,
+		},
 	}
 
-	if string(restoredContent) != string(originalContent) {
-		t.Error("Restored content does not match original")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			album := tt.setupAlbum()
+			albumArtist, universal := DetermineAlbumArtist(album)
+
+			if albumArtist != tt.wantAlbumArtist {
+				t.Errorf("DetermineAlbumArtist() albumArtist = %q, want %q", albumArtist, tt.wantAlbumArtist)
+			}
+
+			if len(universal) != tt.wantUniversalLen {
+				t.Errorf("DetermineAlbumArtist() universal count = %d, want %d", len(universal), tt.wantUniversalLen)
+			}
+		})
 	}
-}
-
-func TestFLACWriter_WriteTrack_Integration(t *testing.T) {
-	t.Skip("Requires FLAC test fixture - implement after basic structure works")
-
-	// This test will:
-	// 1. Create or use a test FLAC file
-	// 2. Write tags using WriteTrack
-	// 3. Read back using FLACReader
-	// 4. Verify all tags match
-}
-
-func TestFLACWriter_PreservesExistingTags(t *testing.T) {
-	t.Skip("Requires FLAC test fixture")
-
-	// This test will:
-	// 1. Create FLAC with REPLAYGAIN_* tags
-	// 2. Write music metadata
-	// 3. Verify REPLAYGAIN_* tags still present
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-func mustArtist(name string, role domain.Role) domain.Artist {
-	artist, err := domain.NewArtist(name, role)
-	if err != nil {
-		panic(err)
-	}
-	return artist
 }
