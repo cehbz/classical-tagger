@@ -5,9 +5,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	
-	"github.com/dhowden/tag"
+
 	"github.com/cehbz/classical-tagger/internal/domain"
+	"github.com/dhowden/tag"
 )
 
 // Metadata represents audio file metadata tags.
@@ -51,7 +51,7 @@ func (m Metadata) ToTrack(filename string) (*domain.Track, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid track number %q: %w", m.TrackNumber, err)
 	}
-	
+
 	// Parse disc number (default to 1)
 	discNum := 1
 	if m.DiscNumber != "" {
@@ -60,13 +60,13 @@ func (m Metadata) ToTrack(filename string) (*domain.Track, error) {
 			return nil, fmt.Errorf("invalid disc number %q: %w", m.DiscNumber, err)
 		}
 	}
-	
+
 	// Create composer artist
 	composer, err := domain.NewArtist(m.Composer, domain.RoleComposer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid composer: %w", err)
 	}
-	
+
 	// Parse performers from Artist field
 	// For now, we'll create a simple ensemble artist
 	// TODO: Parse the "Soloist, Ensemble, Conductor" format properly
@@ -78,13 +78,13 @@ func (m Metadata) ToTrack(filename string) (*domain.Track, error) {
 			artists = append(artists, performer)
 		}
 	}
-	
+
 	// Create track
 	track, err := domain.NewTrack(discNum, trackNum, m.Title, artists)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create track: %w", err)
 	}
-	
+
 	track = track.WithName(filename)
 	return track, nil
 }
@@ -95,7 +95,7 @@ func parseTrackNumber(s string) (int, error) {
 	if idx := strings.Index(s, "/"); idx != -1 {
 		s = s[:idx]
 	}
-	
+
 	return strconv.Atoi(strings.TrimSpace(s))
 }
 
@@ -114,15 +114,15 @@ func (r *FLACReader) ReadFile(path string) (Metadata, error) {
 		return Metadata{}, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
-	
+
 	m, err := tag.ReadFrom(file)
 	if err != nil {
 		return Metadata{}, fmt.Errorf("failed to read tags: %w", err)
 	}
-	
+
 	track, _ := m.Track()
 	disc, _ := m.Disc()
-	
+
 	metadata := Metadata{
 		Title:       m.Title(),
 		Artist:      m.Artist(),
@@ -133,7 +133,7 @@ func (r *FLACReader) ReadFile(path string) (Metadata, error) {
 		TrackNumber: strconv.Itoa(track),
 		DiscNumber:  strconv.Itoa(disc),
 	}
-	
+
 	return metadata, nil
 }
 
@@ -143,11 +143,11 @@ func (r *FLACReader) ReadTrackFromFile(path string, expectedDisc, expectedTrack 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if err := metadata.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid metadata: %w", err)
 	}
-	
+
 	// Extract just the filename without path
 	filename := path
 	if idx := strings.LastIndex(path, "/"); idx != -1 {
@@ -156,19 +156,28 @@ func (r *FLACReader) ReadTrackFromFile(path string, expectedDisc, expectedTrack 
 	if idx := strings.LastIndex(path, "\\"); idx != -1 {
 		filename = path[idx+1:]
 	}
-	
+
 	track, err := metadata.ToTrack(filename)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Verify disc and track numbers match expected
+	if err := validateDiskAndTrackNumbers(track, expectedDisc, expectedTrack); err != nil {
+		return nil, err
+	}
+
+	return track, nil
+}
+
+// validateDiskAndTrackNumbers checks that the track's disc/track match expectations.
+// Separated for unit testing without needing real FLAC files.
+func validateDiskAndTrackNumbers(track *domain.Track, expectedDisc, expectedTrack int) error {
 	if track.Disc() != expectedDisc {
-		return nil, fmt.Errorf("disc number mismatch: got %d, expected %d", track.Disc(), expectedDisc)
+		return fmt.Errorf("disc number mismatch: got %d, expected %d", track.Disc(), expectedDisc)
 	}
 	if track.Track() != expectedTrack {
-		return nil, fmt.Errorf("track number mismatch: got %d, expected %d", track.Track(), expectedTrack)
+		return fmt.Errorf("track number mismatch: got %d, expected %d", track.Track(), expectedTrack)
 	}
-	
-	return track, nil
+	return nil
 }

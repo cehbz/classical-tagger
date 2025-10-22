@@ -1,6 +1,7 @@
 package tagging
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 )
@@ -8,9 +9,9 @@ import (
 func TestFLACReader_ReadFile(t *testing.T) {
 	// Note: These tests require actual FLAC files to run.
 	// For now, we test the interface and error handling.
-	
+
 	reader := NewFLACReader()
-	
+
 	t.Run("non-existent file", func(t *testing.T) {
 		_, err := reader.ReadFile("nonexistent.flac")
 		if err == nil {
@@ -22,20 +23,59 @@ func TestFLACReader_ReadFile(t *testing.T) {
 func TestFLACReader_ReadTrackFromFile(t *testing.T) {
 	// This test would need a real FLAC file with proper tags
 	// For CI/CD, you'd want to include a test fixture
-	
+
 	t.Skip("Requires FLAC test fixture")
-	
+
 	// Commented out until we have test fixtures
 	// reader := NewFLACReader()
 	// track, err := reader.ReadTrackFromFile("testdata/01-test.flac", 1, 1)
-	// 
+	//
 	// if err != nil {
 	// 	t.Fatalf("ReadTrackFromFile() error = %v", err)
 	// }
-	// 
+	//
 	// if track.Title() == "" {
 	// 	t.Error("Expected non-empty title")
 	// }
+}
+
+func TestValidateExpectedNumbers(t *testing.T) {
+	// Build a fake domain.Track via Metadata -> ToTrack to avoid direct construction
+	md := Metadata{
+		Title:       "Track Title",
+		Composer:    "Johann Sebastian Bach",
+		Artist:      "Performer",
+		Album:       "Album",
+		Year:        "1981",
+		TrackNumber: "3",
+		DiscNumber:  "2",
+	}
+	tr, err := md.ToTrack("03 Example.flac")
+	if err != nil {
+		t.Fatalf("setup ToTrack failed: %v", err)
+	}
+
+	t.Run("happy path - matches expected disc and track", func(t *testing.T) {
+		if err := validateDiskAndTrackNumbers(tr, 2, 3); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("mismatch track - returns error", func(t *testing.T) {
+		err := validateDiskAndTrackNumbers(tr, 2, 4)
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+		if !errors.Is(err, err) { // sanity to use err
+			// no-op
+		}
+	})
+
+	t.Run("mismatch disc - returns error", func(t *testing.T) {
+		if err := validateDiskAndTrackNumbers(tr, 1, 3); err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+	})
 }
 
 // TestMetadata validates the Metadata structure
@@ -67,7 +107,7 @@ func TestMetadata(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.metadata.Validate()
@@ -88,16 +128,16 @@ func TestMetadata_ToTrack(t *testing.T) {
 		TrackNumber: "1",
 		DiscNumber:  "1",
 	}
-	
+
 	track, err := metadata.ToTrack(filepath.Base("01 Symphony No. 5.flac"))
 	if err != nil {
 		t.Fatalf("ToTrack() error = %v", err)
 	}
-	
+
 	if track.Title() != metadata.Title {
 		t.Errorf("ToTrack() title = %v, want %v", track.Title(), metadata.Title)
 	}
-	
+
 	composer := track.Composer()
 	if composer.Name() != metadata.Composer {
 		t.Errorf("ToTrack() composer = %v, want %v", composer.Name(), metadata.Composer)

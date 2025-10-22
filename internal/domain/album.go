@@ -20,10 +20,11 @@ func NewAlbum(title string, originalYear int) (*Album, error) {
 	if title == "" {
 		return nil, fmt.Errorf("album title cannot be empty")
 	}
-	if originalYear <= 0 {
-		return nil, fmt.Errorf("album year must be positive, got %d", originalYear)
+	// Year is optional (2.3.16.4). Allow 0 to represent unknown; negative is invalid.
+	if originalYear < 0 {
+		return nil, fmt.Errorf("album year must be >= 0, got %d", originalYear)
 	}
-	
+
 	return &Album{
 		title:        title,
 		originalYear: originalYear,
@@ -72,7 +73,7 @@ func (a *Album) Tracks() []*Track {
 // Returns all validation issues from the album and all its tracks.
 func (a *Album) Validate() []ValidationIssue {
 	var issues []ValidationIssue
-	
+
 	// Album must have at least one track (2.3.16.4 implies music content)
 	if len(a.tracks) == 0 {
 		issues = append(issues, NewIssue(
@@ -82,7 +83,7 @@ func (a *Album) Validate() []ValidationIssue {
 			"Album must have at least one track",
 		))
 	}
-	
+
 	// Edition is optional but strongly recommended (Classical Guide preamble)
 	if a.edition == nil {
 		issues = append(issues, NewIssue(
@@ -96,12 +97,23 @@ func (a *Album) Validate() []ValidationIssue {
 		editionIssues := a.edition.Validate()
 		issues = append(issues, editionIssues...)
 	}
-	
+
+	// Year tag is optional but strongly encouraged (2.3.16.4).
+	// Warn if unknown, basic sanity otherwise can be checked elsewhere if needed.
+	if a.originalYear == 0 {
+		issues = append(issues, NewIssue(
+			LevelWarning,
+			0,
+			"2.3.16.4",
+			"Year is optional but strongly encouraged; consider adding original release year",
+		))
+	}
+
 	// Validate all tracks
 	for _, track := range a.tracks {
 		trackIssues := track.Validate()
 		issues = append(issues, trackIssues...)
 	}
-	
+
 	return issues
 }
