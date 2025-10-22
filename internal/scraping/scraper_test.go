@@ -1,22 +1,23 @@
 package scraping
 
 import (
+	"strings"
 	"testing"
 )
 
 func TestExtractorRegistry(t *testing.T) {
 	registry := NewRegistry()
-	
+
 	// Test registration
 	extractor := &MockExtractor{domain: "test.com"}
 	registry.Register(extractor)
-	
+
 	// Test retrieval
 	found := registry.Get("https://test.com/album/123")
 	if found == nil {
 		t.Error("Expected to find registered extractor")
 	}
-	
+
 	// Test no match
 	notFound := registry.Get("https://unknown.com/album")
 	if notFound != nil {
@@ -26,14 +27,14 @@ func TestExtractorRegistry(t *testing.T) {
 
 func TestMockExtractor(t *testing.T) {
 	extractor := &MockExtractor{
-		domain: "example.com",
+		domain:      "example.com",
 		shouldError: false,
 	}
-	
+
 	if !extractor.CanHandle("https://example.com/album/123") {
 		t.Error("Should handle example.com URLs")
 	}
-	
+
 	if extractor.CanHandle("https://other.com/album") {
 		t.Error("Should not handle other.com URLs")
 	}
@@ -51,39 +52,21 @@ func (m *MockExtractor) Name() string {
 }
 
 func (m *MockExtractor) CanHandle(url string) bool {
-	return contains(url, m.domain)
+	return strings.Contains(url, m.domain)
 }
 
-func (m *MockExtractor) Extract(url string) (*AlbumData, error) {
+// MockExtractor
+func (m *MockExtractor) Extract(url string) (*ExtractionResult, error) {
 	m.callCount++
 	if m.shouldError {
 		return nil, ErrExtractionFailed
 	}
-	
-	return &AlbumData{
+
+	data := &AlbumData{
 		Title:        "Mock Album",
 		OriginalYear: 2020,
-		Tracks: []TrackData{
-			{
-				Disc:     1,
-				Track:    1,
-				Title:    "Mock Track",
-				Composer: "Mock Composer",
-			},
-		},
-	}, nil
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[:len(substr)] == substr || 
-	       len(s) > len(substr) && containsAfter(s[1:], substr)
-}
-
-func containsAfter(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
+		Tracks:       []TrackData{ /* ... */ },
 	}
-	return false
+
+	return NewExtractionResult(data), nil
 }

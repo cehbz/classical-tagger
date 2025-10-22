@@ -1,20 +1,21 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/cehbz/classical-tagger/internal/domain"
 	"github.com/cehbz/classical-tagger/internal/scraping"
 )
 
 var (
-	url        = flag.String("url", "", "URL to extract metadata from (required)")
-	outputFile = flag.String("output", "", "Output JSON file path (default: stdout)")
+	url        = flag.String("url", "", "URL to extract from")
+	outputFile = flag.String("output", "", "Output JSON file")
 	validate   = flag.Bool("validate", true, "Validate extracted metadata")
 	verbose    = flag.Bool("verbose", false, "Verbose output")
+	force      = flag.Bool("force", false, "Create output even with errors")
 )
 
 func main() {
@@ -55,58 +56,61 @@ func main() {
 
 	// Extract metadata
 	fmt.Printf("Extracting metadata from %s...\n", extractor.Name())
-	albumData, err := extractor.Extract(*url)
+	result, err := extractor.Extract(*url) // ← Now returns ExtractionResult
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error extracting metadata: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Extracted: %s (%d)\n", albumData.Title, albumData.OriginalYear)
-	fmt.Printf("  Tracks: %d\n", len(albumData.Tracks))
-	if albumData.Edition != nil {
-		fmt.Printf("  Label: %s\n", albumData.Edition.Label)
-		fmt.Printf("  Catalog: %s\n", albumData.Edition.CatalogNumber)
-	}
-	fmt.Println()
+	// Show extraction results
+	data := result.Data()
+	fmt.Printf("✓ Extracted: %s (%d)\n", data.Title, data.OriginalYear)
+	fmt.Printf("  Tracks: %d\n", len(data.Tracks))
 
-	// Validate if requested
-	if *validate {
-		fmt.Println("Validating extracted metadata...")
-
-		// Convert to domain album for validation
-		album, err := albumData.ToAlbum()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error converting to album: %v\n", err)
-			os.Exit(1)
-		}
-
-		issues := album.Validate()
-
-		hasErrors := false
-		for _, issue := range issues {
-			if issue.Level() == domain.LevelError {
-				hasErrors = true
-				fmt.Printf("❌ %s\n", issue)
-			} else if issue.Level() == domain.LevelWarning {
-				fmt.Printf("⚠️  %s\n", issue)
-			} else if *verbose {
-				fmt.Printf("ℹ️  %s\n", issue)
+	// Show errors
+	if result.HasErrors() {
+		fmt.Println("\n⚠ Extraction Issues:")
+		for _, e := range result.Errors() {
+			if e.Required() {
+				fmt.Printf("  ERROR: %s - %s\n", e.Field(), e.Message())
+			} else {
+				fmt.Printf("  WARNING: %s - %s\n", e.Field(), e.Message())
 			}
 		}
+	}
 
-		if hasErrors {
-			fmt.Fprintf(os.Stderr, "\n⚠️  Extracted metadata has validation errors\n")
-			fmt.Fprintf(os.Stderr, "You may need to manually fix the JSON before using it\n")
-		} else if len(issues) == 0 {
-			fmt.Println("✓ Metadata is valid")
-		} else {
-			fmt.Println("⚠️  Metadata has warnings but is usable")
+	// Show warnings
+	for _, w := range result.Warnings() {
+		fmt.Printf("  WARNING: %s\n", w)
+	}
+
+	// Fail if required errors and not forced
+	if result.HasRequiredErrors() && !*force {
+		fmt.Fprintf(os.Stderr, "\nExtraction failed due to required field errors.\n")
+		fmt.Fprintf(os.Stderr, "Use -force to create output file anyway.\n")
+		os.Exit(1)
+	}
+
+	// Show parsing notes in verbose mode
+	if *verbose && result.ParsingNotes() != nil {
+		fmt.Println("\nParsing Notes:")
+		// Pretty print the notes
+		if jsonBytes, err := json.MarshalIndent(result.ParsingNotes(), "  ", "  "); err == nil {
+			fmt.Println(string(jsonBytes))
+		}
+	}
+
+	// Convert to domain album (may fail validation)
+	if _, err = data.ToAlbum(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error converting to domain: %v\n", err)
+		if !*force {
+			os.Exit(1)
 		}
 	}
 
 	// Save to JSON
 	fmt.Println("Converting to JSON...")
-	jsonData, err := scraping.SaveToJSON(albumData)
+	jsonData, err := scraping.SaveToJSON(data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error saving JSON: %v\n", err)
 		os.Exit(1)
