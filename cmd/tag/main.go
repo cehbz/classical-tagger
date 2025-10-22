@@ -149,7 +149,7 @@ func main() {
 		}
 
 		// Write tags
-		err := writer.WriteTrack(file, track)
+		err := writer.WriteTrack(file, track, album)
 		if err != nil {
 			fmt.Printf("❌ Failed to write tags to %s: %v\n", file, err)
 			errorCount++
