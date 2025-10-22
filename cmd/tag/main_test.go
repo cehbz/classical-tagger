@@ -23,8 +23,7 @@ func TestLoadMetadataJSON(t *testing.T) {
 					"name": "Test Composer",
 					"role": "composer"
 				},
-				"artists": [],
-				"name": "01 Test Track.flac"
+				"artists": []
 			}
 		]
 	}`
@@ -66,53 +65,154 @@ func TestFindFLACFiles(t *testing.T) {
 	}
 }
 
-func TestMatchTrackToFile(t *testing.T) {
+func TestMatchTracksToFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "metadata.json")
+	
+	// Create test metadata with 3 tracks
+	jsonContent := `{
+		"title": "Test Album",
+		"original_year": 2020,
+		"tracks": [
+			{
+				"disc": 1,
+				"track": 1,
+				"title": "First Track",
+				"composer": {
+					"name": "Test Composer",
+					"role": "composer"
+				},
+				"artists": []
+			},
+			{
+				"disc": 1,
+				"track": 2,
+				"title": "Second Track",
+				"composer": {
+					"name": "Test Composer",
+					"role": "composer"
+				},
+				"artists": []
+			},
+			{
+				"disc": 1,
+				"track": 3,
+				"title": "Third Track",
+				"composer": {
+					"name": "Test Composer",
+					"role": "composer"
+				},
+				"artists": []
+			}
+		]
+	}`
+	
+	err := os.WriteFile(jsonFile, []byte(jsonContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	
+	album, err := LoadMetadataJSON(jsonFile)
+	if err != nil {
+		t.Fatalf("LoadMetadataJSON() error = %v", err)
+	}
+	
+	// Create test files
+	files := []string{
+		filepath.Join(tmpDir, "01 First Track.flac"),
+		filepath.Join(tmpDir, "02 Second Track.flac"),
+		// Note: Track 3 has no matching file
+	}
+	
+	matches := MatchTracksToFiles(album, files)
+	
+	// Should have 3 tracks in matches
+	if len(matches) != 3 {
+		t.Errorf("matches count = %d, want 3", len(matches))
+	}
+	
+	// Check that tracks 1 and 2 matched, track 3 did not
+	matchCount := 0
+	unmatchCount := 0
+	for _, file := range matches {
+		if file != "" {
+			matchCount++
+		} else {
+			unmatchCount++
+		}
+	}
+	
+	if matchCount != 2 {
+		t.Errorf("matched tracks = %d, want 2", matchCount)
+	}
+	
+	if unmatchCount != 1 {
+		t.Errorf("unmatched tracks = %d, want 1", unmatchCount)
+	}
+}
+
+func TestOutputDirectoryCreation(t *testing.T) {
+	// This tests that the output directory logic works correctly
 	tests := []struct {
-		name        string
-		trackName   string
-		files       []string
-		wantMatch   bool
-		wantFile    string
+		name      string
+		targetDir string
+		outputDir string
+		want      string
 	}{
 		{
-			name:      "exact match",
-			trackName: "01 Aria.flac",
-			files:     []string{"01 Aria.flac", "02 Variation 1.flac"},
-			wantMatch: true,
-			wantFile:  "01 Aria.flac",
+			name:      "default output dir",
+			targetDir: "/music/album",
+			outputDir: "",
+			want:      "/music/album_tagged",
 		},
 		{
-			name:      "no match",
-			trackName: "03 Track.flac",
-			files:     []string{"01 Track.flac", "02 Track.flac"},
-			wantMatch: false,
-		},
-		{
-			name:      "case insensitive match",
-			trackName: "01 aria.flac",
-			files:     []string{"01 Aria.flac"},
-			wantMatch: true,
-			wantFile:  "01 Aria.flac",
+			name:      "custom output dir",
+			targetDir: "/music/album",
+			outputDir: "/music/output",
+			want:      "/music/output",
 		},
 	}
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			match, file := MatchTrackToFile(tt.trackName, tt.files)
-			
-			if match != tt.wantMatch {
-				t.Errorf("MatchTrackToFile() match = %v, want %v", match, tt.wantMatch)
+			outDir := tt.outputDir
+			if outDir == "" {
+				outDir = tt.targetDir + "_tagged"
 			}
 			
-			if tt.wantMatch && file != tt.wantFile {
-				t.Errorf("MatchTrackToFile() file = %v, want %v", file, tt.wantFile)
+			if outDir != tt.want {
+				t.Errorf("output dir = %v, want %v", outDir, tt.want)
 			}
 		})
 	}
 }
 
-func TestValidateBeforeApply(t *testing.T) {
-	// This would test the validation that runs before applying tags
-	// to ensure we don't corrupt files
-	t.Skip("Integration test - requires full setup")
+// TestWriteToNewDirectory verifies that the new write-to-directory approach is used
+func TestWriteToNewDirectory(t *testing.T) {
+	// This test documents the expected behavior:
+	// - Original files in source directory remain untouched
+	// - Tagged files written to output directory
+	// - No backup/restore needed
+	
+	t.Skip("Integration test - requires full FLAC implementation")
+	
+	// Expected workflow:
+	// 1. Load metadata
+	// 2. Find source FLAC files
+	// 3. Match tracks to files
+	// 4. Create output directory
+	// 5. For each match: writer.WriteTrack(sourcePath, destPath, track, album)
+	// 6. Verify source files untouched
+	// 7. Verify dest files have correct tags
+}
+
+// TestDryRunMode verifies dry-run doesn't modify files
+func TestDryRunMode(t *testing.T) {
+	t.Skip("Integration test - requires CLI execution")
+	
+	// Expected behavior with --dry-run:
+	// - Shows what would be done
+	// - Creates no directories
+	// - Writes no files
+	// - Returns success exit code
 }

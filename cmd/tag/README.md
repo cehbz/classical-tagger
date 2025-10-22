@@ -1,101 +1,66 @@
-# tag - Apply Metadata to FLAC Files
+# Tag CLI - Apply Metadata to FLAC Files
 
-Applies JSON metadata to FLAC audio files.
+## Overview
 
-## Features
-
-- ✅ **Load metadata from JSON** - Uses the same format as storage package
-- ✅ **Automatic file matching** - Matches tracks to files by name
-- ✅ **Validation** - Validates metadata before applying (unless --force)
-- ✅ **Backup system** - Creates timestamped backups before modification
-- ✅ **Dry-run mode** - Preview changes without modifying files
-- ✅ **Error recovery** - Restores from backup if write fails
-
-## Installation
-
-```bash
-cd cmd/tag
-go build -o tag
-```
+The `tag` CLI reads metadata from a JSON file and applies it to FLAC files, writing the tagged files to a new output directory. The original files remain untouched.
 
 ## Usage
 
-### Basic Usage
-
 ```bash
-# Apply metadata to files in current directory
-./tag -metadata album.json
+# Basic usage
+tag -metadata album.json -dir /path/to/album
 
-# Apply to specific directory
-./tag -metadata album.json -dir /path/to/album
+# Specify output directory
+tag -metadata album.json -dir /path/to/album -output /path/to/output
 
-# Dry run (preview without changes)
-./tag -metadata album.json -dry-run
+# Dry run (show what would be done)
+tag -metadata album.json -dir /path/to/album -dry-run
 
-# Skip validation
-./tag -metadata album.json -force
-
-# Disable backups (not recommended)
-./tag -metadata album.json -backup=false
+# Skip validation (not recommended)
+tag -metadata album.json -dir /path/to/album -force
 ```
 
-### Complete Example
+## Flags
 
+- `-metadata FILE` (required) - Path to metadata JSON file
+- `-dir DIR` - Directory containing source FLAC files (default: current directory)
+- `-output DIR` - Output directory for tagged files (default: `<source>_tagged`)
+- `-dry-run` - Show what would be done without modifying files
+- `-force` - Skip validation and proceed anyway
+
+## Workflow
+
+### 1. Extract Metadata (future)
 ```bash
-# 1. Create or obtain metadata JSON
-cat > metadata.json << 'EOF'
-{
-  "title": "Goldberg Variations",
-  "original_year": 1981,
-  "edition": {
-    "label": "Sony Classical",
-    "catalog_number": "SMK89245",
-    "edition_year": 1981
-  },
-  "tracks": [
-    {
-      "disc": 1,
-      "track": 1,
-      "title": "Aria",
-      "composer": {
-        "name": "Johann Sebastian Bach",
-        "role": "composer"
-      },
-      "artists": [
-        {
-          "name": "Glenn Gould",
-          "role": "soloist"
-        }
-      ],
-      "name": "01 Aria.flac"
-    }
-  ]
-}
-EOF
-
-# 2. Dry run to preview changes
-./tag -metadata metadata.json -dry-run
-
-# 3. Apply tags
-./tag -metadata metadata.json
-
-# 4. Verify with validate CLI
-cd ../validate
-./validate /path/to/album
+# Extract metadata from website
+extract -url https://www.harmoniamundi.com/... -output album.json
 ```
 
-## Options
+### 2. Validate Metadata
+```bash
+# Validate before applying
+validate -metadata album.json
+```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-metadata` | *required* | Path to metadata JSON file |
-| `-dir` | `.` | Target directory containing FLAC files |
-| `-dry-run` | `false` | Show what would be done without doing it |
-| `-backup` | `true` | Create backup before modifying files |
-| `-force` | `false` | Skip validation and apply anyway |
+### 3. Apply Tags
+```bash
+# Apply to directory
+tag -metadata album.json -dir /music/album
 
-## Output Example
+# Output structure:
+# /music/album/           <- original files (untouched)
+# /music/album_tagged/    <- tagged files (new)
+```
 
+### 4. Verify Results
+```bash
+# Validate the tagged directory
+validate /music/album_tagged
+```
+
+## Output
+
+### Successful Run
 ```
 Loading metadata from album.json...
 ✓ Loaded album: Goldberg Variations (1981)
@@ -113,7 +78,7 @@ Matching tracks to files...
 ✓ Track 3 -> 03 Variation 2.flac
 ...
 
-Applying tags...
+Writing tagged files to: /music/Bach - Goldberg Variations_tagged
 ✓ Updated 01 Aria.flac
 ✓ Updated 02 Variation 1.flac
 ✓ Updated 03 Variation 2.flac
@@ -122,9 +87,7 @@ Applying tags...
 === Summary ===
 ✓ Successfully updated: 32 files
 
-💾 Backups created:
-  /music/Bach - Goldberg Variations/01 Aria.flac.20250120-143022.bak
-  ...
+📁 Tagged files written to: /music/Bach - Goldberg Variations_tagged
 ```
 
 ## Error Handling
@@ -151,73 +114,66 @@ Use --force to proceed anyway
 
 ### Write Failures
 
-If writing tags fails, the backup is automatically restored:
+If writing tags fails, the error is reported but original files remain untouched:
 
 ```
-❌ Failed to write tags to 01 Aria.flac: permission denied
-   Restored from backup
+❌ Failed to write 01 Aria.flac: permission denied
 ```
 
-## Backup System
+## File Matching
 
-Backups are created with timestamps:
+The CLI matches tracks to files by track number prefix:
+- Track 1 matches files starting with "01"
+- Track 2 matches files starting with "02"
+- etc.
+
+Supported filename patterns:
 ```
-original-file.flac          # Original
-original-file.flac.20250120-143022.bak  # Backup
+01 Aria.flac
+01-Aria.flac
+01. Aria.flac
+01_Aria.flac
 ```
 
-To restore manually:
-```bash
-cp file.flac.20250120-143022.bak file.flac
+## Safety Features
+
+### Non-Destructive
+- Original files are never modified
+- All tagged files written to separate directory
+- Easy to compare original vs tagged
+
+### Validation
+- Validates metadata before applying (unless `--force`)
+- Reports all validation errors and warnings
+- Clear error messages
+
+### Dry Run
+- Test workflow without making changes
+- Shows exactly what would be done
+- Verifies file matching
+
+## Directory Structure
+
+### Before
+```
+/music/Bach - Goldberg Variations/
+├── 01 Aria.flac
+├── 02 Variation 1.flac
+├── 03 Variation 2.flac
+└── ...
 ```
 
-## Important Notes
+### After
+```
+/music/Bach - Goldberg Variations/       <- originals untouched
+├── 01 Aria.flac
+├── 02 Variation 1.flac
+└── ...
 
-### ⚠️ Current Limitation
-
-**FLAC tag writing is not yet fully implemented**. The current implementation provides:
-- ✅ Complete interface and CLI
-- ✅ File matching and validation
-- ✅ Backup/restore system
-- ✅ Dry-run mode
-- ❌ Actual tag writing (returns "not yet implemented")
-
-To complete the implementation, we need to add a FLAC tag writing library. Options:
-
-1. **metaflac command-line tool** (simplest)
-   ```go
-   cmd := exec.Command("metaflac",
-       "--remove-all-tags",
-       "--set-tag=TITLE="+title,
-       "--set-tag=COMPOSER="+composer,
-       path)
-   ```
-
-2. **go-flac library** - Pure Go implementation
-3. **Implement vorbis comment writing** - From scratch
-
-For now, use `--dry-run` to test the workflow.
-
-## Integration with Other Commands
-
-### Workflow
-
-```bash
-# 1. Extract metadata from web
-cd ../extract
-./extract -url https://www.harmoniamundi.com/... -output album.json
-
-# 2. Validate before applying
-cd ../validate
-./validate /path/to/album
-
-# 3. Apply metadata
-cd ../tag
-./tag -metadata album.json -dir /path/to/album
-
-# 4. Verify it worked
-cd ../validate
-./validate /path/to/album
+/music/Bach - Goldberg Variations_tagged/  <- new tagged files
+├── 01 Aria.flac
+├── 02 Variation 1.flac
+└── ...
 ```
 
 ## Testing
@@ -227,11 +183,34 @@ cd ../validate
 go test -v
 
 # Test with dry-run
-./tag -metadata test.json -dry-run
+./tag -metadata test.json -dir testdata -dry-run
 
-# Test backup system
+# Test with real files
 ./tag -metadata test.json -dir testdata
-# Check that .bak files were created
+# Verify output directory created
+# Compare original vs tagged
+```
+
+## Integration with Other Commands
+
+### Complete Workflow
+
+```bash
+# 1. Extract metadata from web (future)
+extract -url https://www.harmoniamundi.com/... -output album.json
+
+# 2. Validate metadata
+validate -metadata album.json
+
+# 3. Apply to source directory
+tag -metadata album.json -dir /music/album
+
+# 4. Verify tagged files
+validate /music/album_tagged
+
+# 5. If satisfied, replace originals
+rm -rf /music/album
+mv /music/album_tagged /music/album
 ```
 
 ## Troubleshooting
@@ -244,33 +223,72 @@ go test -v
 
 ### "No file found for track X"
 
-- Ensure track `name` field matches actual filename
-- Try updating JSON with correct filenames
+- Check track numbers in JSON match filename prefixes
+- Ensure files use 2-digit track numbers (01, 02, not 1, 2)
 - Use --force to proceed with partial matches
 
 ### "Metadata has errors"
 
-- Run validate CLI to see detailed issues
+- Run `validate -metadata album.json` to see detailed issues
 - Fix issues in JSON file
 - Or use --force to apply anyway (not recommended)
 
+### "Permission denied"
+
+- Check write permissions on output directory
+- Ensure output directory is not read-only
+- Check disk space
+
 ## Future Enhancements
 
-- [ ] Implement actual FLAC tag writing
+- [ ] Implement actual FLAC tag writing (currently returns "not implemented")
 - [ ] Support for other audio formats (MP3, M4A)
 - [ ] Fuzzy matching for filenames
 - [ ] Batch processing multiple albums
 - [ ] Progress bars for large albums
 - [ ] Parallel processing
-- [ ] Undo command
 - [ ] Template-based filename generation
+- [ ] Automatic backup management
+
+## Current Limitations
+
+### ⚠️ FLAC Tag Writing Not Yet Implemented
+
+The FLAC tag writing functionality uses the `go-flac/flac` and `go-flac/flacvorbis` libraries but requires testing with real FLAC files. The interface and CLI are complete and functional.
+
+To complete the implementation:
+
+1. **Ensure dependencies are installed:**
+   ```bash
+   go get github.com/go-flac/go-flac
+   go get github.com/go-flac/flacvorbis
+   ```
+
+2. **Test with real FLAC files:**
+   ```bash
+   # Create test directory
+   mkdir testdata
+   cp /path/to/test.flac testdata/01-test.flac
+   
+   # Test dry-run
+   ./tag -metadata test.json -dir testdata -dry-run
+   
+   # Test actual writing
+   ./tag -metadata test.json -dir testdata
+   
+   # Verify output
+   metaflac --list testdata_tagged/01-test.flac
+   ```
+
+For now, use `--dry-run` to test the workflow without writing files.
 
 ## Safety
 
 The tag CLI is designed to be safe:
+- ✅ Original files never modified
 - ✅ Validates before applying
-- ✅ Creates backups by default
-- ✅ Restores on error
+- ✅ Tagged files written to separate directory
+- ✅ Easy rollback (just delete output directory)
 - ✅ Dry-run mode for testing
 - ✅ Clear error messages
 

@@ -16,8 +16,8 @@ import (
 var (
 	metadataFile = flag.String("metadata", "", "Path to metadata JSON file (required)")
 	targetDir    = flag.String("dir", ".", "Target directory containing FLAC files")
+	outputDir    = flag.String("output", "", "Output directory for tagged files (defaults to <targetDir>_tagged)")
 	dryRun       = flag.Bool("dry-run", false, "Show what would be done without actually doing it")
-	backup       = flag.Bool("backup", true, "Create backup before modifying files")
 	force        = flag.Bool("force", false, "Skip validation and apply tags anyway")
 )
 
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	// Find FLAC files in target directory
-	fmt.Printf("Scanning directory: %s\n", *targetDir)
+	fmt.Printf("\nScanning directory: %s\n", *targetDir)
 	files, err := FindFLACFiles(*targetDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error scanning directory: %v\n", err)
@@ -107,15 +107,23 @@ func main() {
 		}
 	}
 
+	// Determine output directory
+	outDir := *outputDir
+	if outDir == "" {
+		outDir = *targetDir + "_tagged"
+	}
+
 	fmt.Println()
 
 	// Apply tags
 	if *dryRun {
 		fmt.Println("=== DRY RUN MODE ===")
+		fmt.Printf("Would write tagged files to: %s\n", outDir)
 		fmt.Println("Would apply tags to the following files:")
 		for track, file := range matches {
 			if file != "" {
-				fmt.Printf("  %s\n", file)
+				destPath := filepath.Join(outDir, filepath.Base(file))
+				fmt.Printf("  %s -> %s\n", filepath.Base(file), destPath)
 				fmt.Printf("    Title: %s\n", track.Title())
 				fmt.Printf("    Composer: %s\n", track.Composer().Name())
 			}
@@ -124,43 +132,31 @@ func main() {
 		return
 	}
 
-	fmt.Println("Applying tags...")
+	// Create output directory
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Writing tagged files to: %s\n", outDir)
 	writer := tagging.NewFLACWriter()
-	writer.SetDryRun(*dryRun)
 
 	successCount := 0
 	errorCount := 0
-	backupPaths := make(map[string]string)
 
 	for track, file := range matches {
 		if file == "" {
 			continue
 		}
 
-		// Backup if requested
-		if *backup {
-			backupPath, err := writer.BackupFile(file)
-			if err != nil {
-				fmt.Printf("❌ Failed to backup %s: %v\n", file, err)
-				errorCount++
-				continue
-			}
-			backupPaths[file] = backupPath
-		}
+		// Determine destination path
+		destPath := filepath.Join(outDir, filepath.Base(file))
 
 		// Write tags
-		err := writer.WriteTrack(file, track, album)
+		err := writer.WriteTrack(file, destPath, track, album)
 		if err != nil {
-			fmt.Printf("❌ Failed to write tags to %s: %v\n", file, err)
+			fmt.Printf("❌ Failed to write %s: %v\n", filepath.Base(file), err)
 			errorCount++
-
-			// Restore backup if write failed
-			if *backup {
-				if backupPath, ok := backupPaths[file]; ok {
-					writer.RestoreBackup(backupPath, file)
-					fmt.Printf("   Restored from backup\n")
-				}
-			}
 			continue
 		}
 
@@ -175,13 +171,7 @@ func main() {
 	if errorCount > 0 {
 		fmt.Printf("❌ Errors: %d files\n", errorCount)
 	}
-
-	if *backup && successCount > 0 {
-		fmt.Printf("\n💾 Backups created:\n")
-		for _, backupPath := range backupPaths {
-			fmt.Printf("  %s\n", backupPath)
-		}
-	}
+	fmt.Printf("\n📁 Tagged files written to: %s\n", outDir)
 
 	if errorCount > 0 {
 		os.Exit(1)
@@ -223,51 +213,25 @@ func FindFLACFiles(dir string) ([]string, error) {
 	return files, err
 }
 
-// MatchTracksToFiles matches tracks to files based on filename.
+// MatchTracksToFiles matches tracks to files based on track number in filename.
+// Returns a map of track -> file path (empty string if no match found).
 func MatchTracksToFiles(album *domain.Album, files []string) map[*domain.Track]string {
 	matches := make(map[*domain.Track]string)
 
-	// Create a map of basenames to full paths for quick lookup
-	fileMap := make(map[string]string)
-	for _, file := range files {
-		basename := filepath.Base(file)
-		fileMap[strings.ToLower(basename)] = file
-	}
-
 	for _, track := range album.Tracks() {
-		if track.Name() != "" {
-			// Try exact match first
-			if file, ok := fileMap[strings.ToLower(track.Name())]; ok {
-				matches[track] = file
-				continue
-			}
+		matches[track] = ""
 
-			// Try fuzzy match
-			matched, file := MatchTrackToFile(track.Name(), files)
-			if matched {
+		// Try to find file by track number prefix
+		trackPrefix := fmt.Sprintf("%02d", track.Track())
+
+		for _, file := range files {
+			base := filepath.Base(file)
+			if strings.HasPrefix(base, trackPrefix) {
 				matches[track] = file
-				continue
+				break
 			}
 		}
-
-		// No match found
-		matches[track] = ""
 	}
 
 	return matches
-}
-
-// MatchTrackToFile attempts to match a track name to a file.
-// Returns true and the matched file if found.
-func MatchTrackToFile(trackName string, files []string) (bool, string) {
-	trackLower := strings.ToLower(trackName)
-
-	for _, file := range files {
-		basename := filepath.Base(file)
-		if strings.ToLower(basename) == trackLower {
-			return true, file
-		}
-	}
-
-	return false, ""
 }
