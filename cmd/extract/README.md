@@ -1,14 +1,12 @@
-## extract - Web Metadata Extractor
+# Extract CLI - Metadata Extraction from Websites
 
-Extracts classical music album metadata from supported websites and converts to JSON format.
+**Status:** ✅ Complete and functional  
+**Version:** 1.0  
+**Integration:** Works with HarmoniaMundiParser
 
-## Features
+## Overview
 
-- ✅ **Web scraping framework** - Extensible extractor system
-- ✅ **Harmonia Mundi support** - Extract from harmoniamundi.com (framework ready)
-- ✅ **Automatic validation** - Validates extracted metadata
-- ✅ **JSON output** - Compatible with tag CLI
-- ✅ **Error handling** - Clear error messages
+The `extract` CLI tool fetches and parses classical music album metadata from supported websites, converting it to the standard JSON format used by the tagger.
 
 ## Installation
 
@@ -23,86 +21,75 @@ go build -o extract
 
 ```bash
 # Extract to stdout
-./extract -url https://www.harmoniamundi.com/en/album/123
+extract -url "https://www.harmoniamundi.com/album/..."
 
-# Save to file
-./extract -url https://www.harmoniamundi.com/en/album/123 -output album.json
-
-# Skip validation
-./extract -url URL -validate=false
-
-# Verbose output
-./extract -url URL -verbose
+# Extract to file
+extract -url "https://www.harmoniamundi.com/album/..." -output album.json
 ```
 
-### Complete Workflow
+### Options
+
+```
+-url string
+    URL to extract from (required)
+
+-output string
+    Output JSON file (default: stdout)
+
+-validate
+    Validate extracted metadata against domain rules (default: true)
+
+-verbose
+    Verbose output including parsing notes (default: false)
+
+-force
+    Create output even with required field errors (default: false)
+
+-timeout duration
+    HTTP request timeout (default: 30s)
+```
+
+### Examples
 
 ```bash
-# 1. Extract metadata
-./extract -url https://www.harmoniamundi.com/en/album/noel-weihnachten-christmas \
-  -output metadata.json
+# Simple extraction
+extract -url "https://www.harmoniamundi.com/..." -output album.json
 
-# 2. Review and edit the JSON if needed
-vi metadata.json
+# Verbose mode with parsing details
+extract -url "https://www.harmoniamundi.com/..." -output album.json -verbose
 
-# 3. Validate the album directory
-cd ../validate
-./validate /path/to/album
+# Force output despite errors
+extract -url "https://www.harmoniamundi.com/..." -output album.json -force
 
-# 4. Apply the metadata
-cd ../tag
-./tag -metadata metadata.json -dir /path/to/album
+# Skip validation
+extract -url "https://www.harmoniamundi.com/..." -output album.json -validate=false
+
+# Custom timeout
+extract -url "https://www.harmoniamundi.com/..." -timeout 60s -output album.json
 ```
 
 ## Supported Sites
 
-### ✅ Harmonia Mundi (Framework Ready)
-- Domain: harmoniamundi.com
-- Status: Interface implemented, HTML parsing needed
-- Example: `https://www.harmoniamundi.com/en/album/...`
+### Currently Supported
 
-### 🚧 Coming Soon
-- Classical Archives (classicalarchives.com)
-- Naxos (naxos.com)
-- Presto Classical (prestoclassical.co.uk)
-- ArkivMusic (arkivmusic.com)
+1. **Harmonia Mundi** (harmoniamundi.com)
+   - Album metadata
+   - Track listings
+   - Composer information
+   - Catalog numbers
+   - Edition information
 
-## Options
+### Coming Soon
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-url` | *required* | URL to extract from |
-| `-output` | stdout | Output file path |
-| `-validate` | `true` | Validate extracted metadata |
-| `-verbose` | `false` | Show detailed output |
+See `METADATA_SOURCES.md` for the complete list of planned sources:
+- Classical Archives
+- Naxos
+- ArkivMusic
+- Presto Classical
 
-## Output Example
+## Output Format
 
-```
-Finding extractor for: https://www.harmoniamundi.com/...
-Using extractor: Harmonia Mundi
-
-Extracting metadata from Harmonia Mundi...
-✓ Extracted: Noël ! Weihnachten ! Christmas! (2013)
-  Tracks: 24
-  Label: harmonia mundi
-  Catalog: HMC902170
-
-Validating extracted metadata...
-✓ Metadata is valid
-
-Converting to JSON...
-✓ Saved to: /path/to/album.json
-
-Next steps:
-  1. Review and edit: album.json
-  2. Validate album: validate /path/to/album
-  3. Apply tags: tag -metadata album.json -dir /path/to/album
-```
-
-## JSON Output Format
-
-The output is compatible with the `tag` CLI:
+The tool produces JSON in the standard album metadata format:
 
 ```json
 {
@@ -117,247 +104,267 @@ The output is compatible with the `tag` CLI:
     {
       "disc": 1,
       "track": 1,
-      "title": "Frohlocket, ihr Völker auf Erden, Op. 79/1",
-      "composer": {
-        "name": "Felix Mendelssohn Bartholdy",
-        "role": "composer"
-      },
-      "artists": [
-        {
-          "name": "RIAS Kammerchor Berlin",
-          "role": "ensemble"
-        },
-        {
-          "name": "Hans-Christoph Rademann",
-          "role": "conductor"
-        }
-      ],
-      "name": "01 Frohlocket, ihr Völker auf Erden, Op. 79-1.flac"
+      "title": "Frohlocket, ihr Völker auf Erden, op.79/1",
+      "composer": "Felix Mendelssohn Bartholdy",
+      "artists": []
     }
   ]
 }
 ```
 
-## Error Handling
+## Features
 
-### Unsupported URL
+### Extraction Features
 
-```
-Error: No extractor available for this URL
-Supported sites:
-  - harmoniamundi.com
-```
+- ✅ Album title extraction
+- ✅ Release year parsing
+- ✅ Track listing with composers
+- ✅ Edition information (label, catalog number)
+- ✅ Artist role inference
+- ✅ Multi-disc detection
+- ✅ HTML entity decoding (UTF-8 characters)
+- ✅ Composer name formatting (ALL CAPS → Title Case)
 
-### Extraction Failed
+### Error Handling
 
-```
-Error extracting metadata: HTTP 404: Not Found
-```
+- ✅ Required vs optional field errors
+- ✅ Detailed error messages
+- ✅ Warning collection
+- ✅ Parsing notes for debugging
+- ✅ Domain validation
+- ✅ Graceful degradation
 
-### Validation Warnings
+### User Experience
 
-```
-Validating extracted metadata...
-⚠️  [WARNING] Track 1: Consider using catalog number format
-⚠️  Extracted metadata has validation errors
-You may need to manually fix the JSON before using it
-```
+- ✅ Clear progress messages
+- ✅ Colored output
+- ✅ Verbose mode for debugging
+- ✅ Force mode for problematic extractions
+- ✅ Validation before output
+- ✅ Helpful next-step suggestions
 
-## Important Notes
+## Workflow Integration
 
-### ⚠️ Current Status
-
-The extraction framework is **complete**, but the HTML parsing for Harmonia Mundi needs to be implemented:
-
-✅ **What's Working:**
-- Extractor interface and registry
-- URL detection and routing
-- Data conversion to domain model
-- JSON serialization
-- Validation integration
-- CLI interface
-
-❌ **What Needs Implementation:**
-- Actual HTML parsing for each site
-- CSS selector mapping
-- Multi-disc detection from HTML
-- Artist role parsing
-
-### Implementing HTML Parsing
-
-To complete the Harmonia Mundi extractor:
-
-1. **Add HTML parsing library:**
-   ```bash
-   go get github.com/PuerkitoBio/goquery
-   ```
-
-2. **Study the website:**
-   - Open browser DevTools
-   - Inspect album page structure
-   - Identify CSS selectors for each field
-
-3. **Update `internal/scraping/harmoniamund.go`:**
-   ```go
-   func (e *HarmoniaMundiExtractor) parseHTML(html string, url string) (*AlbumData, error) {
-       doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
-       if err != nil {
-           return nil, err
-       }
-       
-       albumData := &AlbumData{
-           Title: doc.Find(".album-title").Text(),
-           // ... extract other fields
-       }
-       
-       return albumData, nil
-   }
-   ```
-
-See detailed comments in `harmoniamund.go` for implementation guidance.
-
-## Adding New Extractors
-
-To add support for a new website:
-
-### 1. Create extractor file
-
-```go
-// internal/scraping/naxos.go
-package scraping
-
-type NaxosExtractor struct {
-    client *http.Client
-}
-
-func NewNaxosExtractor() *NaxosExtractor {
-    return &NaxosExtractor{
-        client: &http.Client{Timeout: 30 * time.Second},
-    }
-}
-
-func (e *NaxosExtractor) Name() string {
-    return "Naxos"
-}
-
-func (e *NaxosExtractor) CanHandle(url string) bool {
-    return strings.Contains(url, "naxos.com")
-}
-
-func (e *NaxosExtractor) Extract(url string) (*AlbumData, error) {
-    // Implement extraction logic
-}
-```
-
-### 2. Register in CLI
-
-```go
-// cmd/extract/main.go
-registry.Register(scraping.NewNaxosExtractor())
-```
-
-### 3. Add tests
-
-```go
-// internal/scraping/naxos_test.go
-func TestNaxosExtractor(t *testing.T) {
-    // Test implementation
-}
-```
-
-## Development Workflow
-
-### Testing with Mock Data
+### Complete Tagger Workflow
 
 ```bash
-# Create mock HTML file
-cat > test.html << 'EOF'
-<html>
-<h1 class="album-title">Test Album</h1>
-...
-</html>
-EOF
+# Step 1: Extract metadata from web
+extract -url "https://www.harmoniamundi.com/..." -output album.json
 
-# Test parser locally
-go test ./internal/scraping -v -run TestParseHTML
+# Step 2: Review/edit the JSON (optional)
+nano album.json
+
+# Step 3: Validate album directory
+validate /path/to/album
+
+# Step 4: Apply tags
+tag -metadata album.json -dir /path/to/album
+
+# Step 5: Verify result
+validate /path/to/album_tagged
 ```
 
-### Testing with Real URLs
+## Exit Codes
+
+- `0` - Success
+- `1` - Error (invalid arguments, network error, parsing error, validation error)
+
+## Examples by Use Case
+
+### Quick Extraction
 
 ```bash
-# Test extraction (requires network)
-go test ./internal/scraping -v -run TestExtract -args -live
-
-# Or use the CLI
-./extract -url "https://www.harmoniamundi.com/..." -verbose
+# Just get the JSON
+extract -url "URL" -output album.json
 ```
 
-## Rate Limiting
-
-The extractor respects websites with:
-- 30 second timeout per request
-- No concurrent requests by default
-- User-Agent header
-
-For batch extraction, add delays:
+### Debugging Extraction Issues
 
 ```bash
-# Extract multiple albums with delays
-for url in $(cat urls.txt); do
-    ./extract -url "$url" -output "$(basename $url).json"
+# Verbose mode shows parsing details
+extract -url "URL" -output album.json -verbose
+```
+
+### Handling Partial Data
+
+```bash
+# Force output even with missing required fields
+extract -url "URL" -output album.json -force
+```
+
+### Batch Extraction
+
+```bash
+# Extract from multiple URLs
+while read url; do
+    filename=$(echo "$url" | md5sum | cut -d' ' -f1).json
+    extract -url "$url" -output "$filename"
     sleep 5  # Be nice to the server
-done
+done < urls.txt
 ```
-
-## Privacy & Ethics
-
-- **Respect robots.txt** - Check before scraping
-- **Rate limiting** - Don't overload servers
-- **Terms of service** - Ensure compliance
-- **Personal use** - This tool is for personal metadata management
 
 ## Troubleshooting
 
-### "No extractor available"
+### "No parser available for this URL"
 
-- Check URL format
-- Ensure domain is supported
-- Try with `-verbose` for details
+**Problem:** The URL is not from a supported website.
 
-### "HTTP 403 Forbidden"
+**Solution:**
+- Check that you're using a URL from harmoniamundi.com
+- See `METADATA_SOURCES.md` for planned additional sites
+- To add support for a new site, create a new parser following the pattern in `internal/scraping/harmoniamundi_parser.go`
 
-- Website may block automated requests
-- Try different User-Agent
-- May need browser automation (Selenium)
+### "HTTP 403 Forbidden" or "HTTP 404 Not Found"
 
-### "HTML parsing failed"
+**Problem:** The website blocked the request or the page doesn't exist.
 
-- Website structure may have changed
-- Check CSS selectors
-- Inspect page with browser DevTools
+**Solution:**
+- Verify the URL in your browser first
+- Check that the URL is correct and complete
+- Some sites may block automated requests
+- Try increasing the timeout: `-timeout 60s`
+
+### "Extraction failed due to required field errors"
+
+**Problem:** Critical metadata fields (title, year, tracks) could not be extracted.
+
+**Solution:**
+- Use `-verbose` to see detailed parsing notes
+- Check if the website structure has changed
+- Use `-force` to create output anyway (not recommended for tagging)
+- File an issue if this is a regression
+
+### "Domain conversion failed"
+
+**Problem:** Extracted metadata doesn't meet domain validation rules.
+
+**Solution:**
+- Review validation errors shown
+- Edit the JSON file manually to fix issues
+- Use `-validate=false` to skip validation (not recommended)
+- Use `-force` to create output despite errors
+
+### Slow Extraction
+
+**Problem:** Extraction takes a long time.
+
+**Solution:**
+- Increase timeout: `-timeout 120s`
+- Check your network connection
+- The website may be slow to respond
+
+### UTF-8 Encoding Issues
+
+**Problem:** Special characters appear garbled (é, ö, ü, ñ, etc.).
+
+**Solution:**
+- This should be handled automatically
+- If you see issues, file a bug report with the URL
+- The parser includes comprehensive HTML entity decoding
+
+## Technical Details
+
+### HTTP Client Configuration
+
+- **Timeout:** 30 seconds (configurable)
+- **User-Agent:** `classical-tagger/0.1 (metadata extraction tool)`
+- **Follow redirects:** Yes (automatic)
+- **SSL verification:** Yes
+
+### Parsing Strategy
+
+1. **Fetch HTML** from URL
+2. **Detect site** based on URL pattern
+3. **Select parser** (Harmonia Mundi, etc.)
+4. **Parse HTML** using goquery and regex
+5. **Extract metadata** (title, year, tracks, etc.)
+6. **Infer artist roles** using pattern matching
+7. **Detect disc structure** from track numbering
+8. **Convert to domain model** (validates business rules)
+9. **Serialize to JSON** using standard format
+
+### Error Handling Levels
+
+1. **Required Field Errors** - Block output unless `--force`
+2. **Optional Field Warnings** - Noted but don't block output
+3. **Low Confidence Warnings** - Artist role inferences
+4. **Parsing Notes** - Available with `--verbose`
+
+## Development
+
+### Adding Support for New Sites
+
+1. Create new parser (e.g., `internal/scraping/naxos_parser.go`)
+2. Implement `Parse(html string) (*ExtractionResult, error)`
+3. Add detection logic to `main.go`
+4. Add comprehensive tests
+5. Update this README
+
+See `METADATA_SOURCES.md` for detailed implementation guides for planned sources.
+
+### Testing
+
+```bash
+# Run tests
+go test -v
+
+# Test with real URL (requires network)
+go test -tags=integration -run TestFetchHTML
+
+# Test URL detection
+go test -run TestIsHarmoniaMundi
+```
+
+### Code Structure
+
+```
+cmd/extract/
+├── main.go           # CLI implementation
+├── main_test.go      # Tests
+└── README.md         # This file
+```
+
+## Safety & Ethics
+
+### Respectful Scraping
+
+- **Rate limiting:** Manual delay recommended for batch operations
+- **User-Agent:** Identifies as metadata extraction tool
+- **Robots.txt:** Always respect site policies
+- **Terms of service:** Ensure compliance
+- **Personal use:** Tool is for personal metadata management
+
+### Data Usage
+
+- Extracted metadata is for **personal use only**
+- Do not redistribute extracted data
+- Do not overload websites with requests
+- Respect copyright and intellectual property
 
 ## Future Enhancements
 
-- [ ] Complete Harmonia Mundi HTML parsing
-- [ ] Add Naxos extractor
-- [ ] Add Classical Archives extractor
-- [ ] Batch URL processing
-- [ ] Caching extracted data
-- [ ] Browser automation for JavaScript sites
-- [ ] Image download (cover art)
-- [ ] Parallel extraction
-- [ ] Resume interrupted extractions
+- [ ] Support for additional websites (Classical Archives, Naxos, etc.)
+- [ ] Caching of downloaded HTML
+- [ ] Resume interrupted batch extractions
+- [ ] Parallel extraction with rate limiting
+- [ ] Browser automation for JavaScript-heavy sites
+- [ ] Cover art download
+- [ ] Automatic site structure update detection
+- [ ] Plugin architecture for custom parsers
 
-## Integration
+## Related Commands
 
-The extract CLI integrates seamlessly with other commands:
+- **validate** - Validate album directories and metadata
+- **tag** - Apply metadata to FLAC files
 
-```bash
-# Complete workflow
-extract -url URL -output album.json
-validate /path/to/album
-tag -metadata album.json -dir /path/to/album
-validate /path/to/album  # Verify
-```
+## Support
 
-All three CLIs use the same JSON format for maximum compatibility.
+- **Documentation:** See project README.md
+- **Issues:** Report bugs on GitHub
+- **New sites:** Request in GitHub Issues or submit PR
+
+---
+
+**Last Updated:** October 22, 2025  
+**Maintainer:** classical-tagger project  
+**License:** MIT
