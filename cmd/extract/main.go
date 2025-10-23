@@ -137,10 +137,10 @@ func extractFromURL() {
 	processResult(result, siteName)
 }
 
-// processResult handles the common result processing and output
+// processResult handles the common result processing and output with force mode support
 func processResult(result *scraping.ExtractionResult, source string) {
 	data := result.Data()
-	
+
 	// Display extraction summary
 	fmt.Printf("✓ Extracted: %s", data.Title)
 	if data.OriginalYear > 0 {
@@ -192,6 +192,30 @@ func processResult(result *scraping.ExtractionResult, source string) {
 		}
 	}
 
+	// Force mode: Synthesize missing required data BEFORE domain conversion
+	if *force {
+		synthesized := scraping.SynthesizeMissingEditionData(data)
+		if synthesized {
+			fmt.Println("\n🔧 FORCE MODE: Synthesized missing data:")
+			if data.Edition != nil {
+				if data.Edition.Label == "[Unknown Label]" {
+					fmt.Printf("  • Label: %s (catalog: %s)\n",
+						data.Edition.Label, data.Edition.CatalogNumber)
+				}
+				if data.Edition.EditionYear == 1900 || (data.OriginalYear > 0 && data.Edition.EditionYear == data.OriginalYear) {
+					if data.OriginalYear > 0 && data.Edition.EditionYear == data.OriginalYear {
+						fmt.Printf("  • Edition year: %d (using original year)\n", data.Edition.EditionYear)
+					} else {
+						fmt.Printf("  • Edition year: %d (placeholder - NEEDS CORRECTION)\n", data.Edition.EditionYear)
+					}
+				}
+				if synthesized {
+					fmt.Println("  ⚠️  REVIEW REQUIRED: Please verify and correct synthesized data manually")
+				}
+			}
+		}
+	}
+
 	// Validate against domain model if requested
 	if *validate {
 		fmt.Println("\nValidating against domain model...")
@@ -201,6 +225,8 @@ func processResult(result *scraping.ExtractionResult, source string) {
 			if !*force {
 				fmt.Fprintf(os.Stderr, "Use -force to create output anyway, or fix the errors above.\n")
 				os.Exit(1)
+			} else {
+				fmt.Fprintf(os.Stderr, "⚠️  Continuing due to -force flag, but output may be invalid.\n")
 			}
 		} else {
 			// Run validation
@@ -237,6 +263,10 @@ func processResult(result *scraping.ExtractionResult, source string) {
 	jsonData, err := scraping.SaveToJSON(data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting to JSON: %v\n", err)
+		if *force {
+			fmt.Fprintf(os.Stderr, "⚠️  Even with -force, cannot convert invalid data to JSON.\n")
+			fmt.Fprintf(os.Stderr, "The extraction data may need manual correction.\n")
+		}
 		os.Exit(1)
 	}
 
@@ -257,6 +287,9 @@ func processResult(result *scraping.ExtractionResult, source string) {
 		// Show next steps
 		fmt.Println("\n📋 Next steps:")
 		fmt.Printf("  1. Review and edit: %s\n", *outputFile)
+		if *force {
+			fmt.Println("     ⚠️  IMPORTANT: Manually verify synthesized data marked with [brackets]")
+		}
 		fmt.Printf("  2. Validate album directory: validate /path/to/album\n")
 		fmt.Printf("  3. Apply tags: tag -metadata %s -dir /path/to/album\n", *outputFile)
 	}

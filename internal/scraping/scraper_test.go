@@ -70,3 +70,37 @@ func (m *MockExtractor) Extract(url string) (*ExtractionResult, error) {
 
 	return NewExtractionResult(data), nil
 }
+
+func TestSynthesizeMissingLabel(t *testing.T) {
+	data := &AlbumData{
+		Edition: &EditionData{CatalogNumber: "HMC902170"},
+	}
+	
+	synthesized := SynthesizeMissingEditionData(data)
+	
+	if !synthesized {
+		t.Error("Expected synthesis to occur")
+	}
+	if data.Edition.Label != "[Unknown Label]" {
+		t.Errorf("Label = %q, want %q", data.Edition.Label, "[Unknown Label]")
+	}
+}
+
+func TestInferLabelFromCatalog(t *testing.T) {
+	tests := []struct {
+		catalog string
+		want    string
+	}{
+		{"HMC902170", "harmonia mundi"},
+		{"DG 479 1234", "Deutsche Grammophon"},
+		{"BIS-2345", "BIS Records"},
+		{"XYZ12345", ""},
+	}
+
+	for _, tt := range tests {
+		got := InferLabelFromCatalog(tt.catalog)
+		if got != tt.want {
+			t.Errorf("InferLabelFromCatalog(%q) = %q, want %q", tt.catalog, got, tt.want)
+		}
+	}
+}

@@ -58,10 +58,20 @@ func (p *HarmoniaMundiParser) Parse(html string) (*ExtractionResult, error) {
 		result = result.WithError(NewExtractionError("catalog_number", "not found in HTML", false))
 	}
 
-	// Parse artists (for notes)
-	if artistText, err := p.ParseArtists(html); err == nil && artistText != "" {
+	// Parse artists - try structured extraction first (preferred)
+	if artists, err := p.ParseArtistsStructured(html); err == nil {
+		parsingNotes["artists_source"] = "structured_html"
+		artistNotes := make([]map[string]interface{}, len(artists))
+		for i, artist := range artists {
+			artistNotes[i] = map[string]interface{}{
+				"name": artist.Name,
+				"role": artist.Role,
+			}
+		}
+		parsingNotes["artists"] = artistNotes
+	} else if artistText, err := p.ParseArtists(html); err == nil {
+		// Fallback to byArtist inference
 		inferences := ParseArtistList(artistText)
-
 		artistNotes := make([]map[string]interface{}, len(inferences))
 		for i, inf := range inferences {
 			artistNotes[i] = FormatInferenceForJSON(inf)
@@ -73,9 +83,8 @@ func (p *HarmoniaMundiParser) Parse(html string) (*ExtractionResult, error) {
 						inf.ParsedName(), inf.InferredRole(), inf.Confidence()))
 			}
 		}
-		parsingNotes["artists"] = artistNotes
+		parsingNotes["artists_source"] = "byArtist_inferred"
 	}
-
 	// Parse tracks
 	if tracks, err := p.ParseTracks(html); err == nil && len(tracks) > 0 {
 		data.Tracks = tracks
@@ -318,4 +327,91 @@ func extractTextFromBold(line string) string {
 	}
 
 	return ""
+}
+
+// ParseArtistsStructured extracts artists from the structured HTML list with explicit roles.
+func (p *HarmoniaMundiParser) ParseArtistsStructured(html string) ([]ArtistData, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	artists := make([]ArtistData, 0)
+
+	doc.Find(".humans_list").Each(func(i int, section *goquery.Selection) {
+		heading := strings.TrimSpace(section.Find("h2").First().Text())
+
+		if strings.Contains(strings.ToLower(heading), "artist") {
+			section.Find("li").Each(func(j int, li *goquery.Selection) {
+				name := CleanArtistName(li.Find(".human").First().Text())
+				role := strings.TrimSpace(li.Find(".role").First().Text())
+
+				if name != "" && role != "" {
+					artists = append(artists, ArtistData{
+						Name: name,
+						Role: NormalizeRoleFromHTML(role),
+					})
+				}
+			})
+		}
+	})
+
+	if len(artists) == 0 {
+		return nil, fmt.Errorf("no structured artists found")
+	}
+	return artists, nil
+}
+
+// ParseComposersStructured extracts composer list from structured HTML.
+func (p *HarmoniaMundiParser) ParseComposersStructured(html string) ([]string, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	composers := make([]string, 0)
+
+	doc.Find(".humans_list").Each(func(i int, section *goquery.Selection) {
+		heading := strings.TrimSpace(section.Find("h2").First().Text())
+
+		if strings.Contains(strings.ToLower(heading), "composer") {
+			section.Find("li").Each(func(j int, li *goquery.Selection) {
+				name := CleanArtistName(li.Find(".human").First().Text())
+				if name != "" {
+					composers = append(composers, name)
+				}
+			})
+		}
+	})
+
+	if len(composers) == 0 {
+		return nil, fmt.Errorf("no composers found")
+	}
+	return composers, nil
+}
+
+// NormalizeRoleFromHTML converts HTML role names to standard enum values.
+func NormalizeRoleFromHTML(htmlRole string) string {
+	htmlRole = strings.ToLower(strings.TrimSpace(htmlRole))
+
+	switch {
+	case strings.Contains(htmlRole, "conduct"):
+		return "conductor"
+	case strings.Contains(htmlRole, "chorus"), strings.Contains(htmlRole, "choir"):
+		return "ensemble"
+	case strings.Contains(htmlRole, "orchestra"), strings.Contains(htmlRole, "quartet"):
+		return "ensemble"
+	case strings.Contains(htmlRole, "solo"):
+		return "soloist"
+	default:
+		return "performer"
+	}
+}
+
+// CleanArtistName removes HTML artifacts and normalizes whitespace.
+func CleanArtistName(rawName string) string {
+	re := regexp.MustCompile(`<[^>]*>`)
+	cleaned := re.ReplaceAllString(rawName, "")
+	cleaned = strings.Join(strings.Fields(cleaned), " ")
+	return strings.TrimSpace(cleaned)
 }

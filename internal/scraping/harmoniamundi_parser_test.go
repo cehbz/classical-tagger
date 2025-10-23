@@ -220,3 +220,37 @@ func TestHarmoniaMundiParser_MultiDisc(t *testing.T) {
 
 	// TODO: Add test when we have a multi-disc HTML example
 }
+
+func TestHarmoniaMundiParser_ParseArtistsStructured(t *testing.T) {
+	html := `
+		<div class="humans_list">
+			<h2>Artists</h2>
+			<ul>
+				<li>
+					<div class="human">RIAS Kammerchor Berlin</div>
+					<div class="role">Chorus</div>
+				</li>
+				<li>
+					<div class="human">Hans-Christoph Rademann</div>
+					<div class="role">Conductor</div>
+				</li>
+			</ul>
+		</div>
+	`
+
+	parser := NewHarmoniaMundiParser()
+	artists, err := parser.ParseArtistsStructured(html)
+
+	if err != nil {
+		t.Fatalf("ParseArtistsStructured() error = %v", err)
+	}
+	if len(artists) != 2 {
+		t.Fatalf("got %d artists, want 2", len(artists))
+	}
+	if artists[0].Role != "ensemble" {
+		t.Errorf("First artist role = %q, want %q", artists[0].Role, "ensemble")
+	}
+	if artists[1].Role != "conductor" {
+		t.Errorf("Second artist role = %q, want %q", artists[1].Role, "conductor")
+	}
+}

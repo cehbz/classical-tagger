@@ -247,7 +247,6 @@ func (p *PrestoClassicalParser) ParseTracks(html string) ([]TrackData, []error) 
 	return tracks, errors
 }
 
-// ParseEdition extracts label and catalog number from JSON-LD or page.
 func (p *PrestoClassicalParser) ParseEdition(html string) (*EditionData, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
@@ -256,39 +255,43 @@ func (p *PrestoClassicalParser) ParseEdition(html string) (*EditionData, error) 
 
 	edition := &EditionData{}
 
-	// Try to extract from JSON-LD first
+	// Strategy 1: Extract from JSON-LD
 	doc.Find("script[type='application/ld+json']").Each(func(i int, s *goquery.Selection) {
 		jsonText := s.Text()
 		
-		// Look for MPN (Manufacturer Part Number) - this is often the catalog number
 		mpnPattern := regexp.MustCompile(`"mpn"\s*:\s*"([^"]+)"`)
 		if matches := mpnPattern.FindStringSubmatch(jsonText); len(matches) > 1 {
 			edition.CatalogNumber = matches[1]
 		}
 
-		// Look for brand/label
 		brandPattern := regexp.MustCompile(`"brand"\s*:\s*\{\s*"name"\s*:\s*"([^"]+)"`)
 		if matches := brandPattern.FindStringSubmatch(jsonText); len(matches) > 1 {
 			edition.Label = matches[1]
 		}
 	})
 
-	// If we found catalog number but no label, try to extract label from product details
+	// Strategy 2: Infer label from catalog prefix if missing
 	if edition.CatalogNumber != "" && edition.Label == "" {
-		// Look in product info area
+		if inferredLabel := InferLabelFromCatalog(edition.CatalogNumber); inferredLabel != "" {
+			edition.Label = inferredLabel
+		}
+	}
+
+	// Strategy 3: Look in product details for "Label:" text
+	if edition.Label == "" {
 		productInfo := doc.Find(".c-product__info, .c-product-details").Text()
-		
-		// Common label patterns
 		labelPattern := regexp.MustCompile(`(?i)Label:\s*([^\n]+)`)
 		if matches := labelPattern.FindStringSubmatch(productInfo); len(matches) > 1 {
 			edition.Label = strings.TrimSpace(matches[1])
 		}
 	}
 
-	if edition.CatalogNumber == "" && edition.Label == "" {
+	// Must have at least catalog number
+	if edition.CatalogNumber == "" {
 		return nil, fmt.Errorf("no edition information found")
 	}
 
+	// Note: Label may be empty - force mode will handle it
 	return edition, nil
 }
 

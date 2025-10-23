@@ -319,3 +319,22 @@ func TestPrestoClassicalParser_ParseTracks_NoTracklist(t *testing.T) {
 		t.Error("ParseTracks() expected errors, got none")
 	}
 }
+
+func TestPrestoClassicalParser_ParseEdition_LabelInference(t *testing.T) {
+	html := `
+		<script type="application/ld+json">
+		{"@type": "Product", "mpn": "HMC902170"}
+		</script>
+	`
+
+	parser := NewPrestoClassicalParser()
+	edition, err := parser.ParseEdition(html)
+
+	if err != nil {
+		t.Fatalf("ParseEdition() error = %v", err)
+	}
+
+	if edition.Label != "harmonia mundi" {
+		t.Errorf("Label = %q, want %q (inferred)", edition.Label, "harmonia mundi")
+	}
+}

@@ -216,3 +216,59 @@ func DefaultRegistry() *Registry {
 
 	return registry
 }
+
+// SynthesizeMissingEditionData fills in missing required edition data with placeholder values.
+// Returns true if any data was synthesized.
+func SynthesizeMissingEditionData(data *AlbumData) bool {
+	if data.Edition == nil {
+		return false
+	}
+
+	synthesized := false
+
+	// If we have a catalog number but no label, synthesize a placeholder label
+	if data.Edition.CatalogNumber != "" && data.Edition.Label == "" {
+		data.Edition.Label = "[Unknown Label]"
+		synthesized = true
+	}
+
+	// If edition year is missing, try to use original year, or synthesize
+	if data.Edition.EditionYear == 0 {
+		if data.OriginalYear > 0 {
+			// Use original year as edition year (reasonable default)
+			data.Edition.EditionYear = data.OriginalYear
+			synthesized = true
+		} else {
+			// No year at all - synthesize a placeholder
+			data.Edition.EditionYear = 1900 // Placeholder year - obviously fake
+			synthesized = true
+		}
+	}
+
+	return synthesized
+}
+
+// InferLabelFromCatalog attempts to infer a record label from a catalog number prefix.
+func InferLabelFromCatalog(catalogNumber string) string {
+	if catalogNumber == "" {
+		return ""
+	}
+
+	prefixes := map[string]string{
+		"HMC": "harmonia mundi", "HMG": "harmonia mundi", "HMM": "harmonia mundi",
+		"DG": "Deutsche Grammophon", "BIS": "BIS Records", "CDA": "Hyperion",
+		"CHAN": "Chandos", "ALPHA": "Alpha Classics", "ECM": "ECM Records",
+		"NAXOS": "Naxos", "DECCA": "Decca", "SONY": "Sony Classical",
+		// ... add more as needed
+	}
+
+	catalogUpper := strings.ToUpper(catalogNumber)
+	for prefix, label := range prefixes {
+		if strings.HasPrefix(catalogUpper, prefix) ||
+		   strings.HasPrefix(catalogUpper, prefix+" ") ||
+		   strings.HasPrefix(catalogUpper, prefix+"-") {
+			return label
+		}
+	}
+	return ""
+}
