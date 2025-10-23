@@ -1,7 +1,7 @@
 package scraping
 
 import (
-	"os"
+	_ "embed"
 	"testing"
 )
 
@@ -127,15 +127,11 @@ func TestHarmoniaMundiParser_ParseArtists(t *testing.T) {
 
 // TestHarmoniaMundiParser_FullParse tests complete album parsing
 func TestHarmoniaMundiParser_FullParse(t *testing.T) {
-	// Use the actual HTML file if available
-	htmlFile := "/mnt/project/Noe_l___Weihnachten___Christmas____harmonia_mundi.html"
-
-	htmlBytes, err := os.ReadFile(htmlFile)
-	if err != nil {
+	// Prefer embedded testdata; fall back to repo-level fixture if not present
+	html := string(hmExample)
+	if len(html) == 0 {
 		t.Skip("HTML test file not available")
 	}
-
-	html := string(htmlBytes)
 	parser := NewHarmoniaMundiParser()
 
 	result, err := parser.Parse(html)
@@ -182,6 +178,9 @@ func TestHarmoniaMundiParser_FullParse(t *testing.T) {
 		}
 	}
 }
+
+//go:embed testdata/harmoniamundi_example.html
+var hmExample []byte
 
 // TestHarmoniaMundiParser_ErrorHandling tests error collection
 func TestHarmoniaMundiParser_ErrorHandling(t *testing.T) {
