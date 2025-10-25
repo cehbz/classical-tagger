@@ -226,11 +226,21 @@ func (p *DiscogsParser) ParseTracks(html string) ([]TrackData, error) {
 
 	tracks := make([]TrackData, 0)
 	var currentHeadingComposer string
+	var currentHeadingTitle string
 
 	// Parse tracklist table
 	doc.Find("table.tracklist_ZdQ0I tbody tr").Each(func(i int, row *goquery.Selection) {
 		// Check if this is a heading row (for multi-movement works)
 		if row.HasClass("heading_mkZNt") {
+			// Extract parent work title from heading
+			titleCell := row.Find(".trackTitle_loyWF")
+			// Clone to avoid modifying original
+			titleClone := titleCell.Clone()
+			// Remove credits div to get just the title
+			titleClone.Find(".credits_vzBtg").Remove()
+			currentHeadingTitle = strings.TrimSpace(titleClone.Text())
+			currentHeadingTitle = cleanHTMLEntities(currentHeadingTitle)
+
 			// Extract composer from heading if available
 			creditsDiv := row.Find(".credits_vzBtg")
 			if creditsDiv.Length() > 0 {
@@ -273,14 +283,19 @@ func (p *DiscogsParser) ParseTracks(html string) ([]TrackData, error) {
 		title := strings.TrimSpace(titleSpan.Text())
 		if title == "" {
 			// Fallback: get all text from title cell, excluding credits
-			titleCell.Find(".credits_vzBtg").Remove()
-			title = strings.TrimSpace(titleCell.Text())
+			titleCellClone := titleCell.Clone()
+			titleCellClone.Find(".credits_vzBtg").Remove()
+			title = strings.TrimSpace(titleCellClone.Text())
 		}
 		title = cleanHTMLEntities(title)
 
-		// FIXED CODE - extracts once from link only
+		// Prepend parent work title for subtracks
+		if isSubtrack && currentHeadingTitle != "" {
+			title = currentHeadingTitle + ": " + title
+		}
+
+		// Extract composer
 		composer := ""
-		// Find the credits div
 		creditDiv := row.Find(".credits_vzBtg")
 		if creditDiv.Length() > 0 {
 			// Only extract from the composer link, not surrounding text
@@ -294,6 +309,12 @@ func (p *DiscogsParser) ParseTracks(html string) ([]TrackData, error) {
 		// Use heading composer for subtracks if no specific composer found
 		if composer == "" && isSubtrack && currentHeadingComposer != "" {
 			composer = currentHeadingComposer
+		}
+
+		// Reset heading context when we encounter a non-subtrack
+		if !isSubtrack {
+			currentHeadingTitle = ""
+			currentHeadingComposer = ""
 		}
 
 		if title != "" {

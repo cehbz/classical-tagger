@@ -281,7 +281,7 @@ func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
 		for _, word := range words {
 			wordCount[word]++
 			if wordCount[word] > 1 && len(word) > 3 { // Ignore short words
-				t.Errorf("Track %d: word %q appears %d times in composer %q", 
+				t.Errorf("Track %d: word %q appears %d times in composer %q",
 					i+1, word, wordCount[word], composer)
 			}
 		}
@@ -331,5 +331,146 @@ func TestDiscogsParser_ParseTracksWithHeadings(t *testing.T) {
 	// Should have 3 tracks total (1 regular + 2 subtracks)
 	if len(tracks) < 3 {
 		t.Fatalf("ParseTracks() got %d tracks, want at least 3", len(tracks))
+	}
+}
+
+// TestDiscogsParser_ParseTracks_MultiMovementWork tests that movement tracks
+// include the parent work name in their title, matching the behavior of PrestoParser.
+// Rule reference: Movement tracks of multi-movement works should include the work name.
+func TestDiscogsParser_ParseTracks_MultiMovementWork(t *testing.T) {
+	html := `
+	<table class="tracklist_ZdQ0I">
+		<tbody>
+			<!-- Regular standalone track -->
+			<tr data-track-position="15">
+				<td class="trackPos_n8vad">15</td>
+				<td class="trackTitle_loyWF">
+					<span>In Dulci Jubilo</span>
+					<div class="credits_vzBtg">
+						<span>Composed By</span> – 
+						<a href="/artist/856233-Michael-Praetorius">Michael Praetorius</a>
+					</div>
+				</td>
+			</tr>
+			
+			<!-- Multi-movement work heading -->
+			<tr class="heading_mkZNt">
+				<td></td>
+				<td class="trackTitle_loyWF">Quatre Motets Pour Le Temps de Noël
+					<div class="credits_vzBtg">
+						<span>Composed By</span> – 
+						<a href="/artist/361814-Francis-Poulenc">Francis Poulenc</a>
+					</div>
+				</td>
+			</tr>
+			
+			<!-- Movement 1 -->
+			<tr class="subtrack_o3GgI">
+				<td class="subtrackPos_HC1me">16</td>
+				<td class="trackTitle_loyWF">
+					<span>O Magnum Mysterium</span>
+				</td>
+			</tr>
+			
+			<!-- Movement 2 -->
+			<tr class="subtrack_o3GgI">
+				<td class="subtrackPos_HC1me">17</td>
+				<td class="trackTitle_loyWF">
+					<span>Quem Vidistis Pastores Dicite</span>
+				</td>
+			</tr>
+			
+			<!-- Movement 3 -->
+			<tr class="subtrack_o3GgI">
+				<td class="subtrackPos_HC1me">18</td>
+				<td class="trackTitle_loyWF">
+					<span>Videntes Stellam</span>
+				</td>
+			</tr>
+			
+			<!-- Movement 4 -->
+			<tr class="subtrack_o3GgI">
+				<td class="subtrackPos_HC1me">19</td>
+				<td class="trackTitle_loyWF">
+					<span>Hodie Christus Natus Est</span>
+				</td>
+			</tr>
+			
+			<!-- Next standalone track -->
+			<tr data-track-position="20">
+				<td class="trackPos_n8vad">20</td>
+				<td class="trackTitle_loyWF">
+					<span>Stille Nacht</span>
+					<div class="credits_vzBtg">
+						<span>Composed By</span> – 
+						<a href="/artist/1316922-Franz-Xaver-Gruber">Franz Xaver Gruber</a>
+					</div>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	`
+
+	parser := NewDiscogsParser()
+	tracks, err := parser.ParseTracks(html)
+
+	if err != nil {
+		t.Fatalf("ParseTracks() error = %v", err)
+	}
+
+	// Should have 6 tracks total (1 regular + 4 Poulenc movements + 1 final)
+	if len(tracks) != 6 {
+		t.Errorf("Got %d tracks, want 6", len(tracks))
+		t.Logf("Tracks extracted:")
+		for _, track := range tracks {
+			t.Logf("  %d. %s (composer: %s)", track.Track, track.Title, track.Composer)
+		}
+	}
+
+	// Verify track 1 is the regular track before the multi-movement work
+	if len(tracks) >= 1 {
+		track := tracks[0]
+		if !strings.Contains(track.Title, "In Dulci Jubilo") {
+			t.Errorf("Track 1 title = %q, want to contain 'In Dulci Jubilo'", track.Title)
+		}
+		if track.Composer != "Michael Praetorius" {
+			t.Errorf("Track 1 composer = %q, want 'Michael Praetorius'", track.Composer)
+		}
+		if track.Track != 15 {
+			t.Errorf("Track 1 track number = %d, want 15", track.Track)
+		}
+	}
+
+	// Check that Poulenc movements have cycle name prepended
+	expectedPoulencTitles := []string{
+		"Quatre Motets Pour Le Temps de Noël: O Magnum Mysterium",
+		"Quatre Motets Pour Le Temps de Noël: Quem Vidistis Pastores Dicite",
+		"Quatre Motets Pour Le Temps de Noël: Videntes Stellam",
+		"Quatre Motets Pour Le Temps de Noël: Hodie Christus Natus Est",
+	}
+
+	for i := 0; i < 4 && i+1 < len(tracks); i++ {
+		track := tracks[i+1] // Skip first regular track
+		expected := expectedPoulencTitles[i]
+
+		if track.Title != expected {
+			t.Errorf("Track %d title = %q, want %q", track.Track, track.Title, expected)
+		}
+
+		// Verify composer is preserved from parent heading
+		if track.Composer != "Francis Poulenc" {
+			t.Errorf("Track %d composer = %q, want 'Francis Poulenc'", track.Track, track.Composer)
+		}
+	}
+
+	// Verify last track is standalone work (not part of Poulenc cycle)
+	if len(tracks) >= 6 {
+		lastTrack := tracks[5]
+		if !strings.Contains(lastTrack.Title, "Stille Nacht") {
+			t.Errorf("Track 6 should contain 'Stille Nacht', got %q", lastTrack.Title)
+		}
+		if lastTrack.Composer != "Franz Xaver Gruber" {
+			t.Errorf("Track 6 composer = %q, want 'Franz Xaver Gruber'", lastTrack.Composer)
+		}
 	}
 }
