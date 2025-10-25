@@ -234,7 +234,7 @@ func (p *DiscogsParser) ParseTracks(html string) ([]TrackData, error) {
 			// Extract composer from heading if available
 			creditsDiv := row.Find(".credits_vzBtg")
 			if creditsDiv.Length() > 0 {
-				composerLink := creditsDiv.Find("a[href*='artist']")
+				composerLink := creditsDiv.Find("a[href*='artist']").First()
 				if composerLink.Length() > 0 {
 					currentHeadingComposer = strings.TrimSpace(composerLink.Text())
 					currentHeadingComposer = cleanHTMLEntities(currentHeadingComposer)
