@@ -278,29 +278,22 @@ func (p *DiscogsParser) ParseTracks(html string) ([]TrackData, error) {
 		}
 		title = cleanHTMLEntities(title)
 
-		// Extract composer
-		var composer string
-		creditsDiv := row.Find(".credits_vzBtg")
-		if creditsDiv.Length() > 0 {
-			// Look for "Composed By" text followed by a composer link
-			text := creditsDiv.Text()
-			if strings.Contains(text, "Composed By") {
-				composerLink := creditsDiv.Find("a[href*='artist']")
-				if composerLink.Length() > 0 {
-					composer = strings.TrimSpace(composerLink.Text())
-					composer = cleanHTMLEntities(composer)
-				}
+		// FIXED CODE - extracts once from link only
+		composer := ""
+		// Find the credits div
+		creditDiv := row.Find(".credits_vzBtg")
+		if creditDiv.Length() > 0 {
+			// Only extract from the composer link, not surrounding text
+			composerLink := creditDiv.Find("a[href*='/artist/']").First()
+			if composerLink.Length() > 0 {
+				composer = strings.TrimSpace(composerLink.Text())
+				composer = cleanHTMLEntities(composer)
 			}
 		}
 
 		// Use heading composer for subtracks if no specific composer found
 		if composer == "" && isSubtrack && currentHeadingComposer != "" {
 			composer = currentHeadingComposer
-		}
-
-		// Default to "Anonymous" if no composer found
-		if composer == "" {
-			composer = "Anonymous"
 		}
 
 		if title != "" {

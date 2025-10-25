@@ -2,6 +2,7 @@ package scraping
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -175,6 +176,120 @@ func TestDiscogsParser_ParseTracks(t *testing.T) {
 	}
 	if tracks[1].Composer != "Uwe Gronostay" {
 		t.Errorf("Track 2 composer = %q", tracks[1].Composer)
+	}
+}
+
+// TestDiscogsParser_ParseTracks_NoDuplicateComposers tests the bug where composer names
+// are duplicated in the output.
+func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
+	html := `
+	<html>
+	<head>
+		<script type="application/ld+json" id="release_schema">
+		{
+			"@context":"http://schema.org",
+			"@type":"MusicRelease",
+			"name":"Test Album",
+			"datePublished":2013
+		}
+		</script>
+	</head>
+	<body>
+		<table class="tracklist_ZdQ0I">
+			<tbody>
+				<tr data-track-position="1">
+					<td class="trackPos_n8vad">1</td>
+					<td class="trackTitle_loyWF">
+						<span>Frohlocket, Ihr Völker Auf Erden (op.79/1)</span>
+						<div class="credits_vzBtg">
+							<span>Composed By</span> – 
+							<a href="/artist/623293-Felix-Mendelssohn-Bartholdy">Felix Mendelssohn Bartholdy</a>
+						</div>
+					</td>
+					<td class="duration_GhhxK">1:38</td>
+				</tr>
+				<tr data-track-position="2">
+					<td class="trackPos_n8vad">2</td>
+					<td class="trackTitle_loyWF">
+						<span>Die Nacht Ist Vorgedrungen</span>
+						<div class="credits_vzBtg">
+							<span>Composed By</span> – 
+							<a href="/artist/837343-Uwe-Gronostay">Uwe Gronostay</a>
+						</div>
+					</td>
+					<td class="duration_GhhxK">2:26</td>
+				</tr>
+				<tr data-track-position="3">
+					<td class="trackPos_n8vad">3</td>
+					<td class="trackTitle_loyWF">
+						<span>Ave Maria</span>
+						<div class="credits_vzBtg">
+							<span>Composed By</span> – 
+							<a href="/artist/25228-Anton-Bruckner">Anton Bruckner</a>
+						</div>
+					</td>
+					<td class="duration_GhhxK">4:12</td>
+				</tr>
+			</tbody>
+		</table>
+	</body>
+	</html>
+	`
+
+	parser := NewDiscogsParser()
+	result, err := parser.Parse(html)
+
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	tracks := result.Data().Tracks
+	if len(tracks) != 3 {
+		t.Fatalf("Expected 3 tracks, got %d", len(tracks))
+	}
+
+	// Test each track's composer for duplication
+	expectedComposers := []string{
+		"Felix Mendelssohn Bartholdy",
+		"Uwe Gronostay",
+		"Anton Bruckner",
+	}
+
+	for i, track := range tracks {
+		composer := track.Composer
+		expected := expectedComposers[i]
+
+		// Check if composer name is duplicated (exact concatenation)
+		if len(composer) >= len(expected)*2 && composer == expected+expected {
+			t.Errorf("Track %d: composer is exactly duplicated: %q", i+1, composer)
+			t.Logf("BUG: Composer name appears twice concatenated")
+			t.Logf("Expected: %q", expected)
+		}
+
+		// Check for partial duplication patterns
+		if composer != expected && strings.Contains(composer, expected) {
+			// Count occurrences
+			count := strings.Count(composer, expected)
+			if count > 1 {
+				t.Errorf("Track %d: composer name appears %d times in %q", i+1, count, composer)
+			}
+		}
+
+		// Check individual words for duplication
+		words := strings.Fields(composer)
+		wordCount := make(map[string]int)
+		for _, word := range words {
+			wordCount[word]++
+			if wordCount[word] > 1 && len(word) > 3 { // Ignore short words
+				t.Errorf("Track %d: word %q appears %d times in composer %q", 
+					i+1, word, wordCount[word], composer)
+			}
+		}
+
+		// Final check: composer should match expected exactly
+		if composer != expected {
+			t.Errorf("Track %d: composer = %q, want %q", i+1, composer, expected)
+		}
 	}
 }
 

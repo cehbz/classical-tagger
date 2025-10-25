@@ -29,37 +29,6 @@ type Extractor interface {
 	Extract(url string) (*ExtractionResult, error) // ← Returns result wrapper
 }
 
-// AlbumData represents extracted album metadata before domain conversion.
-type AlbumData struct {
-	Title        string
-	OriginalYear int
-	Edition      *EditionData
-	Tracks       []TrackData
-}
-
-// EditionData represents edition information.
-type EditionData struct {
-	Label         string
-	CatalogNumber string
-	EditionYear   int
-}
-
-// TrackData represents a single track.
-type TrackData struct {
-	Disc     int
-	Track    int
-	Title    string
-	Composer string
-	Artists  []ArtistData
-	Arranger string // Optional
-}
-
-// ArtistData represents an artist.
-type ArtistData struct {
-	Name string
-	Role string // "soloist", "ensemble", "conductor", etc.
-}
-
 // ToAlbum converts AlbumData to a domain Album.
 func (a *AlbumData) ToAlbum() (*domain.Album, error) {
 	// Create album

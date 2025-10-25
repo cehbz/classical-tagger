@@ -86,25 +86,37 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 	return result, nil
 }
 
-// ParseTitle extracts the album title from the HTML title tag.
+// ParseTitle extracts the album title from meta tags or HTML title tag.
 func (p *PrestoParser) ParseTitle(html string) (string, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
-	// Get title from <title> tag
+	// PRIORITY 1: Check for og:title meta tag (most reliable)
+	ogTitle, exists := doc.Find("meta[property='og:title']").Attr("content")
+	if exists && ogTitle != "" {
+		return cleanHTMLEntities(strings.TrimSpace(ogTitle)), nil
+	}
+
+	// PRIORITY 2: Check for h1.c-product-block__title
+	h1Title := doc.Find("h1.c-product-block__title").First().Text()
+	if h1Title != "" {
+		return cleanHTMLEntities(strings.TrimSpace(h1Title)), nil
+	}
+
+	// PRIORITY 3: Fall back to parsing <title> tag
 	title := doc.Find("title").First().Text()
 	if title == "" {
 		return "", fmt.Errorf("no title tag found")
 	}
 
-	// Remove " | Presto Music" suffix first if present
+	// Remove " | Presto Music" suffix
 	if idx := strings.Index(title, " | Presto Music"); idx > 0 {
 		title = title[:idx]
 	}
 
-	// Remove everything after the FIRST " - " (which contains label/catalog info)
+	// Remove everything after the FIRST " - " (label/catalog info)
 	if idx := strings.Index(title, " - "); idx > 0 {
 		title = title[:idx]
 	}
@@ -222,69 +234,71 @@ func (p *PrestoParser) ParseTracks(html string) ([]TrackData, error) {
 	tracks := make([]TrackData, 0)
 	trackNum := 1
 
-	// Parse using semantic structure: .c-tracklist__work elements
 	doc.Find(".c-tracklist__work").Each(func(i int, work *goquery.Selection) {
-		// Get composer and title using semantic links
-		titleDiv := work.Find(".c-track__title").First()
-		
-		var composer, title string
+		// Check if this is a hierarchical work with movements
+		hasChildren, parentTitle, parentComposer := p.detectHierarchy(work)
 
-		// Check if composer is in a link
-		composerLink := titleDiv.Find("a[href*='composer']")
-		if composerLink.Length() > 0 {
-			composer = strings.TrimSpace(composerLink.Text())
-			
-			// Get work title from works link
-			workLink := titleDiv.Find("a[href*='works']")
-			if workLink.Length() > 0 {
-				title = strings.TrimSpace(workLink.Text())
-			}
+		if hasChildren {
+			// Hierarchical structure: prepend parent to each movement
+			work.Find(".c-track--track").Each(func(j int, subtrack *goquery.Selection) {
+				subtitleDiv := subtrack.Find(".c-track__title").First()
+				movementTitle := strings.TrimSpace(subtitleDiv.Text())
+				movementTitle = cleanHTMLEntities(movementTitle)
+
+				if movementTitle != "" {
+					// Prepend parent work title to movement
+					fullTitle := parentTitle + ": " + movementTitle
+					
+					track := TrackData{
+						Disc:     1,
+						Track:    trackNum,
+						Title:    fullTitle,
+						Composer: cleanHTMLEntities(parentComposer),
+					}
+					tracks = append(tracks, track)
+					trackNum++
+				}
+			})
 		} else {
-			// Composer might be plain text before a colon
-			text := titleDiv.Text()
-			parts := strings.SplitN(text, ":", 2)
-			if len(parts) == 2 {
-				composer = strings.TrimSpace(parts[0])
-				title = strings.TrimSpace(parts[1])
+			// Flat structure: standard track
+			titleDiv := work.Find(".c-track__title").First()
+			
+			var composer, title string
+
+			composerLink := titleDiv.Find("a[href*='composer']")
+			if composerLink.Length() > 0 {
+				composer = strings.TrimSpace(composerLink.Text())
+				
+				workLink := titleDiv.Find("a[href*='works']")
+				if workLink.Length() > 0 {
+					title = strings.TrimSpace(workLink.Text())
+				}
 			} else {
-				// No composer information, treat as anonymous
-				composer = "Anonymous"
-				title = strings.TrimSpace(text)
+				text := titleDiv.Text()
+				parts := strings.SplitN(text, ":", 2)
+				if len(parts) == 2 {
+					composer = strings.TrimSpace(parts[0])
+					title = strings.TrimSpace(parts[1])
+				} else {
+					composer = "Anonymous"
+					title = strings.TrimSpace(text)
+				}
 			}
-		}
 
-		// Clean up composer name
-		composer = cleanHTMLEntities(composer)
-		title = cleanHTMLEntities(title)
+			composer = cleanHTMLEntities(composer)
+			title = cleanHTMLEntities(title)
 
-		if title != "" {
-			track := TrackData{
-				Disc:     1,
-				Track:    trackNum,
-				Title:    title,
-				Composer: composer,
-			}
-			tracks = append(tracks, track)
-			trackNum++
-		}
-
-		// Check for subtracks
-		work.Find(".c-track--track").Each(func(j int, subtrack *goquery.Selection) {
-			subtitleDiv := subtrack.Find(".c-track__title").First()
-			subtitle := strings.TrimSpace(subtitleDiv.Text())
-			subtitle = cleanHTMLEntities(subtitle)
-
-			if subtitle != "" {
+			if title != "" {
 				track := TrackData{
 					Disc:     1,
 					Track:    trackNum,
-					Title:    subtitle,
-					Composer: composer, // Use parent work's composer
+					Title:    title,
+					Composer: composer,
 				}
 				tracks = append(tracks, track)
 				trackNum++
 			}
-		})
+		}
 	})
 
 	if len(tracks) == 0 {
@@ -292,4 +306,44 @@ func (p *PrestoParser) ParseTracks(html string) ([]TrackData, error) {
 	}
 
 	return tracks, nil
+}
+
+// detectHierarchy checks if a work element has subtrack children and extracts parent info.
+func (p *PrestoParser) detectHierarchy(work *goquery.Selection) (hasChildren bool, parentTitle string, parentComposer string) {
+	// Check for subtracks
+	subtracks := work.Find(".c-track--track")
+	if subtracks.Length() == 0 {
+		return false, "", ""
+	}
+
+	// Get parent title and composer
+	titleDiv := work.Find(".c-track__title").First()
+	
+	// Extract composer
+	composerLink := titleDiv.Find("a[href*='composer']")
+	if composerLink.Length() > 0 {
+		parentComposer = strings.TrimSpace(composerLink.Text())
+	} else {
+		// Try plain text before colon
+		text := titleDiv.Text()
+		parts := strings.SplitN(text, ":", 2)
+		if len(parts) == 2 {
+			parentComposer = strings.TrimSpace(parts[0])
+		}
+	}
+
+	// Extract work title
+	workLink := titleDiv.Find("a[href*='works']")
+	if workLink.Length() > 0 {
+		parentTitle = strings.TrimSpace(workLink.Text())
+	} else {
+		// Try text after colon
+		text := titleDiv.Text()
+		parts := strings.SplitN(text, ":", 2)
+		if len(parts) == 2 {
+			parentTitle = strings.TrimSpace(parts[1])
+		}
+	}
+
+	return true, parentTitle, parentComposer
 }

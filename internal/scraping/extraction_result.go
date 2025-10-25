@@ -231,11 +231,3 @@ func (a ArtistInference) WithAlternateRole(role string) ArtistInference {
 		alternateRoles: newRoles,
 	}
 }
-
-// Sentinel values for missing required fields
-const (
-	MissingTitle    = "<<<MISSING_TITLE>>>"
-	MissingYear     = 0 // Will fail domain validation
-	MissingComposer = "<<<MISSING_COMPOSER>>>"
-	MissingTrackTitle = "<<<MISSING_TRACK_TITLE>>>"
-)
