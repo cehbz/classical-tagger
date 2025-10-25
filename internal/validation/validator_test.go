@@ -19,7 +19,7 @@ func TestAlbumValidator_ValidateMetadata(t *testing.T) {
 			name: "valid complete album",
 			setupAlbum: func() *domain.Album {
 				album, _ := domain.NewAlbum("Test Album", 2013)
-				edition, _ := domain.NewEdition("harmonia mundi", 2013)
+				edition, _ := domain.NewEdition("test label", 2013)
 				edition = edition.WithCatalogNumber("HMC902170")
 				album = album.WithEdition(edition)
 				

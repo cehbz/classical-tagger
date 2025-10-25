@@ -80,7 +80,7 @@ func TestMetadataToVorbisComment(t *testing.T) {
 			}(),
 			album: func() *domain.Album {
 				album, _ := domain.NewAlbum("Christmas Music", 2013)
-				edition, _ := domain.NewEdition("harmonia mundi", 2013)
+				edition, _ := domain.NewEdition("test label", 2013)
 				edition = edition.WithCatalogNumber("HMC902170")
 				album = album.WithEdition(edition)
 				return album
@@ -95,7 +95,7 @@ func TestMetadataToVorbisComment(t *testing.T) {
 				"DISCNUMBER":    "1",
 				"ORIGINALDATE":  "2013",
 				"DATE":          "2013", // Edition year
-				"LABEL":         "harmonia mundi",
+				"LABEL":         "test label",
 				"CATALOGNUMBER": "HMC902170",
 			},
 		},

@@ -12,7 +12,7 @@ func TestAlbumDTO_ToAlbum(t *testing.T) {
 		Title:        "Noël ! Weihnachten ! Christmas!",
 		OriginalYear: 2013,
 		Edition: &EditionDTO{
-			Label:         "harmonia mundi",
+			Label:         "test label",
 			CatalogNumber: "HMC902170",
 			EditionYear:   2013,
 		},
@@ -62,7 +62,7 @@ func TestAlbumDTO_ToAlbum(t *testing.T) {
 func TestAlbumDTO_FromAlbum(t *testing.T) {
 	// Create domain album
 	album, _ := domain.NewAlbum("Test Album", 2013)
-	edition, _ := domain.NewEdition("harmonia mundi", 2013)
+	edition, _ := domain.NewEdition("test label", 2013)
 	edition = edition.WithCatalogNumber("HMC902170")
 	album = album.WithEdition(edition)
 	

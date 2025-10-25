@@ -11,7 +11,7 @@ func TestNewEdition(t *testing.T) {
 	}{
 		{
 			name:        "valid edition",
-			label:       "harmonia mundi",
+			label:       "test label",
 			editionYear: 2013,
 			wantErr:     false,
 		},
@@ -64,7 +64,7 @@ func TestNewEdition(t *testing.T) {
 }
 
 func TestEdition_WithCatalogNumber(t *testing.T) {
-	edition, _ := NewEdition("harmonia mundi", 2013)
+	edition, _ := NewEdition("test label", 2013)
 	edition = edition.WithCatalogNumber("HMC902170")
 	
 	if got := edition.CatalogNumber(); got != "HMC902170" {
@@ -82,7 +82,7 @@ func TestEdition_Validate(t *testing.T) {
 		{
 			name: "complete edition",
 			edition: func() Edition {
-				e, _ := NewEdition("harmonia mundi", 2013)
+				e, _ := NewEdition("test label", 2013)
 				return e.WithCatalogNumber("HMC902170")
 			}(),
 			wantIssueCount: 0,
@@ -91,7 +91,7 @@ func TestEdition_Validate(t *testing.T) {
 		{
 			name: "missing catalog number",
 			edition: func() Edition {
-				e, _ := NewEdition("harmonia mundi", 2013)
+				e, _ := NewEdition("test label", 2013)
 				return e
 			}(),
 			wantIssueCount: 1,

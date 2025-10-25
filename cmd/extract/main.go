@@ -7,58 +7,78 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cehbz/classical-tagger/internal/scraping"
 )
 
 var (
-	url        = flag.String("url", "", "URL to extract from (use this OR -dir)")
-	dir        = flag.String("dir", "", "Local directory with FLAC files to extract from (use this OR -url)")
-	outputFile = flag.String("output", "", "Output JSON file (default: stdout)")
-	validate   = flag.Bool("validate", true, "Validate extracted metadata against domain rules")
-	verbose    = flag.Bool("verbose", false, "Verbose output including parsing notes")
-	force      = flag.Bool("force", false, "Create output even with required field errors")
-	timeout    = flag.Duration("timeout", 30*time.Second, "HTTP request timeout (URL mode only)")
+	url        = flag.String("url", "", "URL to extract metadata from")
+	file       = flag.String("file", "", "Local HTML file to parse")
+	dir        = flag.String("dir", "", "Local directory to extract metadata from")
+	outputFile = flag.String("output", "", "Output file for extracted metadata, stdout by default")
+	timeout    = flag.Duration("timeout", 30*time.Second, "HTTP request timeout")
+	verbose    = flag.Bool("verbose", false, "Enable verbose output")
+	force      = flag.Bool("force", false, "Create output even if required fields are missing")
 )
 
 func main() {
+	flag.Usage = usage
 	flag.Parse()
 
-	// Validate input: need either -url or -dir
-	if *url == "" && *dir == "" {
-		printUsage()
+	// Count number of inputs specified
+	inputCount := 0
+	if *url != "" {
+		inputCount++
+	}
+	if *file != "" {
+		inputCount++
+	}
+	if *dir != "" {
+		inputCount++
+	}
+
+	// Validate input
+	if inputCount == 0 {
+		fmt.Fprintf(os.Stderr, "Error: Must specify one of -url, -file, or -dir\n\n")
+		usage()
 		os.Exit(1)
 	}
 
-	if *url != "" && *dir != "" {
-		fmt.Fprintf(os.Stderr, "Error: Cannot use both -url and -dir flags\n")
+	if inputCount > 1 {
+		fmt.Fprintf(os.Stderr, "Error: Cannot specify more than one input source\n\n")
+		usage()
 		os.Exit(1)
 	}
 
 	// Route to appropriate extraction method
-	if *dir != "" {
+	if *file != "" {
+		extractFromFile()
+	} else if *dir != "" {
 		extractFromDirectory()
 	} else {
 		extractFromURL()
 	}
 }
 
-func printUsage() {
-	fmt.Fprintf(os.Stderr, "Error: Either -url or -dir flag is required\n")
-	fmt.Fprintf(os.Stderr, "\nUsage:\n")
-	fmt.Fprintf(os.Stderr, "  extract -url URL [options]     # Extract from website\n")
-	fmt.Fprintf(os.Stderr, "  extract -dir PATH [options]    # Extract from local FLAC files\n\n")
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage: extract [options]\n\n")
+	fmt.Fprintf(os.Stderr, "Extract metadata from websites, local HTML files, or FLAC directories.\n\n")
+	fmt.Fprintf(os.Stderr, "Options:\n")
 	flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, "\nSupported sites:\n")
-	fmt.Fprintf(os.Stderr, "  - Harmonia Mundi (harmoniamundi.com)\n")
-	fmt.Fprintf(os.Stderr, "  - Presto Classical (prestoclassical.co.uk)\n")
+	fmt.Fprintf(os.Stderr, "\nSupported websites:\n")
+	fmt.Fprintf(os.Stderr, "  - prestomusic.com / prestoclassical.co.uk\n")
+	fmt.Fprintf(os.Stderr, "  - discogs.com (use -file for manual workflow)\n")
 	fmt.Fprintf(os.Stderr, "\nExamples:\n")
 	fmt.Fprintf(os.Stderr, "  # Extract from website:\n")
-	fmt.Fprintf(os.Stderr, "  extract -url \"https://prestomusic.com/...\" -output album.json\n\n")
+	fmt.Fprintf(os.Stderr, "  extract -url \"https://prestomusic.com/...\" -output presto.json\n\n")
+	fmt.Fprintf(os.Stderr, "  # Extract from saved HTML file (for Discogs):\n")
+	fmt.Fprintf(os.Stderr, "  extract -file discogs_release.html -output discogs.json\n\n")
 	fmt.Fprintf(os.Stderr, "  # Extract from existing FLAC directory:\n")
-	fmt.Fprintf(os.Stderr, "  extract -dir \"/music/Bach - Goldberg Variations\" -output album.json\n")
+	fmt.Fprintf(os.Stderr, "  extract -dir \"/music/Bach - Goldberg Variations\" -output directory.json\n")
+	fmt.Fprintf(os.Stderr, "\nNote: Discogs blocks automated requests. Save the page in your browser,\n")
+	fmt.Fprintf(os.Stderr, "      then use -file to parse the saved HTML.\n")
 }
 
 // Parser interface for HTML parsing
@@ -84,6 +104,56 @@ func extractFromDirectory() {
 	processResult(result, "local directory")
 }
 
+// extractFromFile parses a locally saved HTML file
+func extractFromFile() {
+	fmt.Printf("Parsing local HTML file: %s\n", *file)
+
+	// Read HTML file
+	htmlBytes, err := os.ReadFile(*file)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+		os.Exit(1)
+	}
+	html := string(htmlBytes)
+
+	if *verbose {
+		fmt.Printf("✓ Read %d bytes\n\n", len(html))
+	}
+
+	// Detect parser from HTML content
+	var parser Parser
+	var siteName string
+
+	if strings.Contains(html, "discogs.com") {
+		parser = scraping.NewDiscogsParser()
+		siteName = "Discogs"
+	} else if strings.Contains(html, "prestomusic.com") || strings.Contains(html, "prestoclassical") {
+		parser = scraping.NewPrestoParser()
+		siteName = "Presto Classical"
+	} else {
+		fmt.Fprintf(os.Stderr, "Error: Cannot detect site from HTML file\n")
+		fmt.Fprintf(os.Stderr, "File must be from a supported site:\n")
+		fmt.Fprintf(os.Stderr, "  - Discogs\n")
+		fmt.Fprintf(os.Stderr, "  - Presto Classical/Music\n")
+		os.Exit(1)
+	}
+
+	if *verbose {
+		fmt.Printf("Detected site: %s\n", siteName)
+	}
+
+	// Parse HTML
+	fmt.Printf("Parsing metadata...\n")
+	result, err := parser.Parse(html)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing HTML: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Process and output
+	processResult(result, siteName+" (local file)")
+}
+
 // extractFromURL extracts metadata from a website
 func extractFromURL() {
 	// Determine which parser to use based on URL
@@ -94,17 +164,17 @@ func extractFromURL() {
 	var parser Parser
 	var siteName string
 
-	if isHarmoniaMundi(*url) {
-		parser = scraping.NewHarmoniaMundiParser()
-		siteName = "Harmonia Mundi"
+	if isDiscogs(*url) {
+		parser = scraping.NewDiscogsParser()
+		siteName = "Discogs"
 	} else if isPrestoClassical(*url) {
-		parser = scraping.NewPrestoClassicalParser()
+		parser = scraping.NewPrestoParser()
 		siteName = "Presto Classical"
 	} else {
 		fmt.Fprintf(os.Stderr, "Error: No parser available for this URL\n")
 		fmt.Fprintf(os.Stderr, "Supported sites:\n")
-		fmt.Fprintf(os.Stderr, "  - harmoniamundi.com\n")
-		fmt.Fprintf(os.Stderr, "  - prestoclassical.co.uk\n")
+		fmt.Fprintf(os.Stderr, "  - discogs.com\n")
+		fmt.Fprintf(os.Stderr, "  - prestoclassical.co.uk / prestomusic.com\n")
 		fmt.Fprintf(os.Stderr, "\nTo add support for more sites, see METADATA_SOURCES.md\n")
 		os.Exit(1)
 	}
@@ -142,156 +212,106 @@ func processResult(result *scraping.ExtractionResult, source string) {
 	data := result.Data()
 
 	// Display extraction summary
-	fmt.Printf("✓ Extracted: %s", data.Title)
+	fmt.Fprintf(os.Stderr, "✓ Extracted: %s", data.Title)
 	if data.OriginalYear > 0 {
-		fmt.Printf(" (%d)", data.OriginalYear)
+		fmt.Fprintf(os.Stderr, " (%d)", data.OriginalYear)
 	}
-	fmt.Println()
+	fmt.Fprintf(os.Stderr, "\n")
 
 	if data.Edition != nil {
 		if data.Edition.Label != "" {
-			fmt.Printf("  Label: %s", data.Edition.Label)
+			fmt.Fprintf(os.Stderr, "  Label: %s", data.Edition.Label)
 			if data.Edition.CatalogNumber != "" {
-				fmt.Printf(" %s", data.Edition.CatalogNumber)
+				fmt.Fprintf(os.Stderr, " %s", data.Edition.CatalogNumber)
 			}
 			fmt.Println()
 		} else if data.Edition.CatalogNumber != "" {
-			fmt.Printf("  Catalog: %s\n", data.Edition.CatalogNumber)
+			fmt.Fprintf(os.Stderr, "  Catalog: %s\n", data.Edition.CatalogNumber)
 		}
 	}
-	fmt.Printf("  Tracks: %d\n", len(data.Tracks))
+	fmt.Fprintf(os.Stderr, "  Tracks: %d\n", len(data.Tracks))
 
 	// Show extraction errors and warnings
 	if result.HasErrors() {
 		fmt.Println("\n⚠ Extraction Issues:")
 		for _, e := range result.Errors() {
 			if e.Required() {
-				fmt.Printf("  ERROR: %s - %s\n", e.Field(), e.Message())
+				fmt.Fprintf(os.Stderr, "  ERROR: %s - %s\n", e.Field(), e.Message())
 			} else {
-				fmt.Printf("  WARNING: %s - %s\n", e.Field(), e.Message())
+				fmt.Fprintf(os.Stderr, "  WARNING: %s - %s\n", e.Field(), e.Message())
 			}
 		}
 	}
 
 	for _, w := range result.Warnings() {
-		fmt.Printf("  WARNING: %s\n", w)
+		fmt.Fprintf(os.Stderr, "  WARNING: %s\n", w)
 	}
 
 	// Fail if required errors and not forced
 	if result.HasRequiredErrors() && !*force {
-		fmt.Fprintf(os.Stderr, "\n❌ Extraction failed due to required field errors.\n")
-		fmt.Fprintf(os.Stderr, "Use -force to create output file anyway (not recommended).\n")
+		fmt.Fprintf(os.Stderr, "\n❌ Extraction failed due to required field errors\n")
+		fmt.Fprintf(os.Stderr, "Use -force to create output anyway (not recommended for tagging)\n")
 		os.Exit(1)
 	}
 
-	// Show parsing notes in verbose mode
-	if *verbose && result.ParsingNotes() != nil {
-		fmt.Println("\nParsing Notes:")
-		if jsonBytes, err := json.MarshalIndent(result.ParsingNotes(), "  ", "  "); err == nil {
-			fmt.Printf("  %s\n", string(jsonBytes))
-		}
+	// Show force mode warning if used with errors
+	if result.HasRequiredErrors() && *force {
+		fmt.Fprintf(os.Stderr, "\n⚠ WARNING: Forced output despite required field errors")
+		fmt.Fprintf(os.Stderr, "This metadata may be incomplete and unsuitable for tagging")
 	}
 
-	// Force mode: Synthesize missing required data BEFORE domain conversion
-	if *force {
-		synthesized := scraping.SynthesizeMissingEditionData(data)
-		if synthesized {
-			fmt.Println("\n🔧 FORCE MODE: Synthesized missing data:")
-			if data.Edition != nil {
-				if data.Edition.Label == "[Unknown Label]" {
-					fmt.Printf("  • Label: %s (catalog: %s)\n",
-						data.Edition.Label, data.Edition.CatalogNumber)
-				}
-				if data.Edition.EditionYear == 1900 || (data.OriginalYear > 0 && data.Edition.EditionYear == data.OriginalYear) {
-					if data.OriginalYear > 0 && data.Edition.EditionYear == data.OriginalYear {
-						fmt.Printf("  • Edition year: %d (using original year)\n", data.Edition.EditionYear)
-					} else {
-						fmt.Printf("  • Edition year: %d (placeholder - NEEDS CORRECTION)\n", data.Edition.EditionYear)
-					}
-				}
-				if synthesized {
-					fmt.Println("  ⚠️  REVIEW REQUIRED: Please verify and correct synthesized data manually")
-				}
-			}
-		}
-	}
-
-	// Validate against domain model if requested
-	if *validate {
-		fmt.Println("\nValidating against domain model...")
-		album, err := data.ToAlbum()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "⚠️  Domain conversion failed: %v\n", err)
-			if !*force {
-				fmt.Fprintf(os.Stderr, "Use -force to create output anyway, or fix the errors above.\n")
-				os.Exit(1)
-			} else {
-				fmt.Fprintf(os.Stderr, "⚠️  Continuing due to -force flag, but output may be invalid.\n")
-			}
-		} else {
-			// Run validation
-			issues := album.Validate()
-			if len(issues) == 0 {
-				fmt.Println("✓ Metadata is valid")
-			} else {
-				errorCount := 0
-				warningCount := 0
-				for _, issue := range issues {
-					if issue.Level().String() == "ERROR" {
-						errorCount++
-					} else if issue.Level().String() == "WARNING" {
-						warningCount++
-					}
-				}
-
-				if errorCount > 0 {
-					fmt.Printf("⚠️  Found %d errors and %d warnings\n", errorCount, warningCount)
-					if *verbose {
-						for _, issue := range issues {
-							fmt.Printf("  %s\n", issue.String())
-						}
-					}
-				} else {
-					fmt.Printf("✓ Valid (with %d warnings)\n", warningCount)
-				}
-			}
-		}
-	}
-
-	// Convert to JSON
-	fmt.Println("\nConverting to JSON...")
-	jsonData, err := scraping.SaveToJSON(data)
+	// Convert to domain model and validate
+	album, err := data.ToAlbum()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error converting to JSON: %v\n", err)
-		if *force {
-			fmt.Fprintf(os.Stderr, "⚠️  Even with -force, cannot convert invalid data to JSON.\n")
-			fmt.Fprintf(os.Stderr, "The extraction data may need manual correction.\n")
-		}
-		os.Exit(1)
-	}
-
-	// Output
-	if *outputFile == "" {
-		// Write to stdout
-		fmt.Println("\n" + string(jsonData))
-	} else {
-		// Write to file
-		if err := os.WriteFile(*outputFile, jsonData, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\n❌ Domain conversion failed: %v\n", err)
+		if !*force {
 			os.Exit(1)
 		}
+		fmt.Fprintf(os.Stderr, "⚠ WARNING: Continuing with partial data due to -force")
+	}
 
-		absPath, _ := filepath.Abs(*outputFile)
-		fmt.Printf("✓ Saved to: %s\n", absPath)
-
-		// Show next steps
-		fmt.Println("\n📋 Next steps:")
-		fmt.Printf("  1. Review and edit: %s\n", *outputFile)
-		if *force {
-			fmt.Println("     ⚠️  IMPORTANT: Manually verify synthesized data marked with [brackets]")
+	// Validate domain model
+	if album != nil {
+		validationErrors := album.Validate()
+		if len(validationErrors) > 0 {
+			fmt.Fprintf(os.Stderr, "\n⚠ Validation warnings:")
+			for _, verr := range validationErrors {
+				fmt.Fprintf(os.Stderr, "  %s\n", verr)
+			}
 		}
-		fmt.Printf("  2. Validate album directory: validate /path/to/album\n")
-		fmt.Printf("  3. Apply tags: tag -metadata %s -dir /path/to/album\n", *outputFile)
+	}
+
+	// Serialize to JSON
+	outFile := os.Stdout
+	if *outputFile != "" {
+		var err error
+		outFile, err = os.Create(*outputFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	enc := json.NewEncoder(outFile)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(data); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Show verbose parsing notes
+	if *verbose && len(result.ParsingNotes()) > 0 {
+		fmt.Fprintf(os.Stderr, "\nParsing Notes:")
+		notesJSON, _ := json.MarshalIndent(result.ParsingNotes(), "  ", "  ")
+		fmt.Fprintf(os.Stderr, "  %s\n", string(notesJSON))
+	}
+
+	// Show next steps
+	if !result.HasRequiredErrors() {
+		fmt.Fprintf(os.Stderr, "\nNext steps:")
+		fmt.Fprintf(os.Stderr, "  1. Review metadata: cat %s\n", *outputFile)
+		fmt.Fprintf(os.Stderr, "  2. Validate album directory: validate /path/to/album\n")
+		fmt.Fprintf(os.Stderr, "  3. Apply tags: tag -metadata %s -dir /path/to/album\n", *outputFile)
 	}
 }
 
@@ -327,9 +347,9 @@ func fetchHTML(url string, timeout time.Duration) (string, error) {
 	return string(body), nil
 }
 
-// isHarmoniaMundi checks if URL is from Harmonia Mundi
-func isHarmoniaMundi(url string) bool {
-	return contains(url, "harmoniamundi.com")
+// isDiscogs checks if URL is from Discogs
+func isDiscogs(url string) bool {
+	return contains(url, "discogs.com/release/")
 }
 
 // isPrestoClassical checks if URL is from Presto Classical

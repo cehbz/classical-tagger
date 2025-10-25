@@ -77,16 +77,16 @@ func TestNewAlbum(t *testing.T) {
 
 func TestAlbum_WithEdition(t *testing.T) {
 	album, _ := NewAlbum("Test Album", 2013)
-	edition, _ := NewEdition("harmonia mundi", 2013)
-	edition = edition.WithCatalogNumber("HMC902170")
+	edition, _ := NewEdition("test edition", 2013)
+	edition = edition.WithCatalogNumber("TE902170")
 
 	album = album.WithEdition(edition)
 
 	if album.Edition() == nil {
 		t.Fatal("Album.Edition() should not be nil after WithEdition")
 	}
-	if album.Edition().Label() != "harmonia mundi" {
-		t.Errorf("Album.Edition().Label() = %v, want %v", album.Edition().Label(), "harmonia mundi")
+	if album.Edition().Label() != "test edition" {
+		t.Errorf("Album.Edition().Label() = %v, want %v", album.Edition().Label(), "test edition")
 	}
 }
 
