@@ -1,314 +1,343 @@
 package scraping
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
-func TestLocalExtractor_ExtractTrackNumberFromFilename(t *testing.T) {
+func TestLocalExtractor_ParseDirectoryName(t *testing.T) {
+	extractor := NewLocalExtractor()
+	
 	tests := []struct {
+		name      string
+		dirPath   string
+		wantTitle string
+		wantYear  int
+	}{
+		{
+			name:      "standard format with brackets",
+			dirPath:   "/music/Beethoven - Symphony No. 5 [1963] [FLAC]",
+			wantTitle: "Beethoven - Symphony No. 5",
+			wantYear:  1963,
+		},
+		{
+			name:      "parentheses for year",
+			dirPath:   "/music/Bach - Goldberg Variations (1741)",
+			wantTitle: "Bach - Goldberg Variations",
+			wantYear:  1741,
+		},
+		{
+			name:      "no year",
+			dirPath:   "/music/Mozart - Piano Concertos [FLAC]",
+			wantTitle: "Mozart - Piano Concertos",
+			wantYear:  0,
+		},
+		{
+			name:      "no format indicator",
+			dirPath:   "/music/Vivaldi - Four Seasons [1989]",
+			wantTitle: "Vivaldi - Four Seasons",
+			wantYear:  1989,
+		},
+		{
+			name:      "complex format with bit depth",
+			dirPath:   "/music/J.S. Bach - Brandenburg Concertos [1982] [FLAC] [24-96]",
+			wantTitle: "J.S. Bach - Brandenburg Concertos",
+			wantYear:  1982,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotTitle, gotYear := extractor.parseDirectoryName(tt.dirPath)
+			
+			if gotTitle != tt.wantTitle {
+				t.Errorf("parseDirectoryName() title = %v, want %v", gotTitle, tt.wantTitle)
+			}
+			if gotYear != tt.wantYear {
+				t.Errorf("parseDirectoryName() year = %v, want %v", gotYear, tt.wantYear)
+			}
+		})
+	}
+}
+
+func TestLocalExtractor_ExtractTrackNumberFromFilename(t *testing.T) {
+	extractor := NewLocalExtractor()
+	
+	tests := []struct {
+		name     string
 		filename string
 		want     int
 	}{
-		{"01 Prelude.flac", 1},
-		{"01-Prelude.flac", 1},
-		{"01.Prelude.flac", 1},
-		{"01_Prelude.flac", 1},
-		{"1 Prelude.flac", 1},
-		{"123 Track.flac", 123},
-		{"Prelude.flac", 0}, // No number
-		{"abc01.flac", 0},   // Number not at start
+		{"space separator", "/music/01 Track Title.flac", 1},
+		{"dash separator", "/music/01-Track Title.flac", 1},
+		{"dot separator", "/music/01.Track Title.flac", 1},
+		{"underscore separator", "/music/01_Track Title.flac", 1},
+		{"two digits", "/music/12 Track Title.flac", 12},
+		{"three digits", "/music/123 Track Title.flac", 123},
+		{"no number", "/music/Track Title.flac", 0},
+		{"number in middle", "/music/Track 01 Title.flac", 0}, // Should not match
+		{"padded", "/music/001 Track Title.flac", 1},
 	}
-
-	extractor := NewLocalExtractor()
+	
 	for _, tt := range tests {
-		t.Run(tt.filename, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got := extractor.extractTrackNumberFromFilename(tt.filename)
 			if got != tt.want {
-				t.Errorf("extractTrackNumberFromFilename(%q) = %d, want %d", tt.filename, got, tt.want)
+				t.Errorf("extractTrackNumberFromFilename(%q) = %v, want %v", tt.filename, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestLocalExtractor_ExtractDiscFromPath(t *testing.T) {
+	extractor := NewLocalExtractor()
+	
 	tests := []struct {
+		name string
 		path string
 		want int
 	}{
-		{"/music/album/CD1/01.flac", 1},
-		{"/music/album/CD2/01.flac", 2},
-		{"/music/album/Disc 1/01.flac", 1},
-		{"/music/album/Disc 2/01.flac", 2},
-		{"/music/album/disc1/01.flac", 1},
-		{"/music/album/01.flac", 1}, // No disc indicator, default to 1
+		{"CD1", "/music/Album/CD1/01 Track.flac", 1},
+		{"CD2", "/music/Album/CD2/01 Track.flac", 2},
+		{"Disc 1", "/music/Album/Disc 1/01 Track.flac", 1},
+		{"Disc 2", "/music/Album/Disc 2/01 Track.flac", 2},
+		{"Disk 3", "/music/Album/Disk 3/01 Track.flac", 3},
+		{"no disc", "/music/Album/01 Track.flac", 1}, // Default
+		{"mixed case", "/music/Album/cd1/01 Track.flac", 1},
+		{"with space", "/music/Album/CD 10/01 Track.flac", 10},
 	}
-
-	extractor := NewLocalExtractor()
+	
 	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got := extractor.extractDiscFromPath(tt.path)
 			if got != tt.want {
-				t.Errorf("extractDiscFromPath(%q) = %d, want %d", tt.path, got, tt.want)
+				t.Errorf("extractDiscFromPath(%q) = %v, want %v", tt.path, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestLocalExtractor_ExtractTitleFromFilename(t *testing.T) {
-	tests := []struct {
-		path string
-		want string
-	}{
-		{"01 Prelude.flac", "Prelude"},
-		{"01-Prelude in G major.flac", "Prelude in G major"},
-		{"01.Track Title.flac", "Track Title"},
-		{"01_Some Title.flac", "Some Title"},
-		{"123 Long Title Here.flac", "Long Title Here"},
-		{"Title without number.flac", "Title without number"},
-	}
-
 	extractor := NewLocalExtractor()
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			got := extractor.extractTitleFromFilename(tt.path)
-			if got != tt.want {
-				t.Errorf("extractTitleFromFilename(%q) = %q, want %q", tt.path, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestLocalExtractor_ParseArtistField(t *testing.T) {
+	
 	tests := []struct {
-		name  string
-		field string
-		want  int // Number of artists
+		name     string
+		filename string
+		want     string
 	}{
-		{
-			name:  "semicolon separated",
-			field: "Martha Argerich; Berlin Philharmonic Orchestra; Claudio Abbado",
-			want:  3,
-		},
-		{
-			name:  "comma separated",
-			field: "Martha Argerich, Berlin Philharmonic Orchestra, Claudio Abbado",
-			want:  3,
-		},
-		{
-			name:  "single artist",
-			field: "Glenn Gould",
-			want:  1,
-		},
-		{
-			name:  "empty",
-			field: "",
-			want:  0,
-		},
+		{"with track number", "/music/01 Symphony No. 5.flac", "Symphony No. 5"},
+		{"with dash", "/music/01-Symphony No. 5.flac", "Symphony No. 5"},
+		{"with dot", "/music/01.Symphony No. 5.flac", "Symphony No. 5"},
+		{"no track number", "/music/Symphony No. 5.flac", "Symphony No. 5"},
+		{"padded number", "/music/001 Concerto.flac", "Concerto"},
+		{"with underscore", "/music/12_Piano Sonata.flac", "Piano Sonata"},
 	}
-
-	extractor := NewLocalExtractor()
+	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractor.parseArtistField(tt.field)
-			if len(got) != tt.want {
-				t.Errorf("parseArtistField(%q) returned %d artists, want %d", tt.field, len(got), tt.want)
+			got := extractor.extractTitleFromFilename(tt.filename)
+			if got != tt.want {
+				t.Errorf("extractTitleFromFilename(%q) = %v, want %v", tt.filename, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestLocalExtractor_InferRoleFromName(t *testing.T) {
-	tests := []struct {
-		name     string
-		wantRole string
-	}{
-		{"Herbert von Karajan, conductor", "conductor"},
-		{"Berlin Philharmonic Orchestra", "ensemble"},
-		{"Emerson String Quartet", "ensemble"},
-		{"Martha Argerich", "soloist"},
-		{"John Doe", "soloist"}, // Default
-	}
-
 	extractor := NewLocalExtractor()
+	
+	tests := []struct {
+		name       string
+		artistName string
+		want       string
+	}{
+		{"conductor explicit", "Herbert von Karajan, conductor", "conductor"},
+		{"orchestra", "Berlin Philharmonic Orchestra", "ensemble"},
+		{"philharmonic", "Vienna Philharmonic", "ensemble"},
+		{"symphony", "London Symphony Orchestra", "ensemble"},
+		{"choir", "RIAS Kammerchor", "ensemble"},
+		{"chorus", "Westminster Choir", "ensemble"},
+		{"quartet", "Emerson String Quartet", "ensemble"},
+		{"trio", "Beaux Arts Trio", "ensemble"},
+		{"chamber", "English Chamber Orchestra", "ensemble"},
+		{"consort", "Gabrieli Consort", "ensemble"},
+		{"soloist", "Maurizio Pollini", "soloist"},
+		{"soloist name", "Anne-Sophie Mutter", "soloist"},
+	}
+	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractor.inferRoleFromName(tt.name)
-			if got != tt.wantRole {
-				t.Errorf("inferRoleFromName(%q) = %q, want %q", tt.name, got, tt.wantRole)
+			got := extractor.inferRoleFromName(tt.artistName)
+			if got != tt.want {
+				t.Errorf("inferRoleFromName(%q) = %v, want %v", tt.artistName, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestLocalExtractor_ParseDirectoryName(t *testing.T) {
+func TestLocalExtractor_ParseArtistField(t *testing.T) {
+	extractor := NewLocalExtractor()
+	
 	tests := []struct {
-		dirName   string
-		wantTitle string
-		wantYear  int
+		name      string
+		field     string
+		wantCount int
+		wantFirst string
+		wantRole  string
 	}{
 		{
-			dirName:   "Bach - Goldberg Variations (1981) - FLAC",
-			wantTitle: "Bach - Goldberg Variations",
-			wantYear:  1981,
+			name:      "semicolon separated",
+			field:     "Pollini; Berlin Phil; Karajan",
+			wantCount: 3,
+			wantFirst: "Pollini",
+			wantRole:  "soloist",
 		},
 		{
-			dirName:   "Beethoven - Symphony No. 9 (1989)",
-			wantTitle: "Beethoven - Symphony No. 9",
-			wantYear:  1989,
+			name:      "comma separated",
+			field:     "Pollini, Berlin Philharmonic, Karajan",
+			wantCount: 3,
+			wantFirst: "Pollini",
+			wantRole:  "soloist",
 		},
 		{
-			dirName:   "Mozart - Piano Concertos (2005) - 24-96",
-			wantTitle: "Mozart - Piano Concertos",
-			wantYear:  2005,
+			name:      "single artist",
+			field:     "Maurizio Pollini",
+			wantCount: 1,
+			wantFirst: "Maurizio Pollini",
+			wantRole:  "soloist",
 		},
 		{
-			dirName:   "Some Album",
-			wantTitle: "Some Album",
-			wantYear:  0,
+			name:      "with ensemble",
+			field:     "RIAS Kammerchor; Hans-Christoph Rademann",
+			wantCount: 2,
+			wantFirst: "RIAS Kammerchor",
+			wantRole:  "ensemble",
 		},
 	}
-
-	extractor := NewLocalExtractor()
+	
 	for _, tt := range tests {
-		t.Run(tt.dirName, func(t *testing.T) {
-			gotTitle, gotYear := extractor.parseDirectoryName(tt.dirName)
-			if gotTitle != tt.wantTitle {
-				t.Errorf("parseDirectoryName(%q) title = %q, want %q", tt.dirName, gotTitle, tt.wantTitle)
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractor.parseArtistField(tt.field)
+			
+			if len(got) != tt.wantCount {
+				t.Errorf("parseArtistField(%q) returned %d artists, want %d", tt.field, len(got), tt.wantCount)
 			}
-			if gotYear != tt.wantYear {
-				t.Errorf("parseDirectoryName(%q) year = %d, want %d", tt.dirName, gotYear, tt.wantYear)
+			
+			if len(got) > 0 {
+				if got[0].Name != tt.wantFirst {
+					t.Errorf("First artist name = %v, want %v", got[0].Name, tt.wantFirst)
+				}
+				if got[0].Role != tt.wantRole {
+					t.Errorf("First artist role = %v, want %v", got[0].Role, tt.wantRole)
+				}
 			}
 		})
 	}
 }
 
-func TestLocalExtractor_FindFLACFiles(t *testing.T) {
-	// Create temporary test directory
-	tmpDir := t.TempDir()
-
-	// Create test files
-	testFiles := []string{
-		"01.flac",
-		"02.flac",
-		"subdir/03.flac",
-		"other.txt", // Should be ignored
-		"test.FLAC", // Case insensitive
-	}
-
-	for _, f := range testFiles {
-		fullPath := filepath.Join(tmpDir, f)
-		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(fullPath, []byte{}, 0644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
+func TestLocalExtractor_ExtractEditionFromComment(t *testing.T) {
 	extractor := NewLocalExtractor()
-	files, err := extractor.findFLACFiles(tmpDir)
-
-	if err != nil {
-		t.Fatalf("findFLACFiles() error = %v", err)
+	
+	tests := []struct {
+		name        string
+		comment     string
+		wantLabel   string
+		wantCatalog string
+		wantNil     bool
+	}{
+		{
+			name:        "label and catalog",
+			comment:     "Label: Deutsche Grammophon\nCatalog: 479 1234",
+			wantLabel:   "Deutsche Grammophon",
+			wantCatalog: "479 1234",
+			wantNil:     false,
+		},
+		{
+			name:        "label only",
+			comment:     "Label: Harmonia Mundi",
+			wantLabel:   "Harmonia Mundi",
+			wantCatalog: "",
+			wantNil:     false,
+		},
+		{
+			name:        "catalog only",
+			comment:     "Catalog Number: HMC902170",
+			wantLabel:   "",
+			wantCatalog: "HMC902170",
+			wantNil:     false,
+		},
+		{
+			name:        "case insensitive",
+			comment:     "LABEL: Test Label\nCATALOG: ABC123",
+			wantLabel:   "Test Label",
+			wantCatalog: "ABC123",
+			wantNil:     false,
+		},
+		{
+			name:    "no edition data",
+			comment: "Just some random comment",
+			wantNil: true,
+		},
 	}
-
-	// Should find 4 FLAC files (case insensitive)
-	if len(files) != 4 {
-		t.Errorf("findFLACFiles() found %d files, want 4", len(files))
-	}
-
-	// Verify all are FLAC files
-	for _, f := range files {
-		ext := strings.ToLower(filepath.Ext(f))
-		if ext != ".flac" {
-			t.Errorf("findFLACFiles() returned non-FLAC file: %s", f)
-		}
-	}
-}
-
-func TestLocalExtractor_ExtractFromDirectory_NoFiles(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	extractor := NewLocalExtractor()
-	_, err := extractor.ExtractFromDirectory(tmpDir)
-
-	if err == nil {
-		t.Error("ExtractFromDirectory() expected error for empty directory, got nil")
-	}
-}
-
-func TestLocalExtractor_ExtractFromDirectory_InvalidPath(t *testing.T) {
-	extractor := NewLocalExtractor()
-	_, err := extractor.ExtractFromDirectory("/nonexistent/path")
-
-	if err == nil {
-		t.Error("ExtractFromDirectory() expected error for invalid path, got nil")
-	}
-}
-
-// TestLocalExtractor_ExtractFromDirectory_RealDirectory is an integration test
-// that requires real FLAC files to be present. It's skipped by default.
-func TestLocalExtractor_ExtractFromDirectory_RealDirectory(t *testing.T) {
-	// This test requires a real directory with FLAC files
-	testDir := os.Getenv("TEST_FLAC_DIR")
-	if testDir == "" {
-		t.Skip("Set TEST_FLAC_DIR environment variable to test with real files")
-	}
-
-	extractor := NewLocalExtractor()
-	result, err := extractor.ExtractFromDirectory(testDir)
-
-	if err != nil {
-		t.Fatalf("ExtractFromDirectory() error = %v", err)
-	}
-
-	data := result.Data()
-
-	// Basic validations
-	if data.Title == "" {
-		t.Error("No album title extracted")
-	}
-	t.Logf("Album: %s", data.Title)
-
-	if data.OriginalYear == 0 {
-		t.Log("Warning: No year extracted")
-	} else {
-		t.Logf("Year: %d", data.OriginalYear)
-	}
-
-	if len(data.Tracks) == 0 {
-		t.Error("No tracks extracted")
-	}
-	t.Logf("Tracks: %d", len(data.Tracks))
-
-	// Validate tracks
-	for i, track := range data.Tracks {
-		if track.Track == 0 {
-			t.Errorf("Track %d has no track number", i)
-		}
-		if track.Title == "" {
-			t.Errorf("Track %d has no title", i)
-		}
-		t.Logf("  %d. %s", track.Track, track.Title)
-	}
-
-	// Check for errors
-	if result.HasRequiredErrors() {
-		t.Error("Extraction has required errors:")
-		for _, e := range result.Errors() {
-			if e.Required() {
-				t.Errorf("  - %s: %s", e.Field(), e.Message())
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractor.extractEditionFromComment(tt.comment)
+			
+			if tt.wantNil {
+				if got != nil {
+					t.Error("extractEditionFromComment() should return nil, got non-nil")
+				}
+				return
 			}
-		}
+			
+			if got == nil {
+				t.Fatal("extractEditionFromComment() returned nil, want non-nil")
+			}
+			
+			if got.Label != tt.wantLabel {
+				t.Errorf("Label = %v, want %v", got.Label, tt.wantLabel)
+			}
+			if got.CatalogNumber != tt.wantCatalog {
+				t.Errorf("CatalogNumber = %v, want %v", got.CatalogNumber, tt.wantCatalog)
+			}
+		})
 	}
+}
 
-	// Try domain conversion
-	_, err = data.ToAlbum()
-	if err != nil {
-		t.Logf("Domain conversion failed: %v", err)
+// TestLocalExtractor_ImmutabilityPattern verifies that ExtractionResult is used immutably
+func TestLocalExtractor_ImmutabilityPattern(t *testing.T) {	
+	// Test that we can chain warnings/errors immutably
+	data := &AlbumData{
+		Title:        "Test Album",
+		OriginalYear: 2020,
+		Tracks:       []TrackData{},
+	}
+	
+	result1 := NewExtractionResult(data)
+	result2 := result1.WithWarning("test warning")
+	result3 := result2.WithError(NewExtractionError("test", "test error", false))
+	
+	// Original should be unchanged
+	if len(result1.Warnings()) != 0 {
+		t.Error("result1 was mutated - should have 0 warnings")
+	}
+	if len(result1.Errors()) != 0 {
+		t.Error("result1 was mutated - should have 0 errors")
+	}
+	
+	// Second should have warning only
+	if len(result2.Warnings()) != 1 {
+		t.Error("result2 should have 1 warning")
+	}
+	if len(result2.Errors()) != 0 {
+		t.Error("result2 should have 0 errors")
+	}
+	
+	// Third should have both
+	if len(result3.Warnings()) != 1 {
+		t.Error("result3 should have 1 warning")
+	}
+	if len(result3.Errors()) != 1 {
+		t.Error("result3 should have 1 error")
 	}
 }

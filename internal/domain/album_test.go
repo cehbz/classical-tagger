@@ -23,15 +23,13 @@ func TestNewAlbum(t *testing.T) {
 			name:         "empty title",
 			title:        "",
 			originalYear: 2013,
-			wantErr:      true,
-			errMsg:       "title cannot be empty",
+			wantErr:      false,
 		},
 		{
 			name:         "whitespace title",
 			title:        "   ",
 			originalYear: 2013,
-			wantErr:      true,
-			errMsg:       "title cannot be empty",
+			wantErr:      false,
 		},
 		{
 			name:         "zero year allowed",

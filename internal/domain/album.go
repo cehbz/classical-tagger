@@ -2,7 +2,6 @@ package domain
 
 import (
 	"fmt"
-	"strings"
 )
 
 // Album is the aggregate root representing a classical music release.
@@ -16,10 +15,7 @@ type Album struct {
 // NewAlbum creates a new Album with required fields.
 // Returns an error if title is empty or year is invalid.
 func NewAlbum(title string, originalYear int) (*Album, error) {
-	title = strings.TrimSpace(title)
-	if title == "" {
-		return nil, fmt.Errorf("album title cannot be empty")
-	}
+	// Preserve title exactly as provided; semantic validation happens later
 	// Year is optional (2.3.16.4). Allow 0 to represent unknown; negative is invalid.
 	if originalYear < 0 {
 		return nil, fmt.Errorf("album year must be >= 0, got %d", originalYear)

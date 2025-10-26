@@ -22,33 +22,11 @@ type Track struct {
 // - there is not exactly one composer
 // - there are no artists
 func NewTrack(disc, track int, title string, artists []Artist) (*Track, error) {
-	if disc <= 0 {
-		return nil, fmt.Errorf("disc number must be positive, got %d", disc)
-	}
-	if track <= 0 {
-		return nil, fmt.Errorf("track number must be positive, got %d", track)
-	}
-	
-	title = strings.TrimSpace(title)
-	if title == "" {
-		return nil, fmt.Errorf("title cannot be empty")
-	}
-	
-	// Count composers
-	composerCount := 0
-	for _, artist := range artists {
-		if artist.Role() == RoleComposer {
-			composerCount++
-		}
-	}
-	
-	if composerCount == 0 {
-		return nil, fmt.Errorf("track must have at least one composer")
-	}
-	if composerCount > 1 {
-		return nil, fmt.Errorf("multiple composers not supported (found %d)", composerCount)
-	}
-	
+	// Accept raw values; semantic validation happens later in validators
+	// Preserve title exactly as provided; semantic validation happens later
+
+	// Composer and performer presence is validated later; allow flexible construction here
+
 	return &Track{
 		disc:    disc,
 		track:   track,
@@ -106,7 +84,7 @@ func (t *Track) Composer() Artist {
 // Returns validation issues at ERROR, WARNING, or INFO levels.
 func (t *Track) Validate() []ValidationIssue {
 	var issues []ValidationIssue
-	
+
 	// Check composer not in title (Classical Guide: Step 1, Track Title)
 	composer := t.Composer()
 	if composer.Name() != "" {
@@ -122,7 +100,7 @@ func (t *Track) Validate() []ValidationIssue {
 			))
 		}
 	}
-	
+
 	// Check filename length (2.3.12)
 	if len(t.name) > 180 {
 		issues = append(issues, NewIssue(
@@ -132,7 +110,7 @@ func (t *Track) Validate() []ValidationIssue {
 			fmt.Sprintf("Filename exceeds 180 characters (%d)", len(t.name)),
 		))
 	}
-	
+
 	// Check filename format (2.3.13) - track number required
 	if t.name != "" {
 		trackNumPattern := regexp.MustCompile(`^\d{2}`)
@@ -145,7 +123,7 @@ func (t *Track) Validate() []ValidationIssue {
 			))
 		}
 	}
-	
+
 	// Check for opus number format (Classical Guide: Step 1, Track Title) - INFO level
 	opusPatterns := []string{`op\.\s*\d+`, `opus\s*\d+`, `Op\s*\d+`}
 	hasNonStandardOpus := false
@@ -164,7 +142,7 @@ func (t *Track) Validate() []ValidationIssue {
 			"Consider using standard opus format: 'Op. ###'",
 		))
 	}
-	
+
 	return issues
 }
 

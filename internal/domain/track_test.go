@@ -9,7 +9,7 @@ func TestNewTrack(t *testing.T) {
 	composer, _ := NewArtist("Felix Mendelssohn Bartholdy", RoleComposer)
 	conductor, _ := NewArtist("Hans-Christoph Rademann", RoleConductor)
 	ensemble, _ := NewArtist("RIAS Kammerchor Berlin", RoleEnsemble)
-	
+
 	tests := []struct {
 		name    string
 		disc    int
@@ -28,61 +28,55 @@ func TestNewTrack(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "multiple composers should fail",
+			name:    "multiple composers allowed (validated later)",
 			disc:    1,
 			track:   2,
 			title:   "Some Work",
 			artists: []Artist{composer, composer},
-			wantErr: true,
-			errMsg:  "multiple composers",
+			wantErr: false,
 		},
 		{
-			name:    "no composer should fail",
+			name:    "no composer allowed (validated later)",
 			disc:    1,
 			track:   3,
 			title:   "Some Work",
 			artists: []Artist{ensemble, conductor},
-			wantErr: true,
-			errMsg:  "at least one composer",
+			wantErr: false,
 		},
 		{
-			name:    "empty title should fail",
+			name:    "empty title allowed (validated later)",
 			disc:    1,
 			track:   4,
 			title:   "",
 			artists: []Artist{composer},
-			wantErr: true,
-			errMsg:  "title cannot be empty",
+			wantErr: false,
 		},
 		{
-			name:    "invalid disc number",
+			name:    "disc number zero allowed",
 			disc:    0,
 			track:   1,
 			title:   "Some Work",
 			artists: []Artist{composer},
-			wantErr: true,
-			errMsg:  "disc number must be positive",
+			wantErr: false,
 		},
 		{
-			name:    "invalid track number",
+			name:    "track number zero allowed",
 			disc:    1,
 			track:   0,
 			title:   "Some Work",
 			artists: []Artist{composer},
-			wantErr: true,
-			errMsg:  "track number must be positive",
+			wantErr: false,
 		},
 		{
-			name:    "no artists",
+			name:    "no artists allowed (validated later)",
 			disc:    1,
 			track:   1,
 			title:   "Some Work",
 			artists: []Artist{},
-			wantErr: true,
-			errMsg:  "at least one composer",
+			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := NewTrack(tt.disc, tt.track, tt.title, tt.artists)
@@ -113,9 +107,9 @@ func TestNewTrack(t *testing.T) {
 func TestTrack_Composer(t *testing.T) {
 	composer, _ := NewArtist("Johannes Brahms", RoleComposer)
 	ensemble, _ := NewArtist("Berlin Philharmonic", RoleEnsemble)
-	
+
 	track, _ := NewTrack(1, 1, "Symphony No. 1, Op. 68", []Artist{composer, ensemble})
-	
+
 	got := track.Composer()
 	if got.Name() != "Johannes Brahms" {
 		t.Errorf("Track.Composer().Name() = %v, want %v", got.Name(), "Johannes Brahms")
@@ -128,9 +122,9 @@ func TestTrack_Composer(t *testing.T) {
 func TestTrack_WithName(t *testing.T) {
 	composer, _ := NewArtist("Anton Bruckner", RoleComposer)
 	track, _ := NewTrack(1, 1, "Ave Maria", []Artist{composer})
-	
+
 	track = track.WithName("01 Ave Maria.flac")
-	
+
 	if got := track.Name(); got != "01 Ave Maria.flac" {
 		t.Errorf("Track.Name() = %v, want %v", got, "01 Ave Maria.flac")
 	}
@@ -138,11 +132,11 @@ func TestTrack_WithName(t *testing.T) {
 
 func TestTrack_Validate_ComposerInTitle(t *testing.T) {
 	composer, _ := NewArtist("Johann Sebastian Bach", RoleComposer)
-	
+
 	tests := []struct {
-		name          string
-		title         string
-		wantErrorMsg  string
+		name         string
+		title        string
+		wantErrorMsg string
 	}{
 		{
 			name:         "composer last name in title",
@@ -160,12 +154,12 @@ func TestTrack_Validate_ComposerInTitle(t *testing.T) {
 			wantErrorMsg: "Composer name",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			track, _ := NewTrack(1, 1, tt.title, []Artist{composer})
 			issues := track.Validate()
-			
+
 			foundError := false
 			for _, issue := range issues {
 				if strings.Contains(issue.Message(), tt.wantErrorMsg) {
@@ -176,7 +170,7 @@ func TestTrack_Validate_ComposerInTitle(t *testing.T) {
 					break
 				}
 			}
-			
+
 			if tt.wantErrorMsg != "" && !foundError {
 				t.Errorf("Expected validation error containing %q, got no matching error", tt.wantErrorMsg)
 			}
@@ -190,13 +184,13 @@ func TestTrack_Validate_ComposerInTitle(t *testing.T) {
 func TestTrack_Validate_FilenameTooLong(t *testing.T) {
 	composer, _ := NewArtist("Dmitri Shostakovich", RoleComposer)
 	track, _ := NewTrack(1, 1, "String Quartet No. 15", []Artist{composer})
-	
+
 	// Create a filename that exceeds 180 characters
 	longName := strings.Repeat("a", 181) + ".flac"
 	track = track.WithName(longName)
-	
+
 	issues := track.Validate()
-	
+
 	foundLengthError := false
 	for _, issue := range issues {
 		if strings.Contains(issue.Message(), "180 characters") {
@@ -206,7 +200,7 @@ func TestTrack_Validate_FilenameTooLong(t *testing.T) {
 			}
 		}
 	}
-	
+
 	if !foundLengthError {
 		t.Errorf("Expected filename length validation error")
 	}

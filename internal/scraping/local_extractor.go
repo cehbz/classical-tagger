@@ -14,6 +14,7 @@ import (
 
 // LocalExtractor extracts metadata from existing FLAC files in a directory.
 // This is useful for converting already-tagged albums to our JSON format.
+// It is immutable and stateless.
 type LocalExtractor struct {
 	// Extractor is stateless
 }
@@ -25,6 +26,7 @@ func NewLocalExtractor() *LocalExtractor {
 
 // ExtractFromDirectory reads all FLAC files in a directory and extracts metadata.
 // It attempts to build a complete AlbumData structure from the tags and filenames.
+// Returns an immutable ExtractionResult.
 func (e *LocalExtractor) ExtractFromDirectory(dirPath string) (*ExtractionResult, error) {
 	// Verify directory exists
 	info, err := os.Stat(dirPath)
@@ -77,12 +79,14 @@ func (e *LocalExtractor) findFLACFiles(dirPath string) ([]string, error) {
 
 // extractFromFiles extracts metadata from a list of FLAC files.
 func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*ExtractionResult, error) {
+	// Create initial album data with sentinel values
 	data := &AlbumData{
 		Title:        MissingTitle,
 		OriginalYear: MissingYear,
 		Tracks:       make([]TrackData, 0, len(files)),
 	}
 
+	// Start with empty result
 	result := NewExtractionResult(data)
 	parsingNotes := make(map[string]interface{})
 	parsingNotes["source"] = "local_directory"
@@ -91,14 +95,19 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 
 	// Extract album-level metadata from first file
 	if len(files) > 0 {
-		if err := e.extractAlbumMetadata(files[0], data, result); err != nil {
-			result = result.WithWarning(fmt.Sprintf("album metadata extraction: %v", err))
+		albumData, warning := e.extractAlbumMetadata(files[0])
+		data.Title = albumData.Title
+		data.OriginalYear = albumData.OriginalYear
+		data.Edition = albumData.Edition
+
+		if warning != "" {
+			result = result.WithWarning(warning)
 		}
 	}
 
 	// Extract track metadata from each file
 	for _, filePath := range files {
-		track, err := e.extractTrackMetadata(filePath)
+		track, err := e.extractTrackMetadata(filePath, dirPath)
 		if err != nil {
 			result = result.WithWarning(fmt.Sprintf("file %s: %v", filepath.Base(filePath), err))
 			continue
@@ -110,6 +119,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	// Validate we got tracks
 	if len(data.Tracks) == 0 {
 		result = result.WithError(NewExtractionError("tracks", "no tracks extracted", true))
+		return result, nil
 	}
 
 	// Try to extract folder name metadata if album title missing
@@ -120,6 +130,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 				data.OriginalYear = year
 			}
 			parsingNotes["title_source"] = "directory_name"
+			result = result.WithWarning("album title extracted from directory name")
 		}
 	}
 
@@ -137,40 +148,82 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	return result, nil
 }
 
+// albumMetadata is a temporary structure for album-level data
+type albumMetadata struct {
+	Title        string
+	OriginalYear int
+	Edition      *EditionData
+}
+
 // extractAlbumMetadata extracts album-level metadata from a FLAC file's tags.
-func (e *LocalExtractor) extractAlbumMetadata(filePath string, data *AlbumData, result *ExtractionResult) error {
+// Returns the metadata and an optional warning string.
+func (e *LocalExtractor) extractAlbumMetadata(filePath string) (albumMetadata, string) {
+	meta := albumMetadata{
+		Title:        MissingTitle,
+		OriginalYear: MissingYear,
+	}
+
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
+		return meta, fmt.Sprintf("failed to open file for album metadata: %v", err)
 	}
 	defer f.Close()
 
 	metadata, err := tag.ReadFrom(f)
 	if err != nil {
-		return fmt.Errorf("failed to read tags: %w", err)
+		return meta, fmt.Sprintf("failed to read tags for album metadata: %v", err)
 	}
 
 	// Extract album title
 	if album := metadata.Album(); album != "" {
-		data.Title = album
+		meta.Title = album
 	}
 
 	// Extract year
 	if year := metadata.Year(); year > 0 {
-		data.OriginalYear = year
+		meta.OriginalYear = year
 	}
 
-	// Extract album artist (may be useful for edition info)
-	if albumArtist := metadata.AlbumArtist(); albumArtist != "" {
-		// Store in parsing notes for now
-		// Could be used to infer ensemble/conductor
+	// Extract edition info if present in comments
+	if comment := metadata.Comment(); comment != "" {
+		edition := e.extractEditionFromComment(comment)
+		if edition != nil {
+			meta.Edition = edition
+		}
 	}
 
-	return nil
+	return meta, ""
+}
+
+// extractEditionFromComment attempts to extract label/catalog from comment field.
+// Returns nil if no edition data found.
+func (e *LocalExtractor) extractEditionFromComment(comment string) *EditionData {
+	edition := &EditionData{}
+	found := false
+
+	// Look for patterns like "Label: Deutsche Grammophon" or "Catalog: 479 1234"
+	labelPattern := regexp.MustCompile(`(?i)label:\s*(.+?)(?:\n|$)`)
+	catalogPattern := regexp.MustCompile(`(?i)catalog(?:\s*number)?:\s*([A-Z0-9\-\s]+)`)
+
+	if matches := labelPattern.FindStringSubmatch(comment); len(matches) > 1 {
+		edition.Label = strings.TrimSpace(matches[1])
+		found = true
+	}
+
+	if matches := catalogPattern.FindStringSubmatch(comment); len(matches) > 1 {
+		edition.CatalogNumber = strings.TrimSpace(matches[1])
+		found = true
+	}
+
+	if !found {
+		return nil
+	}
+
+	return edition
 }
 
 // extractTrackMetadata extracts track-level metadata from a FLAC file.
-func (e *LocalExtractor) extractTrackMetadata(filePath string) (TrackData, error) {
+func (e *LocalExtractor) extractTrackMetadata(filePath string, baseDir string) (TrackData, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return TrackData{}, fmt.Errorf("failed to open file: %w", err)
@@ -198,6 +251,8 @@ func (e *LocalExtractor) extractTrackMetadata(filePath string) (TrackData, error
 		// Try to extract from filename
 		if num := e.extractTrackNumberFromFilename(filePath); num > 0 {
 			track.Track = num
+		} else {
+			return track, fmt.Errorf("no track number found in tags or filename")
 		}
 	}
 
@@ -207,9 +262,7 @@ func (e *LocalExtractor) extractTrackMetadata(filePath string) (TrackData, error
 		track.Disc = discNum
 	} else {
 		// Try to extract from path (CD1, CD2, etc.)
-		if disc := e.extractDiscFromPath(filePath); disc > 0 {
-			track.Disc = disc
-		}
+		track.Disc = e.extractDiscFromPath(filePath)
 	}
 
 	// Extract title
@@ -220,21 +273,27 @@ func (e *LocalExtractor) extractTrackMetadata(filePath string) (TrackData, error
 		track.Title = e.extractTitleFromFilename(filePath)
 	}
 
-	// Extract composer
+	// Extract composer (required field)
 	if composer := metadata.Composer(); composer != "" {
 		track.Composer = composer
+	} else {
+		return track, fmt.Errorf("no composer found in tags")
 	}
 
-	// Extract artist(s)
+	// Extract artists
 	if artist := metadata.Artist(); artist != "" {
-		// Parse artist field - may contain multiple artists
-		artists := e.parseArtistField(artist)
-		track.Artists = artists
+		track.Artists = e.parseArtistField(artist)
+	} else if albumArtist := metadata.AlbumArtist(); albumArtist != "" {
+		track.Artists = e.parseArtistField(albumArtist)
 	}
 
-	// If no track number, this is an error
-	if track.Track == 0 {
-		return track, fmt.Errorf("no track number found")
+	// Set relative filename (add before the final return)
+	relPath, err := filepath.Rel(baseDir, filePath)
+	if err == nil {
+		// Convert to forward slashes for consistency
+		track.Name = filepath.ToSlash(relPath)
+	} else {
+		track.Name = filepath.Base(filePath)
 	}
 
 	return track, nil
@@ -244,11 +303,11 @@ func (e *LocalExtractor) extractTrackMetadata(filePath string) (TrackData, error
 // Supports formats: "01 Title.flac", "01-Title.flac", "01.Title.flac", "01_Title.flac"
 func (e *LocalExtractor) extractTrackNumberFromFilename(filePath string) int {
 	filename := filepath.Base(filePath)
-	
+
 	// Pattern: starts with 1-3 digits followed by separator
 	pattern := regexp.MustCompile(`^(\d{1,3})[\s\-._]`)
 	matches := pattern.FindStringSubmatch(filename)
-	
+
 	if len(matches) > 1 {
 		num, err := strconv.Atoi(matches[1])
 		if err == nil && num > 0 && num < 1000 {
@@ -264,12 +323,12 @@ func (e *LocalExtractor) extractTrackNumberFromFilename(filePath string) int {
 func (e *LocalExtractor) extractDiscFromPath(filePath string) int {
 	// Check directory names in path
 	parts := strings.Split(filepath.Dir(filePath), string(filepath.Separator))
-	
+
 	for _, part := range parts {
 		// Pattern: CD1, CD2, Disc 1, Disc 2, etc.
-		pattern := regexp.MustCompile(`(?i)(?:CD|Disc)\s*(\d+)`)
+		pattern := regexp.MustCompile(`(?i)(?:CD|Disc|Disk)\s*(\d+)`)
 		matches := pattern.FindStringSubmatch(part)
-		
+
 		if len(matches) > 1 {
 			num, err := strconv.Atoi(matches[1])
 			if err == nil && num > 0 && num < 100 {
@@ -285,22 +344,23 @@ func (e *LocalExtractor) extractDiscFromPath(filePath string) int {
 // Removes track number prefix and file extension.
 func (e *LocalExtractor) extractTitleFromFilename(filePath string) string {
 	filename := filepath.Base(filePath)
-	
+
 	// Remove extension
 	filename = strings.TrimSuffix(filename, filepath.Ext(filename))
-	
+
 	// Remove track number prefix (01, 01-, 01., 01_, etc.)
 	pattern := regexp.MustCompile(`^\d{1,3}[\s\-._]*`)
 	filename = pattern.ReplaceAllString(filename, "")
-	
+
 	// Clean up
 	filename = strings.TrimSpace(filename)
-	
+
 	return filename
 }
 
 // parseArtistField parses the artist tag field into individual artists.
 // Handles formats like "Soloist; Orchestra; Conductor" or "Soloist, Orchestra, Conductor"
+// Returns immutable slice.
 func (e *LocalExtractor) parseArtistField(artistField string) []ArtistData {
 	artists := make([]ArtistData, 0)
 
@@ -341,14 +401,18 @@ func (e *LocalExtractor) inferRoleFromName(name string) string {
 	if strings.Contains(nameLower, "conductor") || strings.Contains(nameLower, "dir.") {
 		return "conductor"
 	}
-	if strings.Contains(nameLower, "orchestra") || strings.Contains(nameLower, "philharmonic") {
-		return "ensemble"
+
+	// Check for ensemble indicators
+	ensembleKeywords := []string{
+		"orchestra", "philharmonic", "symphony", "ensemble",
+		"choir", "chorus", "kammerchor", "kammer", // German
+		"quartet", "trio", "quintet", "sextet",
+		"chamber", "band", "consort", "players",
 	}
-	if strings.Contains(nameLower, "ensemble") || strings.Contains(nameLower, "quartet") {
-		return "ensemble"
-	}
-	if strings.Contains(nameLower, "choir") || strings.Contains(nameLower, "chorus") {
-		return "ensemble"
+	for _, keyword := range ensembleKeywords {
+		if strings.Contains(nameLower, keyword) {
+			return "ensemble"
+		}
 	}
 
 	// Default to soloist for individual names
@@ -356,33 +420,24 @@ func (e *LocalExtractor) inferRoleFromName(name string) string {
 }
 
 // parseDirectoryName attempts to extract album title and year from directory name.
-// Supports formats like:
-// - "Composer - Title (Year) - Format"
-// - "Composer - Title (Year)"
-// - "Title (Year)"
+// Handles formats like "Beethoven - Symphony No. 5 [1963]" or "Bach - Goldberg Variations (1741)"
 func (e *LocalExtractor) parseDirectoryName(dirPath string) (title string, year int) {
 	dirName := filepath.Base(dirPath)
 
-	// Pattern: "... (YYYY) ..."
-	yearPattern := regexp.MustCompile(`\((\d{4})\)`)
-	matches := yearPattern.FindStringSubmatch(dirName)
-	if len(matches) > 1 {
-		y, err := strconv.Atoi(matches[1])
-		if err == nil && y >= 1900 && y <= 2030 {
-			year = y
-		}
-
-		// Remove year from title
-		dirName = yearPattern.ReplaceAllString(dirName, "")
+	// Extract year from brackets or parentheses
+	yearPattern := regexp.MustCompile(`[\[\(](\d{4})[\]\)]`)
+	if matches := yearPattern.FindStringSubmatch(dirName); len(matches) > 1 {
+		year, _ = strconv.Atoi(matches[1])
 	}
 
-	// Remove format suffix like "- FLAC", "- 24-96", etc.
-	formatPattern := regexp.MustCompile(`\s*-\s*(FLAC|MP3|WAV|ALAC|DSD|\d{2}-\d{2,3}).*$`)
-	dirName = formatPattern.ReplaceAllString(dirName, "")
+	// Remove year and format indicators for title
+	title = yearPattern.ReplaceAllString(dirName, "")
 
-	// Clean up
-	title = strings.TrimSpace(dirName)
-	title = strings.Trim(title, "-")
+	// Remove format indicators like [FLAC], [MP3], etc.
+	formatPattern := regexp.MustCompile(`\s*\[(FLAC|MP3|AAC|ALAC|WAV|APE|WV|24-\d+|16-\d+)\]`)
+	title = formatPattern.ReplaceAllString(title, "")
+
+	// Clean up whitespace
 	title = strings.TrimSpace(title)
 
 	return title, year
