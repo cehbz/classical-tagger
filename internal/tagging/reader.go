@@ -62,10 +62,7 @@ func (m Metadata) ToTrack(filename string) (*domain.Track, error) {
 	}
 
 	// Create composer artist
-	composer, err := domain.NewArtist(m.Composer, domain.RoleComposer)
-	if err != nil {
-		return nil, fmt.Errorf("invalid composer: %w", err)
-	}
+	composer := domain.Artist{Name: m.Composer, Role: domain.RoleComposer}
 
 	// Parse performers from Artist field
 	// For now, we'll create a simple ensemble artist
@@ -73,20 +70,20 @@ func (m Metadata) ToTrack(filename string) (*domain.Track, error) {
 	artists := []domain.Artist{composer}
 	if m.Artist != "" {
 		// Simple implementation: treat entire Artist field as ensemble
-		performer, err := domain.NewArtist(m.Artist, domain.RoleEnsemble)
-		if err == nil {
-			artists = append(artists, performer)
-		}
+		performer := domain.Artist{Name: m.Artist, Role: domain.RoleEnsemble}
+		artists = append(artists, performer)
 	}
 
 	// Create track
-	track, err := domain.NewTrack(discNum, trackNum, m.Title, artists)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create track: %w", err)
+	track := domain.Track{
+		Name:    filename,
+		Disc:    discNum,
+		Track:   trackNum,
+		Title:   m.Title,
+		Artists: artists,
 	}
 
-	track = track.WithName(filename)
-	return track, nil
+	return &track, nil
 }
 
 // parseTrackNumber handles various track number formats (e.g., "1", "01", "1/12")
@@ -145,7 +142,7 @@ func (r *FLACReader) ReadTrackFromFile(path string, expectedDisc, expectedTrack 
 	}
 
 	if err := metadata.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid metadata: %w", err)
+		return nil, fmt.Errorf("invalid Metadata: %w", err)
 	}
 
 	// Extract just the filename without path
@@ -173,11 +170,11 @@ func (r *FLACReader) ReadTrackFromFile(path string, expectedDisc, expectedTrack 
 // validateDiskAndTrackNumbers checks that the track's disc/track match expectations.
 // Separated for unit testing without needing real FLAC files.
 func validateDiskAndTrackNumbers(track *domain.Track, expectedDisc, expectedTrack int) error {
-	if track.Disc() != expectedDisc {
-		return fmt.Errorf("disc number mismatch: got %d, expected %d", track.Disc(), expectedDisc)
+	if track.Disc != expectedDisc {
+		return fmt.Errorf("disc number mismatch: got %d, expected %d", track.Disc, expectedDisc)
 	}
-	if track.Track() != expectedTrack {
-		return fmt.Errorf("track number mismatch: got %d, expected %d", track.Track(), expectedTrack)
+	if track.Track != expectedTrack {
+		return fmt.Errorf("track number mismatch: got %d, expected %d", track.Track, expectedTrack)
 	}
 	return nil
 }

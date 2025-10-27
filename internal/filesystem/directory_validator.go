@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -19,54 +19,54 @@ func NewDirectoryValidator() *DirectoryValidator {
 // ValidatePath checks if a file path meets the 180 character limit and other rules.
 func (v *DirectoryValidator) ValidatePath(path string) []domain.ValidationIssue {
 	var issues []domain.ValidationIssue
-	
+
 	// Check 180 character limit (2.3.12)
 	if len(path) > 180 {
-		issues = append(issues, domain.NewIssue(
-			domain.LevelError,
-			-1, // directory-level
-			"2.3.12",
-			fmt.Sprintf("Path exceeds 180 characters (%d)", len(path)),
-		))
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelError,
+			Track:   -1, // directory-level
+			Rule:    "2.3.12",
+			Message: fmt.Sprintf("Path exceeds 180 characters (%d)", len(path)),
+		})
 	}
-	
+
 	// Check for leading spaces (2.3.20)
 	parts := strings.Split(path, string(filepath.Separator))
 	for _, part := range parts {
 		if len(part) > 0 && part[0] == ' ' {
-			issues = append(issues, domain.NewIssue(
-				domain.LevelError,
-				-1,
-				"2.3.20",
-				fmt.Sprintf("Leading space not allowed in path component: %q", part),
-			))
+			issues = append(issues, domain.ValidationIssue{
+				Level:   domain.LevelError,
+				Track:   -1,
+				Rule:    "2.3.20",
+				Message: fmt.Sprintf("Leading space not allowed in path component: %q", part),
+			})
 			break
 		}
 	}
-	
+
 	return issues
 }
 
 // ValidateStructure checks directory organization (single disc vs multi-disc).
 func (v *DirectoryValidator) ValidateStructure(basePath string, files []string) []domain.ValidationIssue {
 	var issues []domain.ValidationIssue
-	
+
 	// Analyze directory structure
 	hasSubdirs := false
 	nestedLevels := 0
 	discDirs := make(map[string]bool)
-	
+
 	for _, file := range files {
 		relPath := strings.TrimPrefix(file, basePath)
 		relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
-		
+
 		parts := strings.Split(relPath, string(filepath.Separator))
 		depth := len(parts) - 1 // subtract 1 for the filename itself
-		
+
 		if depth > nestedLevels {
 			nestedLevels = depth
 		}
-		
+
 		if depth > 0 {
 			hasSubdirs = true
 			// Check if it looks like a disc directory (CD1, CD2, Disc 1, etc.)
@@ -76,78 +76,85 @@ func (v *DirectoryValidator) ValidateStructure(basePath string, files []string) 
 			}
 		}
 	}
-	
+
 	// Check for unnecessary nesting (2.3.3)
 	if nestedLevels > 1 {
-		issues = append(issues, domain.NewIssue(
-			domain.LevelError,
-			-1,
-			"2.3.3",
-			fmt.Sprintf("Unnecessary nested folders detected (%d levels deep)", nestedLevels),
-		))
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelError,
+			Track:   -1,
+			Rule:    "2.3.3",
+			Message: fmt.Sprintf("Unnecessary nested folders detected (%d levels deep)", nestedLevels),
+		})
 	}
-	
+
 	// For multi-disc, should have disc subdirectories
 	if len(discDirs) > 1 {
 		// Valid multi-disc structure
 	} else if hasSubdirs && len(discDirs) == 0 {
 		// Has subdirectories but they don't look like disc folders
-		issues = append(issues, domain.NewIssue(
-			domain.LevelWarning,
-			-1,
-			"2.3.3",
-			"Subdirectories detected but not in standard disc format (CD1, CD2, etc.)",
-		))
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelWarning,
+			Track:   -1,
+			Rule:    "2.3.3",
+			Message: "Subdirectories detected but not in standard disc format (CD1, CD2, etc.)",
+		})
 	}
-	
+
 	return issues
 }
 
 // ValidateFolderName checks if the album folder name follows conventions.
 func (v *DirectoryValidator) ValidateFolderName(folderName string, album *domain.Album) []domain.ValidationIssue {
 	var issues []domain.ValidationIssue
-	
+
 	// Check 180 character limit
 	if len(folderName) > 180 {
-		issues = append(issues, domain.NewIssue(
-			domain.LevelError,
-			-1,
-			"2.3.12",
-			fmt.Sprintf("Folder name exceeds 180 characters (%d)", len(folderName)),
-		))
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelError,
+			Track:   -1,
+			Rule:    "2.3.12",
+			Message: fmt.Sprintf("Folder name exceeds 180 characters (%d)", len(folderName)),
+		})
 	}
-	
+
 	// Check if folder name is meaningful (2.3.2)
 	// Minimum is "Album" title, but preferred is "Artist - Album (Year) - Format"
 	lowerFolder := strings.ToLower(folderName)
-	lowerAlbum := strings.ToLower(album.Title())
-	
+	lowerAlbum := strings.ToLower(album.Title)
+
 	if !strings.Contains(lowerFolder, lowerAlbum) {
-		issues = append(issues, domain.NewIssue(
-			domain.LevelWarning,
-			-1,
-			"2.3.2",
-			"Folder name should contain the album title",
-		))
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelWarning,
+			Track:   -1,
+			Rule:    "2.3.2",
+			Message: "Folder name should contain the album title",
+		})
 	}
-	
+
 	// For classical music, should mention composer (classical.folder_name)
-	tracks := album.Tracks()
-	if len(tracks) > 0 {
-		composer := tracks[0].Composer()
-		if composer.Name() != "" {
-			composerLastName := lastName(composer.Name())
+	if len(album.Tracks) > 0 {
+		// Find the first composer in the track artists
+		var composerName string
+		for _, artist := range album.Tracks[0].Artists {
+			if artist.Role == domain.RoleComposer {
+				composerName = artist.Name
+				break
+			}
+		}
+
+		if composerName != "" {
+			composerLastName := lastName(composerName)
 			if !strings.Contains(lowerFolder, strings.ToLower(composerLastName)) {
-				issues = append(issues, domain.NewIssue(
-					domain.LevelWarning,
-					-1,
-					"classical.folder_name",
-					fmt.Sprintf("Folder name should mention composer (%s)", composer.Name()),
-				))
+				issues = append(issues, domain.ValidationIssue{
+					Level:   domain.LevelWarning,
+					Track:   -1,
+					Rule:    "classical.folder_name",
+					Message: fmt.Sprintf("Folder name should mention composer (%s)", composerName),
+				})
 			}
 		}
 	}
-	
+
 	return issues
 }
 
@@ -155,7 +162,7 @@ func (v *DirectoryValidator) ValidateFolderName(folderName string, album *domain
 func isDiscDirectory(name string) bool {
 	lower := strings.ToLower(name)
 	patterns := []string{"cd", "disc", "disk"}
-	
+
 	for _, pattern := range patterns {
 		if strings.HasPrefix(lower, pattern) {
 			// Check if followed by a number
@@ -166,7 +173,7 @@ func isDiscDirectory(name string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 

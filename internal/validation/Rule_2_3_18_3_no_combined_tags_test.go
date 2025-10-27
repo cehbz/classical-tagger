@@ -10,100 +10,100 @@ func TestRules_NoCombinedTags(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name         string
-		actual       *domain.Album
-		wantPass     bool
-		wantWarnings int
-		wantInfo     int
+		Name         string
+		Actual       *domain.Album
+		WantPass     bool
+		WantWarnings int
+		WantInfo     int
 	}{
 		{
-			name: "valid - separate artist entries",
-			actual: buildAlbumWithArtists(
+			Name: "valid - separate artist entries",
+			Actual: buildAlbumWithArtists(
 				"Beethoven", domain.RoleComposer,
 				"Maurizio Pollini", domain.RoleSoloist,
 				"Berlin Philharmonic", domain.RoleEnsemble,
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name:         "warning - combined artist names with semicolon",
-			actual:       buildAlbumWithSingleArtist("Pollini; Arrau", domain.RoleSoloist),
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - combined artist names with semicolon",
+			Actual:       buildAlbumWithSingleArtist("Pollini; Arrau", domain.RoleSoloist),
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:         "warning - combined artist names with slash",
-			actual:       buildAlbumWithSingleArtist("Martha Argerich / Nelson Freire", domain.RoleSoloist),
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - combined artist names with slash",
+			Actual:       buildAlbumWithSingleArtist("Martha Argerich / Nelson Freire", domain.RoleSoloist),
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:         "warning - combined artist names with ampersand",
-			actual:       buildAlbumWithSingleArtist("Perlman & Ashkenazy", domain.RoleSoloist),
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - combined artist names with ampersand",
+			Actual:       buildAlbumWithSingleArtist("Perlman & Ashkenazy", domain.RoleSoloist),
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:     "valid - ensemble name with 'and'",
-			actual:   buildAlbumWithSingleArtist("London Symphony Orchestra and Chorus", domain.RoleEnsemble),
-			wantPass: true,
+			Name:     "valid - ensemble name with 'and'",
+			Actual:   buildAlbumWithSingleArtist("London Symphony Orchestra and Chorus", domain.RoleEnsemble),
+			WantPass: true,
 		},
 		{
-			name:     "valid - orchestra name with 'of'",
-			actual:   buildAlbumWithSingleArtist("Orchestra of the Age of Enlightenment", domain.RoleEnsemble),
-			wantPass: true,
+			Name:     "valid - orchestra name with 'of'",
+			Actual:   buildAlbumWithSingleArtist("Orchestra of the Age of Enlightenment", domain.RoleEnsemble),
+			WantPass: true,
 		},
 		{
-			name:     "valid - quartet name",
-			actual:   buildAlbumWithSingleArtist("Emerson String Quartet", domain.RoleEnsemble),
-			wantPass: true,
+			Name:     "valid - quartet name",
+			Actual:   buildAlbumWithSingleArtist("Emerson String Quartet", domain.RoleEnsemble),
+			WantPass: true,
 		},
 		{
-			name:     "valid - compound last name",
-			actual:   buildAlbumWithSingleArtist("Mendelssohn-Bartholdy", domain.RoleComposer),
-			wantPass: true,
+			Name:     "valid - compound last name",
+			Actual:   buildAlbumWithSingleArtist("Mendelssohn-Bartholdy", domain.RoleComposer),
+			WantPass: true,
 		},
 		{
-			name:     "info - combined works in title",
-			actual:   buildAlbumWithTrackTitle("Symphony No. 1 / Symphony No. 2"),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - combined works in title",
+			Actual:   buildAlbumWithTrackTitle("Symphony No. 1 / Symphony No. 2"),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "valid - movement subtitle with slash",
-			actual:   buildAlbumWithTrackTitle("Allegro / Fast"),
-			wantPass: true, // Short parts, not multiple works
+			Name:     "valid - movement subtitle with slash",
+			Actual:   buildAlbumWithTrackTitle("Allegro / Fast"),
+			WantPass: true, // Short parts, not multiple works
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.NoCombinedTags(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.NoCombinedTags(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass {
+			if !tt.WantPass {
 				warningCount := 0
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelWarning {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelWarning {
 						warningCount++
-					} else if issue.Level() == domain.LevelInfo {
+					} else if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
 
-				if tt.wantWarnings > 0 && warningCount != tt.wantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.wantWarnings)
+				if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
+					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
 				}
-				if tt.wantInfo > 0 && infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+				if tt.WantInfo > 0 && infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
 
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -112,10 +112,10 @@ func TestRules_NoCombinedTags(t *testing.T) {
 
 func TestIsMultipleArtists(t *testing.T) {
 	tests := []struct {
-		name       string
-		artistName string
-		separator  string
-		want       bool
+		Name       string
+		ArtistName string
+		Separator  string
+		Want       bool
 	}{
 		{"multiple with semicolon", "Pollini; Arrau", ";", true},
 		{"multiple with slash", "Martha Argerich / Nelson Freire", " / ", true},
@@ -128,11 +128,11 @@ func TestIsMultipleArtists(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isMultipleArtists(tt.artistName, tt.separator)
-			if got != tt.want {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := isMultipleArtists(tt.ArtistName, tt.Separator)
+			if got != tt.Want {
 				t.Errorf("isMultipleArtists(%q, %q) = %v, want %v",
-					tt.artistName, tt.separator, got, tt.want)
+					tt.ArtistName, tt.Separator, got, tt.Want)
 			}
 		})
 	}
@@ -140,19 +140,15 @@ func TestIsMultipleArtists(t *testing.T) {
 
 // buildAlbumWithSingleArtist creates album with one artist having a specific name
 func buildAlbumWithSingleArtist(artistName string, role domain.Role) *domain.Album {
-	artist, _ := domain.NewArtist(artistName, role)
-	track, _ := domain.NewTrack(1, 1, "Work", []domain.Artist{artist})
-	album, _ := domain.NewAlbum("Album", 1963)
-	album.AddTrack(track)
-	return album
+	artist := domain.Artist{Name: artistName, Role: role}
+	track := domain.Track{Disc: 1, Track: 1, Title: "Work", Artists: []domain.Artist{artist}}
+	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: []*domain.Track{&track}}
 }
 
 // buildAlbumWithTrackTitle creates album with specific track title
 func buildAlbumWithTrackTitle(title string) *domain.Album {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	track, _ := domain.NewTrack(1, 1, title, []domain.Artist{composer, ensemble})
-	album, _ := domain.NewAlbum("Album", 1963)
-	album.AddTrack(track)
-	return album
+	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
+	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
+	track := &domain.Track{Disc: 1, Track: 1, Title: title, Artists: []domain.Artist{composer, ensemble}}
+	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: []*domain.Track{track}}
 }

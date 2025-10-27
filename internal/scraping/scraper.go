@@ -3,7 +3,6 @@ package scraping
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
 	"github.com/cehbz/classical-tagger/internal/storage"
@@ -26,97 +25,8 @@ type Extractor interface {
 	CanHandle(url string) bool
 
 	// Extract extracts album metadata from the given URL
-	Extract(url string) (*ExtractionResult, error) // ← Returns result wrapper
-}
-
-// ToAlbum converts AlbumData to a domain Album.
-func (a *AlbumData) ToAlbum() (*domain.Album, error) {
-	// Create album
-	album, err := domain.NewAlbum(a.Title, a.OriginalYear)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create album: %w", err)
-	}
-
-	// Add edition if present
-	if a.Edition != nil {
-		edition, err := domain.NewEdition(a.Edition.Label, a.Edition.EditionYear)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create edition: %w", err)
-		}
-		if a.Edition.CatalogNumber != "" {
-			edition = edition.WithCatalogNumber(a.Edition.CatalogNumber)
-		}
-		album = album.WithEdition(edition)
-	}
-
-	// Add tracks
-	for _, trackData := range a.Tracks {
-		track, err := trackData.ToTrack()
-		if err != nil {
-			return nil, fmt.Errorf("failed to create track %d: %w", trackData.Track, err)
-		}
-		err = album.AddTrack(track)
-		if err != nil {
-			return nil, fmt.Errorf("failed to add track %d: %w", trackData.Track, err)
-		}
-	}
-
-	return album, nil
-}
-
-// ToTrack converts TrackData to a domain Track.
-func (t *TrackData) ToTrack() (*domain.Track, error) {
-	// Create composer
-	composer, err := domain.NewArtist(t.Composer, domain.RoleComposer)
-	if err != nil {
-		return nil, fmt.Errorf("invalid composer: %w", err)
-	}
-
-	// Create artists list starting with composer
-	artists := []domain.Artist{composer}
-
-	// Add other artists
-	for _, artistData := range t.Artists {
-		role, err := parseRole(artistData.Role)
-		if err != nil {
-			return nil, fmt.Errorf("invalid role %q: %w", artistData.Role, err)
-		}
-
-		artist, err := domain.NewArtist(artistData.Name, role)
-		if err != nil {
-			return nil, fmt.Errorf("invalid artist %q: %w", artistData.Name, err)
-		}
-
-		artists = append(artists, artist)
-	}
-
-	// Create track
-	track, err := domain.NewTrack(t.Disc, t.Track, t.Title, artists)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create track: %w", err)
-	}
-
-	return track, nil
-}
-
-// parseRole converts a string role to a domain.Role.
-func parseRole(role string) (domain.Role, error) {
-	switch strings.ToLower(role) {
-	case "composer":
-		return domain.RoleComposer, nil
-	case "soloist", "solo":
-		return domain.RoleSoloist, nil
-	case "ensemble", "orchestra", "choir", "quartet":
-		return domain.RoleEnsemble, nil
-	case "conductor":
-		return domain.RoleConductor, nil
-	case "arranger":
-		return domain.RoleArranger, nil
-	case "guest":
-		return domain.RoleGuest, nil
-	default:
-		return domain.RoleGuest, fmt.Errorf("unknown role: %s", role)
-	}
+	// Returns domain.Album (which is just domain.Album)
+	Extract(url string) (*ExtractionResult, error)
 }
 
 // Registry manages available extractors.
@@ -157,20 +67,13 @@ func (r *Registry) Extract(url string) (*ExtractionResult, error) {
 }
 
 // SaveToJSON saves extracted album data to JSON format.
-func SaveToJSON(albumData *AlbumData) ([]byte, error) {
-	// Convert to domain album
-	album, err := albumData.ToAlbum()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert to domain: %w", err)
-	}
-
-	// Save using storage repository
+// No conversion needed - domain.Album is domain.Album.
+func SaveToJSON(albumData *domain.Album) ([]byte, error) {
 	repo := storage.NewRepository()
-	jsonData, err := repo.SaveToJSON(album)
+	jsonData, err := repo.SaveToJSON(albumData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save JSON: %w", err)
 	}
-
 	return jsonData, nil
 }
 
@@ -188,7 +91,7 @@ func DefaultRegistry() *Registry {
 
 // SynthesizeMissingEditionData fills in missing required edition data with placeholder values.
 // Returns true if any data was synthesized.
-func SynthesizeMissingEditionData(data *AlbumData) bool {
+func SynthesizeMissingEditionData(data *domain.Album) bool {
 	if data.Edition == nil {
 		return false
 	}
@@ -202,42 +105,17 @@ func SynthesizeMissingEditionData(data *AlbumData) bool {
 	}
 
 	// If edition year is missing, try to use original year, or synthesize
-	if data.Edition.EditionYear == 0 {
+	if data.Edition.Year == 0 {
 		if data.OriginalYear > 0 {
 			// Use original year as edition year (reasonable default)
-			data.Edition.EditionYear = data.OriginalYear
+			data.Edition.Year = data.OriginalYear
 			synthesized = true
 		} else {
 			// No year at all - synthesize a placeholder
-			data.Edition.EditionYear = 1900 // Placeholder year - obviously fake
+			data.Edition.Year = 1900 // Placeholder year - obviously fake
 			synthesized = true
 		}
 	}
 
 	return synthesized
-}
-
-// InferLabelFromCatalog attempts to infer a record label from a catalog number prefix.
-func InferLabelFromCatalog(catalogNumber string) string {
-	if catalogNumber == "" {
-		return ""
-	}
-
-	prefixes := map[string]string{
-		"HMC": "harmonia mundi", "HMG": "harmonia mundi", "HMM": "harmonia mundi",
-		"DG": "Deutsche Grammophon", "BIS": "BIS Records", "CDA": "Hyperion",
-		"CHAN": "Chandos", "ALPHA": "Alpha Classics", "ECM": "ECM Records",
-		"NAXOS": "Naxos", "DECCA": "Decca", "SONY": "Sony Classical",
-		// ... add more as needed
-	}
-
-	catalogUpper := strings.ToUpper(catalogNumber)
-	for prefix, label := range prefixes {
-		if strings.HasPrefix(catalogUpper, prefix) ||
-		   strings.HasPrefix(catalogUpper, prefix+" ") ||
-		   strings.HasPrefix(catalogUpper, prefix+"-") {
-			return label
-		}
-	}
-	return ""
 }

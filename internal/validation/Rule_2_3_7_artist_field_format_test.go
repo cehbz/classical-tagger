@@ -2,98 +2,98 @@ package validation
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestRules_ArtistFieldFormat(t *testing.T) {
 	rules := NewRules()
-	
+
 	tests := []struct {
-		name         string
-		actual       *domain.Album
-		reference    *domain.Album
-		wantPass     bool
-		wantWarnings int
-		wantInfo     int
+		Name         string
+		Actual       *domain.Album
+		Reference    *domain.Album
+		WantPass     bool
+		WantWarnings int
+		WantInfo     int
 	}{
 		{
-			name: "valid - has performers",
-			actual: buildAlbumWithArtists(
+			Name: "valid - has performers",
+			Actual: buildAlbumWithArtists(
 				"Beethoven", domain.RoleComposer,
 				"Pollini", domain.RoleSoloist,
 				"Berlin Phil", domain.RoleEnsemble,
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "warning - only composer",
-			actual: buildAlbumWithArtists(
+			Name: "warning - only composer",
+			Actual: buildAlbumWithArtists(
 				"Beethoven", domain.RoleComposer,
 			),
-			wantPass:     false,
-			wantWarnings: 1,
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name: "valid - just performers (no composer)",
-			actual: buildAlbumWithArtists(
+			Name: "valid - just performers (no composer)",
+			Actual: buildAlbumWithArtists(
 				"Pollini", domain.RoleSoloist,
 				"Berlin Phil", domain.RoleEnsemble,
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid - ensemble only",
-			actual: buildAlbumWithArtists(
+			Name: "valid - ensemble only",
+			Actual: buildAlbumWithArtists(
 				"Beethoven", domain.RoleComposer,
 				"Emerson Quartet", domain.RoleEnsemble,
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "info - performer count differs from reference",
-			actual: buildAlbumWithArtists(
+			Name: "info - performer count differs from reference",
+			Actual: buildAlbumWithArtists(
 				"Bach", domain.RoleComposer,
 				"Pollini", domain.RoleSoloist,
 			),
-			reference: buildAlbumWithArtists(
+			Reference: buildAlbumWithArtists(
 				"Bach", domain.RoleComposer,
 				"Pollini", domain.RoleSoloist,
 				"Orchestra", domain.RoleEnsemble,
 			),
-			wantPass: false,
-			wantInfo: 1,
+			WantPass: false,
+			WantInfo: 1,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.ArtistFieldFormat(tt.actual, tt.reference)
-			
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.ArtistFieldFormat(tt.Actual, tt.Reference)
+
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
-			
-			if !tt.wantPass {
+
+			if !tt.WantPass {
 				warningCount := 0
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelWarning {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelWarning {
 						warningCount++
-					} else if issue.Level() == domain.LevelInfo {
+					} else if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
-				
-				if tt.wantWarnings > 0 && warningCount != tt.wantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.wantWarnings)
+
+				if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
+					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
 				}
-				if tt.wantInfo > 0 && infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+				if tt.WantInfo > 0 && infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
-				
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -101,48 +101,48 @@ func TestRules_ArtistFieldFormat(t *testing.T) {
 }
 
 func TestGetPerformers(t *testing.T) {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	soloist, _ := domain.NewArtist("Pollini", domain.RoleSoloist)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	arranger, _ := domain.NewArtist("Mahler", domain.RoleArranger)
-	
+	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
+	soloist := domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}
+	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
+	arranger := domain.Artist{Name: "Mahler", Role: domain.RoleArranger}
+
 	tests := []struct {
-		name    string
-		artists []domain.Artist
-		want    []string
+		Name    string
+		Artists []domain.Artist
+		Want    []string
 	}{
 		{
-			name:    "all roles",
-			artists: []domain.Artist{composer, soloist, ensemble, arranger},
-			want:    []string{"Pollini", "Orchestra"},
+			Name:    "all roles",
+			Artists: []domain.Artist{composer, soloist, ensemble, arranger},
+			Want:    []string{"Pollini", "Orchestra"},
 		},
 		{
-			name:    "only composer",
-			artists: []domain.Artist{composer},
-			want:    []string{},
+			Name:    "only composer",
+			Artists: []domain.Artist{composer},
+			Want:    []string{},
 		},
 		{
-			name:    "only performers",
-			artists: []domain.Artist{soloist, ensemble},
-			want:    []string{"Pollini", "Orchestra"},
+			Name:    "only performers",
+			Artists: []domain.Artist{soloist, ensemble},
+			Want:    []string{"Pollini", "Orchestra"},
 		},
 		{
-			name:    "empty",
-			artists: []domain.Artist{},
-			want:    []string{},
+			Name:    "empty",
+			Artists: []domain.Artist{},
+			Want:    []string{},
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := getPerformers(tt.artists)
-			if len(got) != len(tt.want) {
-				t.Errorf("getPerformers() count = %d, want %d", len(got), len(tt.want))
+		t.Run(tt.Name, func(t *testing.T) {
+			got := getPerformers(tt.Artists)
+			if len(got) != len(tt.Want) {
+				t.Errorf("getPerformers() count = %d, want %d", len(got), len(tt.Want))
 				return
 			}
 			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("getPerformers()[%d] = %q, want %q", i, got[i], tt.want[i])
+				if got[i] != tt.Want[i] {
+					t.Errorf("getPerformers()[%d] = %q, want %q", i, got[i], tt.Want[i])
 				}
 			}
 		})

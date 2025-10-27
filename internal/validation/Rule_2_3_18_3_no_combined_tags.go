@@ -3,7 +3,7 @@ package validation
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -14,18 +14,18 @@ var separatorPatterns = []string{";", " / ", " & ", ", ", " and "}
 // Each artist/performer should have separate tag entries
 func (r *Rules) NoCombinedTags(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "2.3.18.3",
-		name:   "No combined tags - use separate entries for multiple artists",
-		level:  domain.LevelWarning,
-		weight: 0.5,
+		ID:     "2.3.18.3",
+		Name:   "No combined tags - use separate entries for multiple artists",
+		Level:  domain.LevelWarning,
+		Weight: 0.5,
 	}
-	
+
 	var issues []domain.ValidationIssue
-	
+
 	// Check track titles for combined info that should be separate
-	for _, track := range actual.Tracks() {
-		title := track.Title()
-		
+	for _, track := range actual.Tracks {
+		title := track.Title
+
 		// Check for multiple works in title (should be separate tracks)
 		// Pattern: "Work 1 / Work 2" or "Work 1; Work 2"
 		for _, sep := range []string{" / ", "; "} {
@@ -33,24 +33,24 @@ func (r *Rules) NoCombinedTags(actual, reference *domain.Album) RuleResult {
 				// Check if this looks like multiple works
 				parts := strings.Split(title, sep)
 				if len(parts) >= 2 && len(parts[0]) > 10 && len(parts[1]) > 10 {
-					issues = append(issues, domain.NewIssue(
-						domain.LevelInfo,
-						track.Track(),
-						meta.id,
-						fmt.Sprintf("Track %s: Title may contain multiple works '%s' (consider separate tracks)",
+					issues = append(issues, domain.ValidationIssue{
+						Level: domain.LevelInfo,
+						Track: track.Track,
+						Rule:  meta.ID,
+						Message: fmt.Sprintf("Track %s: Title may contain multiple works '%s' (consider separate tracks)",
 							formatTrackNumber(track), title),
-					))
+					})
 					break
 				}
 			}
 		}
-		
+
 		// Check artists for combined names
 		// Note: The domain model already handles multiple artists as separate entries
 		// This check is for cases where a single artist entry contains multiple names
-		for _, artist := range track.Artists() {
-			name := artist.Name()
-			
+		for _, artist := range track.Artists {
+			name := artist.Name
+
 			// Check for obvious combined names
 			for _, sep := range separatorPatterns {
 				if strings.Contains(name, sep) {
@@ -58,34 +58,31 @@ func (r *Rules) NoCombinedTags(actual, reference *domain.Album) RuleResult {
 					// - "Orchestra of the Age of Enlightenment" (has " of ", " the ")
 					// - "London Symphony Orchestra and Chorus" (ensemble names can have "and")
 					// - Compound last names: "Mendelssohn-Bartholdy"
-					
+
 					// Check if this looks like multiple people
 					if isMultipleArtists(name, sep) {
-						issues = append(issues, domain.NewIssue(
-							domain.LevelWarning,
-							track.Track(),
-							meta.id,
-							fmt.Sprintf("Track %s: Artist '%s' may contain multiple names (use separate entries)",
+						issues = append(issues, domain.ValidationIssue{
+							Level: domain.LevelWarning,
+							Track: track.Track,
+							Rule:  meta.ID,
+							Message: fmt.Sprintf("Track %s: Artist '%s' may contain multiple names (use separate entries)",
 								formatTrackNumber(track), name),
-						))
+						})
 						break
 					}
 				}
 			}
 		}
 	}
-	
-	if len(issues) == 0 {
-		return meta.Pass()
-	}
-	return meta.Fail(issues...)
+
+	return RuleResult{Meta: meta, Issues: issues}
 }
 
 // isMultipleArtists checks if a name string contains multiple distinct artists
 func isMultipleArtists(name, separator string) bool {
 	// Skip if it's a known ensemble pattern
 	lowerName := strings.ToLower(name)
-	
+
 	// Orchestra/Choir names often contain separators
 	if strings.Contains(lowerName, "orchestra") ||
 		strings.Contains(lowerName, "choir") ||
@@ -95,7 +92,7 @@ func isMultipleArtists(name, separator string) bool {
 		strings.Contains(lowerName, "trio") {
 		return false
 	}
-	
+
 	// Titles in names
 	if strings.Contains(lowerName, " of ") ||
 		strings.Contains(lowerName, " the ") ||
@@ -103,12 +100,12 @@ func isMultipleArtists(name, separator string) bool {
 		strings.Contains(lowerName, " la ") {
 		return false
 	}
-	
+
 	// Compound last names with hyphen
 	if separator == ", " && strings.Contains(name, "-") {
 		return false
 	}
-	
+
 	// If we have a separator and none of the exceptions apply,
 	// it's likely multiple artists
 	parts := strings.Split(name, separator)
@@ -118,6 +115,6 @@ func isMultipleArtists(name, separator string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }

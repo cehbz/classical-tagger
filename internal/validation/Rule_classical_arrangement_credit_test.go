@@ -10,75 +10,75 @@ func TestRules_ArrangerCredit(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name     string
-		actual   *domain.Album
-		wantPass bool
-		wantInfo int
+		Name     string
+		Actual   *domain.Album
+		WantPass bool
+		WantInfo int
 	}{
 		{
-			name: "valid - no arranger",
-			actual: buildAlbumWithArtists(
+			Name: "valid - no arranger",
+			Actual: buildAlbumWithArtists(
 				"Beethoven", domain.RoleComposer,
 				"Orchestra", domain.RoleEnsemble,
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name:     "info - arranger present, no credit in title",
-			actual:   buildAlbumWithTitleAndArranger("Symphony No. 5", "Mahler"),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - arranger present, no credit in title",
+			Actual:   buildAlbumWithTitleAndArranger("Symphony No. 5", "Mahler"),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "valid - arrangement credited in title",
-			actual:   buildAlbumWithTitleAndArranger("Symphony No. 5, arr. Mahler", "Gustav Mahler"),
-			wantPass: true,
+			Name:     "valid - arrangement credited in title",
+			Actual:   buildAlbumWithTitleAndArranger("Symphony No. 5, arr. Mahler", "Gustav Mahler"),
+			WantPass: true,
 		},
 		{
-			name:     "valid - arranged by in title",
-			actual:   buildAlbumWithTitleAndArranger("Prelude, arranged by Busoni", "Ferruccio Busoni"),
-			wantPass: true,
+			Name:     "valid - arranged by in title",
+			Actual:   buildAlbumWithTitleAndArranger("Prelude, arranged by Busoni", "Ferruccio Busoni"),
+			WantPass: true,
 		},
 		{
-			name:     "valid - transcription credited",
-			actual:   buildAlbumWithTitleAndArranger("Chaconne, transcription by Brahms", "Johannes Brahms"),
-			wantPass: true,
+			Name:     "valid - transcription credited",
+			Actual:   buildAlbumWithTitleAndArranger("Chaconne, transcription by Brahms", "Johannes Brahms"),
+			WantPass: true,
 		},
 		{
-			name:     "info - has arr. but wrong arranger name",
-			actual:   buildAlbumWithTitleAndArranger("Prelude, arr. Bach", "Ferruccio Busoni"),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - has arr. but wrong arranger name",
+			Actual:   buildAlbumWithTitleAndArranger("Prelude, arr. Bach", "Ferruccio Busoni"),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "valid - last name sufficient",
-			actual:   buildAlbumWithTitleAndArranger("Theme, arr. Rachmaninoff", "Sergei Rachmaninoff"),
-			wantPass: true,
+			Name:     "valid - last name sufficient",
+			Actual:   buildAlbumWithTitleAndArranger("Theme, arr. Rachmaninoff", "Sergei Rachmaninoff"),
+			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.ArrangerCredit(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.ArrangerCredit(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass {
+			if !tt.WantPass {
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelInfo {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
 
-				if infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+				if infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
 
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -87,13 +87,19 @@ func TestRules_ArrangerCredit(t *testing.T) {
 
 // buildAlbumWithTitleAndArranger creates album with specific track title and arranger
 func buildAlbumWithTitleAndArranger(trackTitle, arrangerName string) *domain.Album {
-	composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-	arranger, _ := domain.NewArtist(arrangerName, domain.RoleArranger)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-
-	artists := []domain.Artist{composer, arranger, ensemble}
-	track, _ := domain.NewTrack(1, 1, trackTitle, artists)
-	album, _ := domain.NewAlbum("Album", 1963)
-	album.AddTrack(track)
-	return album
+	return &domain.Album{
+		Title: "Album", 
+		OriginalYear: 1963, 
+		Tracks: []*domain.Track{
+			{
+				Disc: 1, 
+				Track: 1, 
+				Title: trackTitle, 
+				Artists: []domain.Artist{
+					{Name: "Bach", Role: domain.RoleComposer}, 
+					{Name: arrangerName, Role: domain.RoleArranger}, 
+					{Name: "Orchestra", Role: domain.RoleEnsemble}},
+			},
+		},
+	}
 }

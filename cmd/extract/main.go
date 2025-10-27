@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cehbz/classical-tagger/internal/domain"
 	"github.com/cehbz/classical-tagger/internal/scraping"
 )
 
@@ -101,7 +102,7 @@ func extractFromDirectory() {
 	}
 
 	// Process and output the result
-	processResult(result, "local directory")
+	processResult(result)
 }
 
 // extractFromFile parses a locally saved HTML file
@@ -151,7 +152,7 @@ func extractFromFile() {
 	}
 
 	// Process and output
-	processResult(result, siteName+" (local file)")
+	processResult(result)
 }
 
 // extractFromURL extracts metadata from a website
@@ -204,12 +205,12 @@ func extractFromURL() {
 	}
 
 	// Process and output the result
-	processResult(result, siteName)
+	processResult(result)
 }
 
 // processResult handles the common result processing and output with force mode support
-func processResult(result *scraping.ExtractionResult, source string) {
-	data := result.Data()
+func processResult(result *scraping.ExtractionResult) {
+	data := result.Album
 
 	// Display extraction summary
 	fmt.Fprintf(os.Stderr, "✓ Extracted: %s", data.Title)
@@ -232,52 +233,62 @@ func processResult(result *scraping.ExtractionResult, source string) {
 	fmt.Fprintf(os.Stderr, "  Tracks: %d\n", len(data.Tracks))
 
 	// Show extraction errors and warnings
-	if result.HasErrors() {
+	if len(result.Errors) > 0 {
 		fmt.Println("\n⚠ Extraction Issues:")
-		for _, e := range result.Errors() {
-			if e.Required() {
-				fmt.Fprintf(os.Stderr, "  ERROR: %s - %s\n", e.Field(), e.Message())
+		for _, e := range result.Errors {
+			if e.Required {
+				fmt.Fprintf(os.Stderr, "  ERROR: %s - %s\n", e.Field, e.Message)
 			} else {
-				fmt.Fprintf(os.Stderr, "  WARNING: %s - %s\n", e.Field(), e.Message())
+				fmt.Fprintf(os.Stderr, "  WARNING: %s - %s\n", e.Field, e.Message)
 			}
 		}
 	}
 
-	for _, w := range result.Warnings() {
+	for _, w := range result.Warnings {
 		fmt.Fprintf(os.Stderr, "  WARNING: %s\n", w)
 	}
 
 	// Fail if required errors and not forced
-	if result.HasRequiredErrors() && !*force {
-		fmt.Fprintf(os.Stderr, "\n❌ Extraction failed due to required field errors\n")
+	if len(result.Errors) > 0 && !*force {
+		fmt.Fprintf(os.Stderr, "\n❌ ERROR: Extraction failed due to required field errors\n")
 		fmt.Fprintf(os.Stderr, "Use -force to create output anyway (not recommended for tagging)\n")
 		os.Exit(1)
 	}
 
 	// Show force mode warning if used with errors
-	if result.HasRequiredErrors() && *force {
-		fmt.Fprintf(os.Stderr, "\n⚠ WARNING: Forced output despite required field errors")
+	if len(result.Errors) > 0 && *force {
+		fmt.Fprintf(os.Stderr, "\n⚠️ WARNING: Forced output despite required field errors")
 		fmt.Fprintf(os.Stderr, "This metadata may be incomplete and unsuitable for tagging")
 	}
 
 	// Convert to domain model and validate
-	album, err := data.ToAlbum()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\n❌ Domain conversion failed: %v\n", err)
+	validationErrors := data.Validate()
+	hasRequiredErrors := false
+	for _, validationError := range validationErrors {
+		switch validationError.Level {
+		case domain.LevelError:
+			if validationError.Required {
+				hasRequiredErrors = true
+			}
+			fmt.Fprintf(os.Stderr, "\n❌ ERROR: Domain conversion failed: %v\n", validationError.Message)
+		case domain.LevelWarning:
+			fmt.Fprintf(os.Stderr, "\n⚠️ WARNING: %s\n", validationError.Message)
+		default:
+			fmt.Fprintf(os.Stderr, "\nℹ️ INFO: %s\n", validationError.Message)
+		}
+	}
+	if hasRequiredErrors {
 		if !*force {
 			os.Exit(1)
+		} else {
+			fmt.Fprintf(os.Stderr, "⚠ WARNING: Continuing with partial data due to -force")
 		}
-		fmt.Fprintf(os.Stderr, "⚠ WARNING: Continuing with partial data due to -force")
 	}
 
-	// Validate domain model
-	if album != nil {
-		validationErrors := album.Validate()
-		if len(validationErrors) > 0 {
-			fmt.Fprintf(os.Stderr, "\n⚠ Validation warnings:")
-			for _, verr := range validationErrors {
-				fmt.Fprintf(os.Stderr, "  %s\n", verr)
-			}
+	if len(validationErrors) > 0 {
+		fmt.Fprintf(os.Stderr, "\n⚠ Validation warnings:")
+		for _, verr := range validationErrors {
+			fmt.Fprintf(os.Stderr, "  %s\n", verr)
 		}
 	}
 
@@ -300,16 +311,16 @@ func processResult(result *scraping.ExtractionResult, source string) {
 	}
 
 	// Show verbose parsing notes
-	if *verbose && len(result.ParsingNotes()) > 0 {
+	if *verbose && len(result.Notes) > 0 {
 		fmt.Fprintf(os.Stderr, "\nParsing Notes:")
-		notesJSON, _ := json.MarshalIndent(result.ParsingNotes(), "  ", "  ")
+		notesJSON, _ := json.MarshalIndent(result.Notes, "  ", "  ")
 		fmt.Fprintf(os.Stderr, "  %s\n", string(notesJSON))
 	}
 
 	// Show next steps
-	if !result.HasRequiredErrors() {
+	if !hasRequiredErrors {
 		fmt.Fprintf(os.Stderr, "\nNext steps:")
-		fmt.Fprintf(os.Stderr, "  1. Review metadata: cat %s\n", *outputFile)
+		fmt.Fprintf(os.Stderr, "  1. Review Metadata: cat %s\n", *outputFile)
 		fmt.Fprintf(os.Stderr, "  2. Validate album directory: validate /path/to/album\n")
 		fmt.Fprintf(os.Stderr, "  3. Apply tags: tag -metadata %s -dir /path/to/album\n", *outputFile)
 	}

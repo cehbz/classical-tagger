@@ -7,21 +7,21 @@ import (
 // AlbumHasTracks checks that the album contains at least one track (rule 2.3.16.4)
 func (r *Rules) AlbumHasTracks(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "2.3.16.4",
-		name:   "Album must have at least one track",
-		level:  domain.LevelError,
-		weight: 1.0,
+		ID:     "2.3.16.4",
+		Name:   "Album must have at least one track",
+		Level:  domain.LevelError,
+		Weight: 1.0,
 	}
-	
-	if len(actual.Tracks()) == 0 {
-		issue := domain.NewIssue(
-			domain.LevelError,
-			0, // album-level
-			meta.id,
-			"Album must have at least one track",
-		)
-		return meta.Fail(issue)
+
+	if len(actual.Tracks) == 0 {
+		issue := domain.ValidationIssue{
+			Level:   domain.LevelError,
+			Track:   0,
+			Rule:    meta.ID,
+			Message: "Album must have at least one track",
+		}
+		return RuleResult{Meta: meta, Issues: []domain.ValidationIssue{issue}}
 	}
-	
-	return meta.Pass()
+
+	return RuleResult{Meta: meta, Issues: nil}
 }

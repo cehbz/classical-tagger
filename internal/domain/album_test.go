@@ -1,183 +1,210 @@
-package domain
+package domain_test
 
 import (
-	"strings"
+	"encoding/json"
 	"testing"
+
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-func TestNewAlbum(t *testing.T) {
-	tests := []struct {
-		name         string
-		title        string
-		originalYear int
-		wantErr      bool
-		errMsg       string
-	}{
-		{
-			name:         "valid album",
-			title:        "Noël ! Weihnachten ! Christmas!",
-			originalYear: 2013,
-			wantErr:      false,
+// TestAlbum_BasicConstruction shows the new mutable construction pattern
+func TestAlbum_BasicConstruction(t *testing.T) {
+	// Old way (removed):
+	// album := domain.Album{Title: "Test Album", OriginalYear: 2013}
+	// album.AddTrack(track)
+
+	// New way - direct struct construction:
+	album := &domain.Album{
+		Title:        "Noël ! Weihnachten ! Christmas!",
+		OriginalYear: 2013,
+		Edition: &domain.Edition{
+			Label:         "Harmonia Mundi",
+			CatalogNumber: "HMC902170",
+			Year:          2013,
 		},
-		{
-			name:         "empty title",
-			title:        "",
-			originalYear: 2013,
-			wantErr:      false,
-		},
-		{
-			name:         "whitespace title",
-			title:        "   ",
-			originalYear: 2013,
-			wantErr:      false,
-		},
-		{
-			name:         "zero year allowed",
-			title:        "Some Album",
-			originalYear: 0,
-			wantErr:      false,
-		},
-		{
-			name:         "negative year",
-			title:        "Some Album",
-			originalYear: -1,
-			wantErr:      true,
-			errMsg:       "album year must be >= 0, got -1",
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Frohlocket, ihr Völker auf Erden, Op. 79/1",
+				Name:  "01 Frohlocket, ihr Völker auf Erden, Op. 79-1.flac",
+				Artists: []domain.Artist{
+					{Name: "Felix Mendelssohn Bartholdy", Role: domain.RoleComposer},
+					{Name: "RIAS Kammerchor Berlin", Role: domain.RoleEnsemble},
+					{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor},
+				},
+			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewAlbum(tt.title, tt.originalYear)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewAlbum() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if tt.wantErr && err != nil {
-				if !strings.Contains(err.Error(), tt.errMsg) {
-					t.Errorf("NewAlbum() error = %v, want error containing %q", err, tt.errMsg)
-				}
-			}
-			if !tt.wantErr {
-				if got.Title() != tt.title {
-					t.Errorf("NewAlbum().Title() = %v, want %v", got.Title(), tt.title)
-				}
-				if got.OriginalYear() != tt.originalYear {
-					t.Errorf("NewAlbum().OriginalYear() = %v, want %v", got.OriginalYear(), tt.originalYear)
-				}
-				if got.Edition() != nil {
-					t.Errorf("NewAlbum().Edition() = %v, want nil", got.Edition())
-				}
-			}
-		})
+	// Direct field access (no getters)
+	if album.Title != "Noël ! Weihnachten ! Christmas!" {
+		t.Errorf("Title = %v, want %v", album.Title, "Noël ! Weihnachten ! Christmas!")
+	}
+	if album.OriginalYear != 2013 {
+		t.Errorf("OriginalYear = %v, want 2013", album.OriginalYear)
+	}
+	if album.Edition == nil {
+		t.Fatal("Edition should not be nil")
+	}
+	if len(album.Tracks) != 1 {
+		t.Errorf("Track count = %d, want 1", len(album.Tracks))
 	}
 }
 
-func TestAlbum_WithEdition(t *testing.T) {
-	album, _ := NewAlbum("Test Album", 2013)
-	edition, _ := NewEdition("test edition", 2013)
-	edition = edition.WithCatalogNumber("TE902170")
-
-	album = album.WithEdition(edition)
-
-	if album.Edition() == nil {
-		t.Fatal("Album.Edition() should not be nil after WithEdition")
+// TestAlbum_Mutation shows that objects are fully mutable
+func TestAlbum_Mutation(t *testing.T) {
+	album := &domain.Album{
+		Title:        "Original Title",
+		OriginalYear: 2013,
+		Tracks:       []*domain.Track{},
 	}
-	if album.Edition().Label() != "test edition" {
-		t.Errorf("Album.Edition().Label() = %v, want %v", album.Edition().Label(), "test edition")
+
+	// Can mutate directly
+	album.Title = "Changed Title"
+	album.OriginalYear = 2014
+
+	// Can add tracks directly
+	track := &domain.Track{
+		Disc:  1,
+		Track: 1,
+		Title: "Work",
+		Artists: []domain.Artist{
+			{Name: "Bach", Role: domain.RoleComposer},
+		},
+	}
+	album.Tracks = append(album.Tracks, track)
+
+	if album.Title != "Changed Title" {
+		t.Errorf("Title = %v, want 'Changed Title'", album.Title)
+	}
+	if len(album.Tracks) != 1 {
+		t.Errorf("Track count = %d, want 1", len(album.Tracks))
 	}
 }
 
-func TestAlbum_AddTrack(t *testing.T) {
-	album, _ := NewAlbum("Test Album", 2013)
-	composer, _ := NewArtist("Felix Mendelssohn Bartholdy", RoleComposer)
-	track, _ := NewTrack(1, 1, "Test Work", []Artist{composer})
+// TestAlbum_JSONRoundTrip shows that JSON serialization works directly
+func TestAlbum_JSONRoundTrip(t *testing.T) {
+	// Create album
+	original := &domain.Album{
+		Title:        "Test Album",
+		OriginalYear: 2013,
+		Edition: &domain.Edition{
+			Label:         "Test Label",
+			CatalogNumber: "TL123",
+			Year:          2013,
+		},
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Symphony No. 1",
+				Artists: []domain.Artist{
+					{Name: "Brahms", Role: domain.RoleComposer},
+					{Name: "Berlin Phil", Role: domain.RoleEnsemble},
+				},
+			},
+		},
+	}
 
-	err := album.AddTrack(track)
+	// Marshal to JSON (no DTO needed!)
+	data, err := json.MarshalIndent(original, "", "  ")
 	if err != nil {
-		t.Errorf("Album.AddTrack() unexpected error = %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 
-	tracks := album.Tracks()
-	if len(tracks) != 1 {
-		t.Errorf("Album.Tracks() length = %d, want 1", len(tracks))
+	// Unmarshal back
+	var decoded domain.Album
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Unmarshal error: %v", err)
+	}
+
+	// Verify
+	if decoded.Title != original.Title {
+		t.Errorf("Title = %v, want %v", decoded.Title, original.Title)
+	}
+	if decoded.OriginalYear != original.OriginalYear {
+		t.Errorf("OriginalYear = %v, want %v", decoded.OriginalYear, original.OriginalYear)
+	}
+	if len(decoded.Tracks) != len(original.Tracks) {
+		t.Errorf("Track count = %d, want %d", len(decoded.Tracks), len(original.Tracks))
 	}
 }
 
-func TestAlbum_Validate_NoTracks(t *testing.T) {
-	album, _ := NewAlbum("Empty Album", 2013)
+// TestAlbum_Validate shows validation still works
+func TestAlbum_Validate(t *testing.T) {
+	// Empty album (no tracks) - should have error
+	empty := &domain.Album{
+		Title:        "Empty Album",
+		OriginalYear: 2013,
+		Tracks:       []*domain.Track{},
+	}
 
-	issues := album.Validate()
-
+	issues := empty.Validate()
 	foundError := false
 	for _, issue := range issues {
-		if strings.Contains(issue.Message(), "at least one track") {
+		if issue.Level == domain.LevelError {
 			foundError = true
-			if issue.Level() != LevelError {
-				t.Errorf("No tracks error should be ERROR level, got %v", issue.Level())
-			}
+			break
 		}
 	}
-
 	if !foundError {
-		t.Error("Expected validation error for album with no tracks")
+		t.Error("Expected validation error for empty album")
+	}
+
+	// Valid album
+	valid := &domain.Album{
+		Title:        "Valid Album",
+		OriginalYear: 2013,
+		Edition: &domain.Edition{
+			Label:         "Label",
+			CatalogNumber: "CAT123",
+			Year:          2013,
+		},
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Work",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+					{Name: "Ensemble", Role: domain.RoleEnsemble},
+				},
+			},
+		},
+	}
+
+	issues = valid.Validate()
+	errorCount := 0
+	for _, issue := range issues {
+		if issue.Level == domain.LevelError {
+			errorCount++
+		}
+	}
+	if errorCount > 0 {
+		t.Errorf("Expected no errors for valid album, got %d", errorCount)
 	}
 }
 
-func TestAlbum_Validate_MissingEdition(t *testing.T) {
-	album, _ := NewAlbum("Test Album", 2013)
-	composer, _ := NewArtist("Johannes Brahms", RoleComposer)
-	track, _ := NewTrack(1, 1, "Symphony No. 1", []Artist{composer})
-	album.AddTrack(track)
-
-	issues := album.Validate()
-
-	foundWarning := false
-	for _, issue := range issues {
-		if strings.Contains(issue.Message(), "Edition information") {
-			foundWarning = true
-			if issue.Level() != LevelWarning {
-				t.Errorf("Missing edition should be WARNING level, got %v", issue.Level())
-			}
-		}
+// TestTrack_Composer shows the Composer() helper still works
+func TestTrack_Composer(t *testing.T) {
+	track := &domain.Track{
+		Disc:  1,
+		Track: 1,
+		Title: "Symphony",
+		Artists: []domain.Artist{
+			{Name: "Beethoven", Role: domain.RoleComposer},
+			{Name: "Berlin Phil", Role: domain.RoleEnsemble},
+			{Name: "Karajan", Role: domain.RoleConductor},
+		},
 	}
 
-	if !foundWarning {
-		t.Error("Expected validation warning for missing edition")
+	composers := track.Composers()
+	if len(composers) != 1 {
+		t.Errorf("Expected 1 composer, got %d", len(composers))
 	}
-}
-
-func TestAlbum_Validate_AllIssues(t *testing.T) {
-	// Create album with tracks that have validation issues
-	album, _ := NewAlbum("Test Album", 2013)
-	composer, _ := NewArtist("Johann Sebastian Bach", RoleComposer)
-
-	// Track with composer in title (should generate error)
-	track1, _ := NewTrack(1, 1, "Bach: Goldberg Variations", []Artist{composer})
-	album.AddTrack(track1)
-
-	// Valid track
-	track2, _ := NewTrack(1, 2, "Goldberg Variations, BWV 988", []Artist{composer})
-	album.AddTrack(track2)
-
-	issues := album.Validate()
-
-	// Should have:
-	// - 1 warning for missing edition
-	// - 1 error from track1 (composer in title)
-	if len(issues) < 2 {
-		t.Errorf("Album.Validate() returned %d issues, expected at least 2", len(issues))
-	}
-
-	// Check that issues from tracks are included
-	hasTrackError := false
-	for _, issue := range issues {
-		if issue.Track() > 0 && issue.Level() == LevelError {
-			hasTrackError = true
-		}
-	}
-
-	if !hasTrackError {
-		t.Error("Expected track-level error to be included in album validation")
+	composer := composers[0]
+	if composer.Name != "Beethoven" {
+		t.Errorf("Composer name = %v, want 'Beethoven'", composer.Name)
 	}
 }

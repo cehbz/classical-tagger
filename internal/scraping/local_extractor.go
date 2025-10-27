@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cehbz/classical-tagger/internal/domain"
 	"github.com/dhowden/tag"
 )
 
@@ -25,7 +26,7 @@ func NewLocalExtractor() *LocalExtractor {
 }
 
 // ExtractFromDirectory reads all FLAC files in a directory and extracts metadata.
-// It attempts to build a complete AlbumData structure from the tags and filenames.
+// It attempts to build a complete domain.Album structure from the tags and filenames.
 // Returns an immutable ExtractionResult.
 func (e *LocalExtractor) ExtractFromDirectory(dirPath string) (*ExtractionResult, error) {
 	// Verify directory exists
@@ -80,14 +81,17 @@ func (e *LocalExtractor) findFLACFiles(dirPath string) ([]string, error) {
 // extractFromFiles extracts metadata from a list of FLAC files.
 func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*ExtractionResult, error) {
 	// Create initial album data with sentinel values
-	data := &AlbumData{
+	data := &domain.Album{
 		Title:        MissingTitle,
 		OriginalYear: MissingYear,
-		Tracks:       make([]TrackData, 0, len(files)),
+		Tracks:       make([]*domain.Track, 0, len(files)),
 	}
 
 	// Start with empty result
-	result := NewExtractionResult(data)
+	result := &ExtractionResult{
+		Album: data,
+		Source: "local_directory",
+	}
 	parsingNotes := make(map[string]interface{})
 	parsingNotes["source"] = "local_directory"
 	parsingNotes["directory"] = dirPath
@@ -101,7 +105,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 		data.Edition = albumData.Edition
 
 		if warning != "" {
-			result = result.WithWarning(warning)
+			result.Warnings = append(result.Warnings, warning)
 		}
 	}
 
@@ -109,7 +113,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	for _, filePath := range files {
 		track, err := e.extractTrackMetadata(filePath, dirPath)
 		if err != nil {
-			result = result.WithWarning(fmt.Sprintf("file %s: %v", filepath.Base(filePath), err))
+			result.Warnings = append(result.Warnings, fmt.Sprintf("file %s: %v", filepath.Base(filePath), err))
 			continue
 		}
 
@@ -118,7 +122,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 
 	// Validate we got tracks
 	if len(data.Tracks) == 0 {
-		result = result.WithError(NewExtractionError("tracks", "no tracks extracted", true))
+		result.Warnings = append(result.Warnings, "no tracks extracted")
 		return result, nil
 	}
 
@@ -130,20 +134,19 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 				data.OriginalYear = year
 			}
 			parsingNotes["title_source"] = "directory_name"
-			result = result.WithWarning("album title extracted from directory name")
+			result.Warnings = append(result.Warnings, "album title extracted from directory name")
 		}
 	}
 
 	// Check for missing required fields
 	if data.Title == MissingTitle {
-		result = result.WithError(NewExtractionError("title", "not found in tags or directory name", true))
+		result.Warnings = append(result.Warnings, "title not found in tags or directory name")
 	}
 	if data.OriginalYear == MissingYear {
-		result = result.WithError(NewExtractionError("year", "not found in tags or directory name", true))
+		result.Warnings = append(result.Warnings, "year not found in tags or directory name")
 	}
 
-	parsingNotes["tracks_extracted"] = len(data.Tracks)
-	result = result.WithParsingNotes(parsingNotes)
+	result.Notes = append(result.Notes, fmt.Sprintf("tracks extracted: %d", len(data.Tracks)))
 
 	return result, nil
 }
@@ -152,7 +155,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 type albumMetadata struct {
 	Title        string
 	OriginalYear int
-	Edition      *EditionData
+	Edition      *domain.Edition
 }
 
 // extractAlbumMetadata extracts album-level metadata from a FLAC file's tags.
@@ -165,13 +168,13 @@ func (e *LocalExtractor) extractAlbumMetadata(filePath string) (albumMetadata, s
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return meta, fmt.Sprintf("failed to open file for album metadata: %v", err)
+		return meta, fmt.Sprintf("failed to open file for album Metadata: %v", err)
 	}
 	defer f.Close()
 
 	metadata, err := tag.ReadFrom(f)
 	if err != nil {
-		return meta, fmt.Sprintf("failed to read tags for album metadata: %v", err)
+		return meta, fmt.Sprintf("failed to read tags for album Metadata: %v", err)
 	}
 
 	// Extract album title
@@ -197,8 +200,8 @@ func (e *LocalExtractor) extractAlbumMetadata(filePath string) (albumMetadata, s
 
 // extractEditionFromComment attempts to extract label/catalog from comment field.
 // Returns nil if no edition data found.
-func (e *LocalExtractor) extractEditionFromComment(comment string) *EditionData {
-	edition := &EditionData{}
+func (e *LocalExtractor) extractEditionFromComment(comment string) *domain.Edition {
+	edition := &domain.Edition{}
 	found := false
 
 	// Look for patterns like "Label: Deutsche Grammophon" or "Catalog: 479 1234"
@@ -223,24 +226,23 @@ func (e *LocalExtractor) extractEditionFromComment(comment string) *EditionData 
 }
 
 // extractTrackMetadata extracts track-level metadata from a FLAC file.
-func (e *LocalExtractor) extractTrackMetadata(filePath string, baseDir string) (TrackData, error) {
+func (e *LocalExtractor) extractTrackMetadata(filePath string, baseDir string) (*domain.Track, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return TrackData{}, fmt.Errorf("failed to open file: %w", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer f.Close()
 
 	metadata, err := tag.ReadFrom(f)
 	if err != nil {
-		return TrackData{}, fmt.Errorf("failed to read tags: %w", err)
+		return nil, fmt.Errorf("failed to read tags: %w", err)
 	}
 
-	track := TrackData{
+	track := &domain.Track{
 		Disc:     1, // Default
 		Track:    0,
 		Title:    "",
-		Composer: "",
-		Artists:  make([]ArtistData, 0),
+		Artists:  make([]domain.Artist, 0),
 	}
 
 	// Extract track number
@@ -275,7 +277,7 @@ func (e *LocalExtractor) extractTrackMetadata(filePath string, baseDir string) (
 
 	// Extract composer (required field)
 	if composer := metadata.Composer(); composer != "" {
-		track.Composer = composer
+		track.Artists = append(track.Artists, domain.Artist{Name: composer, Role: domain.RoleComposer})
 	} else {
 		return track, fmt.Errorf("no composer found in tags")
 	}
@@ -361,8 +363,8 @@ func (e *LocalExtractor) extractTitleFromFilename(filePath string) string {
 // parseArtistField parses the artist tag field into individual artists.
 // Handles formats like "Soloist; Orchestra; Conductor" or "Soloist, Orchestra, Conductor"
 // Returns immutable slice.
-func (e *LocalExtractor) parseArtistField(artistField string) []ArtistData {
-	artists := make([]ArtistData, 0)
+func (e *LocalExtractor) parseArtistField(artistField string) []domain.Artist {
+	artists := make([]domain.Artist, 0)
 
 	// Try semicolon separator first (more reliable)
 	var names []string
@@ -384,9 +386,9 @@ func (e *LocalExtractor) parseArtistField(artistField string) []ArtistData {
 		// Try to infer role from name
 		role := e.inferRoleFromName(name)
 
-		artists = append(artists, ArtistData{
+		artists = append(artists, domain.Artist{
 			Name: name,
-			Role: role,
+			Role: domain.Role(role),
 		})
 	}
 
@@ -394,12 +396,12 @@ func (e *LocalExtractor) parseArtistField(artistField string) []ArtistData {
 }
 
 // inferRoleFromName attempts to infer artist role from their name.
-func (e *LocalExtractor) inferRoleFromName(name string) string {
+func (e *LocalExtractor) inferRoleFromName(name string) domain.Role {
 	nameLower := strings.ToLower(name)
 
 	// Check for explicit role indicators
 	if strings.Contains(nameLower, "conductor") || strings.Contains(nameLower, "dir.") {
-		return "conductor"
+		return domain.RoleConductor
 	}
 
 	// Check for ensemble indicators
@@ -411,12 +413,12 @@ func (e *LocalExtractor) inferRoleFromName(name string) string {
 	}
 	for _, keyword := range ensembleKeywords {
 		if strings.Contains(nameLower, keyword) {
-			return "ensemble"
+			return domain.RoleEnsemble
 		}
 	}
 
 	// Default to soloist for individual names
-	return "soloist"
+	return domain.RoleSoloist
 }
 
 // parseDirectoryName attempts to extract album title and year from directory name.

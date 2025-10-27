@@ -10,70 +10,70 @@ func TestRules_CatalogInfoInComments(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name     string
-		actual   *domain.Album
-		wantPass bool
-		wantInfo int
+		Name     string
+		Actual   *domain.Album
+		WantPass bool
+		WantInfo int
 	}{
 		{
-			name:     "pass - complete edition info",
-			actual:   buildAlbumWithCompleteEdition(),
-			wantPass: true,
+			Name:     "pass - complete edition info",
+			Actual:   buildAlbumWithCompleteEdition(),
+			WantPass: true,
 		},
 		{
-			name:     "info - no edition info",
-			actual:   buildAlbumWithTitle("Symphony", "1963"),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - no edition info",
+			Actual:   buildAlbumWithTitle("Symphony", "1963"),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "info - missing label",
-			actual:   buildAlbumWithPartialEdition("", "CAT123", 1990),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - missing label",
+			Actual:   buildAlbumWithPartialEdition("", "CAT123", 1990),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "info - missing catalog",
-			actual:   buildAlbumWithPartialEdition("Deutsche Grammophon", "", 1990),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - missing catalog",
+			Actual:   buildAlbumWithPartialEdition("Deutsche Grammophon", "", 1990),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "info - missing year",
-			actual:   buildAlbumWithPartialEdition("Deutsche Grammophon", "CAT123", 0),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - missing year",
+			Actual:   buildAlbumWithPartialEdition("Deutsche Grammophon", "CAT123", 0),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "info - multiple missing fields",
-			actual:   buildAlbumWithPartialEdition("", "", 0),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - multiple missing fields",
+			Actual:   buildAlbumWithPartialEdition("", "", 0),
+			WantPass: false,
+			WantInfo: 1,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.CatalogInfoInComments(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.CatalogInfoInComments(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass {
+			if !tt.WantPass {
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelInfo {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
 
-				if infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+				if infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
 
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -82,28 +82,20 @@ func TestRules_CatalogInfoInComments(t *testing.T) {
 
 // buildAlbumWithCompleteEdition creates album with complete edition information
 func buildAlbumWithCompleteEdition() *domain.Album {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
+	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
+	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
+	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony", Artists: []domain.Artist{composer, ensemble}}
 
-	edition, _ := domain.NewEdition("Deutsche Grammophon", 1990)
-	edition = edition.WithCatalogNumber("DG-479-0334")
-	album, _ := domain.NewAlbum("Album", 1963)
-	album.AddTrack(track)
-	album.WithEdition(edition)
-	return album
+	edition := &domain.Edition{Label: "Deutsche Grammophon", Year: 1990, CatalogNumber: "DG-479-0334"}
+	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: []*domain.Track{&track}, Edition: edition}
 }
 
 // buildAlbumWithPartialEdition creates album with partial edition information
 func buildAlbumWithPartialEdition(label, catalog string, year int) *domain.Album {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
+	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
+	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
+	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony", Artists: []domain.Artist{composer, ensemble}}
 
-	edition, _ := domain.NewEdition(label, year)
-	edition = edition.WithCatalogNumber(catalog)
-	album, _ := domain.NewAlbum("Album", 1963)
-	album.AddTrack(track)
-	album.WithEdition(edition)
-	return album
+	edition := &domain.Edition{Label: label, Year: year, CatalogNumber: catalog}
+	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: []*domain.Track{&track}, Edition: edition}
 }

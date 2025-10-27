@@ -2,71 +2,71 @@ package validation
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestRules_TrackNumberFormat(t *testing.T) {
 	rules := NewRules()
-	
+
 	tests := []struct {
-		name     string
-		actual   *domain.Album
-		wantPass bool
-		wantInfo int
+		Name     string
+		Actual   *domain.Album
+		WantPass bool
+		WantInfo int
 	}{
 		{
-			name:     "pass - sequential numbering",
-			actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 3}}),
-			wantPass: true,
+			Name:     "pass - sequential numbering",
+			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 3}}),
+			WantPass: true,
 		},
 		{
-			name:     "info - gap in numbering",
-			actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 4}}),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - gap in numbering",
+			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 4}}),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "pass - multi-disc starting at 1",
-			actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 1}, {2, 2}}),
-			wantPass: true,
+			Name:     "pass - multi-disc starting at 1",
+			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 1}, {2, 2}}),
+			WantPass: true,
 		},
 		{
-			name:     "info - disc doesn't start at 1",
-			actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 2}, {2, 3}}),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - disc doesn't start at 1",
+			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 2}, {2, 3}}),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "info - multiple gaps",
-			actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 3}, {1, 5}}),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - multiple gaps",
+			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 3}, {1, 5}}),
+			WantPass: false,
+			WantInfo: 1,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.TrackNumberFormat(tt.actual, tt.actual)
-			
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.TrackNumberFormat(tt.Actual, tt.Actual)
+
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
-			
-			if !tt.wantPass {
+
+			if !tt.WantPass {
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelInfo {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
-				
-				if infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+
+				if infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
-				
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})

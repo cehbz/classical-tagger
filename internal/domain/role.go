@@ -56,3 +56,20 @@ func ParseRole(s string) (Role, error) {
 		return Role(0), fmt.Errorf("invalid role: %q", s)
 	}
 }
+
+// MarshalJSON implements json.Marshaler for Role.
+func (r Role) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + r.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler for Role.
+func (r *Role) UnmarshalJSON(data []byte) error {
+	// Remove quotes
+	s := strings.Trim(string(data), `"`)
+	role, err := ParseRole(s)
+	if err != nil {
+		return err
+	}
+	*r = role
+	return nil
+}

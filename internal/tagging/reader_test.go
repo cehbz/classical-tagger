@@ -34,7 +34,7 @@ func TestFLACReader_ReadTrackFromFile(t *testing.T) {
 	// 	t.Fatalf("ReadTrackFromFile() error = %v", err)
 	// }
 	//
-	// if track.Title() == "" {
+	// if track.Title == "" {
 	// 	t.Error("Expected non-empty title")
 	// }
 }
@@ -81,13 +81,13 @@ func TestValidateExpectedNumbers(t *testing.T) {
 // TestMetadata validates the Metadata structure
 func TestMetadata(t *testing.T) {
 	tests := []struct {
-		name     string
-		metadata Metadata
-		wantErr  bool
+		Name     string
+		Metadata Metadata
+		WantErr  bool
 	}{
 		{
-			name: "valid metadata",
-			metadata: Metadata{
+			Name: "valid metadata",
+			Metadata: Metadata{
 				Title:       "Goldberg Variations",
 				Artist:      "Glenn Gould",
 				Album:       "Bach: Goldberg Variations",
@@ -95,24 +95,24 @@ func TestMetadata(t *testing.T) {
 				Year:        "1981",
 				TrackNumber: "1",
 			},
-			wantErr: false,
+			WantErr: false,
 		},
 		{
-			name: "missing required field",
-			metadata: Metadata{
+			Name: "missing required field",
+			Metadata: Metadata{
 				Title:  "Some Work",
 				Artist: "",
 				Album:  "Test Album",
 			},
-			wantErr: true,
+			WantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.metadata.Validate()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Metadata.Validate() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(tt.Name, func(t *testing.T) {
+			err := tt.Metadata.Validate()
+			if (err != nil) != tt.WantErr {
+				t.Errorf("Metadata.Validate() error = %v, wantErr %v", err, tt.WantErr)
 			}
 		})
 	}
@@ -134,12 +134,16 @@ func TestMetadata_ToTrack(t *testing.T) {
 		t.Fatalf("ToTrack() error = %v", err)
 	}
 
-	if track.Title() != metadata.Title {
-		t.Errorf("ToTrack() title = %v, want %v", track.Title(), metadata.Title)
+	if track.Title != metadata.Title {
+		t.Errorf("ToTrack() title = %v, want %v", track.Title, metadata.Title)
 	}
 
-	composer := track.Composer()
-	if composer.Name() != metadata.Composer {
-		t.Errorf("ToTrack() composer = %v, want %v", composer.Name(), metadata.Composer)
+	composers := track.Composers()
+	if len(composers) == 0 {
+		t.Errorf("ToTrack() no composers found")
+	}
+	composer := composers[0]
+	if composer.Name != metadata.Composer {
+		t.Errorf("ToTrack() composer = %v, want %v", composer.Name, metadata.Composer)
 	}
 }

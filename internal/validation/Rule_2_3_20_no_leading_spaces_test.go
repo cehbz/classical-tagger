@@ -8,132 +8,188 @@ import (
 
 func TestRules_NoLeadingSpaces(t *testing.T) {
 	rules := NewRules()
-
 	tests := []struct {
-		name       string
-		actual     *domain.Album
-		wantPass   bool
-		wantIssues int
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantIssues int
 	}{
 		{
-			name: "valid - no leading spaces",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Berlin Phil", domain.RoleEnsemble)
-				track1, _ := domain.NewTrack(1, 1, "Symphony No. 1", []domain.Artist{composer, ensemble})
-				track1 = track1.WithName("01 - Symphony.flac")
-				track2, _ := domain.NewTrack(1, 2, "Symphony No. 2", []domain.Artist{composer, ensemble})
-				track2 = track2.WithName("02 - Concerto.flac")
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track1)
-				album.AddTrack(track2)
-				return album
-			}(),
-			wantPass: true,
+			Name: "valid - no leading spaces",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony No. 1",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: "01 - Symphony.flac",
+					},
+					{
+						Disc:  1,
+						Track: 2,
+						Title: "Symphony No. 2",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: "02 - Concerto.flac",
+					},
+				},
+			},
+			WantPass: true,
 		},
 		{
-			name: "album title with leading space",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Berlin Phil", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
-				track = track.WithName("01 - Symphony.flac")
-				album, _ := domain.NewAlbum(" Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:   false,
-			wantIssues: 1,
+			Name: "album title with leading space",
+			Actual: &domain.Album{
+				Title:        " Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: "01 - Symphony.flac",
+					},
+				},
+			},
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "filename with leading space",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Berlin Phil", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
-				track = track.WithName(" 01 - Symphony.flac")
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:   false,
-			wantIssues: 1,
+			Name: "filename with leading space",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: " 01 - Symphony.flac",
+					},
+				},
+			},
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "track title with leading space",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Berlin Phil", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, " Symphony No. 1", []domain.Artist{composer, ensemble})
-				track = track.WithName("01 - Symphony.flac")
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:   false,
-			wantIssues: 1,
+			Name: "track title with leading space",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc: 1, Track: 1, Title: " Symphony No. 1", Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: "01 - Symphony.flac",
+					},
+				},
+			},
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "folder name in path with leading space",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Berlin Phil", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
-				track = track.WithName(" CD1/01 - Symphony.flac")
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:   false,
-			wantIssues: 1,
+			Name: "folder name in path with leading space",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: " CD1/01 - Symphony.flac",
+					},
+				},
+			},
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "multiple violations",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Berlin Phil", domain.RoleEnsemble)
-				track1, _ := domain.NewTrack(1, 1, " Symphony No. 1", []domain.Artist{composer, ensemble})
-				track1 = track1.WithName(" 01 - Symphony.flac")
-				track2, _ := domain.NewTrack(1, 2, "Concerto", []domain.Artist{composer, ensemble})
-				track2 = track2.WithName("02 - Concerto.flac")
-				album, _ := domain.NewAlbum(" Beethoven", 1963)
-				album.AddTrack(track1)
-				album.AddTrack(track2)
-				return album
-			}(),
-			wantPass:   false,
-			wantIssues: 3, // Album title + track1 filename + track1 title
+			Name: "multiple violations",
+			Actual: &domain.Album{
+				Title:        " Beethoven",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: " Symphony No. 1",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: " 01 - Symphony.flac",
+					},
+					{
+						Disc:  1,
+						Track: 2,
+						Title: "Concerto",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: "02 - Concerto.flac",
+					},
+				},
+			},
+			WantPass:   false,
+			WantIssues: 3, // Album title + track1 filename + track1 title
 		},
 		{
-			name: "valid multi-disc with subfolders",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Berlin Phil", domain.RoleEnsemble)
-				track1, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
-				track1 = track1.WithName("CD1/01 - Symphony.flac")
-				track2, _ := domain.NewTrack(2, 1, "Concerto", []domain.Artist{composer, ensemble})
-				track2 = track2.WithName("CD2/01 - Concerto.flac")
-				album, _ := domain.NewAlbum("Beethoven", 1963)
-				album.AddTrack(track1)
-				album.AddTrack(track2)
-				return album
-			}(),
-			wantPass: true,
+			Name: "valid multi-disc with subfolders",
+			Actual: &domain.Album{
+				Title:        "Beethoven",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: "CD1/01 - Symphony.flac",
+					},
+					{
+						Disc:  2,
+						Track: 1,
+						Title: "Concerto",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
+						Name: "CD2/01 - Concerto.flac",
+					},
+				},
+			},
+			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.NoLeadingSpaces(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.NoLeadingSpaces(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass && len(result.Issues()) != tt.wantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues()), tt.wantIssues)
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue: %s", issue.Message())
+			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+				for _, issue := range result.Issues {
+					t.Logf("  Issue: %s", issue.Message)
 				}
 			}
 		})

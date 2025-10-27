@@ -2,48 +2,48 @@ package filesystem
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestDirectoryValidator_ValidatePath(t *testing.T) {
 	validator := NewDirectoryValidator()
-	
+
 	tests := []struct {
-		name           string
-		path           string
-		wantErrorCount int
+		Name           string
+		Path           string
+		WantErrorCount int
 	}{
 		{
-			name:           "valid short path",
-			path:           "/music/Bach - Goldberg Variations (1981) - FLAC/01 Aria.flac",
-			wantErrorCount: 0,
+			Name:           "valid short path",
+			Path:           "/music/Bach - Goldberg Variations (1981) - FLAC/01 Aria.flac",
+			WantErrorCount: 0,
 		},
 		{
-			name:           "path too long",
-			path:           "/" + string(make([]byte, 181)),
-			wantErrorCount: 1,
+			Name:           "path too long",
+			Path:           "/" + string(make([]byte, 181)),
+			WantErrorCount: 1,
 		},
 		{
-			name:           "leading space in filename",
-			path:           "/music/album/ 01 Track.flac",
-			wantErrorCount: 1,
+			Name:           "leading space in filename",
+			Path:           "/music/album/ 01 Track.flac",
+			WantErrorCount: 1,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			issues := validator.ValidatePath(tt.path)
-			
+		t.Run(tt.Name, func(t *testing.T) {
+			issues := validator.ValidatePath(tt.Path)
+
 			errorCount := 0
 			for _, issue := range issues {
-				if issue.Level() == domain.LevelError {
+				if issue.Level == domain.LevelError {
 					errorCount++
 				}
 			}
-			
-			if errorCount != tt.wantErrorCount {
-				t.Errorf("ValidatePath() error count = %d, want %d", errorCount, tt.wantErrorCount)
+
+			if errorCount != tt.WantErrorCount {
+				t.Errorf("ValidatePath() error count = %d, want %d", errorCount, tt.WantErrorCount)
 				for _, issue := range issues {
 					t.Logf("  %s", issue)
 				}
@@ -54,55 +54,55 @@ func TestDirectoryValidator_ValidatePath(t *testing.T) {
 
 func TestDirectoryValidator_ValidateStructure(t *testing.T) {
 	validator := NewDirectoryValidator()
-	
+
 	tests := []struct {
-		name           string
-		files          []string
-		isMultiDisc    bool
-		wantErrorCount int
+		Name           string
+		Files          []string
+		IsMultiDisc    bool
+		WantErrorCount int
 	}{
 		{
-			name: "valid single disc",
-			files: []string{
+			Name: "valid single disc",
+			Files: []string{
 				"01 Track One.flac",
 				"02 Track Two.flac",
 			},
-			isMultiDisc:    false,
-			wantErrorCount: 0,
+			IsMultiDisc:    false,
+			WantErrorCount: 0,
 		},
 		{
-			name: "valid multi disc",
-			files: []string{
+			Name: "valid multi disc",
+			Files: []string{
 				"CD1/01 Track One.flac",
 				"CD1/02 Track Two.flac",
 				"CD2/01 Track One.flac",
 			},
-			isMultiDisc:    true,
-			wantErrorCount: 0,
+			IsMultiDisc:    true,
+			WantErrorCount: 0,
 		},
 		{
-			name: "invalid nested structure",
-			files: []string{
+			Name: "invalid nested structure",
+			Files: []string{
 				"Album/CD1/01 Track.flac",
 			},
-			isMultiDisc:    true,
-			wantErrorCount: 1,
+			IsMultiDisc:    true,
+			WantErrorCount: 1,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			issues := validator.ValidateStructure("/base/album", tt.files)
-			
+		t.Run(tt.Name, func(t *testing.T) {
+			issues := validator.ValidateStructure("/base/album", tt.Files)
+
 			errorCount := 0
 			for _, issue := range issues {
-				if issue.Level() == domain.LevelError {
+				if issue.Level == domain.LevelError {
 					errorCount++
 				}
 			}
-			
-			if errorCount != tt.wantErrorCount {
-				t.Errorf("ValidateStructure() error count = %d, want %d", errorCount, tt.wantErrorCount)
+
+			if errorCount != tt.WantErrorCount {
+				t.Errorf("ValidateStructure() error count = %d, want %d", errorCount, tt.WantErrorCount)
 			}
 		})
 	}
@@ -110,64 +110,85 @@ func TestDirectoryValidator_ValidateStructure(t *testing.T) {
 
 func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 	validator := NewDirectoryValidator()
-	
+
 	tests := []struct {
-		name        string
-		folderName  string
-		album       *domain.Album
-		wantWarning bool
+		Name        string
+		FolderName  string
+		Album       *domain.Album
+		WantWarning bool
 	}{
 		{
-			name:       "good folder name with artist and album",
-			folderName: "Glenn Gould - Goldberg Variations (1981) - FLAC",
-			album: func() *domain.Album {
-				album, _ := domain.NewAlbum("Goldberg Variations", 1981)
-				composer, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-				track, _ := domain.NewTrack(1, 1, "Aria", []domain.Artist{composer})
-				album.AddTrack(track)
-				return album
-			}(),
-			wantWarning: true,
+			Name:       "good folder name with artist and album",
+			FolderName: "Glenn Gould - Goldberg Variations (1981) - FLAC",
+			Album: &domain.Album{
+				Title:        "Goldberg Variations",
+				OriginalYear: 1981,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Aria",
+						Artists: []domain.Artist{
+							{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
+						},
+					},
+				},
+			},
+			WantWarning: true, // Still warns to mention composer
 		},
 		{
-			name:       "minimal folder name (just album)",
-			folderName: "Goldberg Variations",
-			album: func() *domain.Album {
-				album, _ := domain.NewAlbum("Goldberg Variations", 1981)
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				track, _ := domain.NewTrack(1, 1, "Aria", []domain.Artist{composer})
-				album.AddTrack(track)
-				return album
-			}(),
-			wantWarning: true, // Minimal is acceptable per rules
+			Name:       "minimal folder name (just album)",
+			FolderName: "Goldberg Variations",
+			Album: &domain.Album{
+				Title:        "Goldberg Variations",
+				OriginalYear: 1981,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Aria",
+						Artists: []domain.Artist{
+							{Name: "Bach", Role: domain.RoleComposer},
+						},
+					},
+				},
+			},
+			WantWarning: true, // Minimal is acceptable per rules but warns about composer
 		},
 		{
-			name:       "folder name missing composer",
-			folderName: "Piano Works",
-			album: func() *domain.Album {
-				album, _ := domain.NewAlbum("Piano Works", 1981)
-				composer, _ := domain.NewArtist("Frederic Chopin", domain.RoleComposer)
-				track, _ := domain.NewTrack(1, 1, "Nocturne", []domain.Artist{composer})
-				album.AddTrack(track)
-				return album
-			}(),
-			wantWarning: true,
+			Name:       "folder name missing composer",
+			FolderName: "Piano Works",
+			Album: &domain.Album{
+				Title:        "Piano Works",
+				OriginalYear: 1981,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Nocturne",
+						Artists: []domain.Artist{
+							{Name: "Frederic Chopin", Role: domain.RoleComposer},
+						},
+					},
+				},
+			},
+			WantWarning: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			issues := validator.ValidateFolderName(tt.folderName, tt.album)
-			
+		t.Run(tt.Name, func(t *testing.T) {
+			issues := validator.ValidateFolderName(tt.FolderName, tt.Album)
+
 			hasWarning := false
 			for _, issue := range issues {
-				if issue.Level() == domain.LevelWarning {
+				if issue.Level == domain.LevelWarning {
 					hasWarning = true
 				}
 			}
-			
-			if hasWarning != tt.wantWarning {
-				t.Errorf("ValidateFolderName() warning = %v, want %v", hasWarning, tt.wantWarning)
+
+			if hasWarning != tt.WantWarning {
+				t.Errorf("ValidateFolderName() warning = %v, want %v", hasWarning, tt.WantWarning)
 			}
 		})
 	}

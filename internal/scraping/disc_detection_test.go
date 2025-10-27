@@ -4,25 +4,44 @@ import (
 	"testing"
 )
 
+func TestDetectDiscCount(t *testing.T) {
+	tests := []struct {
+		Name  string
+		Paths []string
+		Want  int
+	}{
+		{"single disc", []string{"Album/01.flac", "Album/02.flac"}, 1},
+		{"two discs", []string{"Album/CD1/01.flac", "Album/CD2/01.flac"}, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := DetectDiscStructure(tt.Paths).DiscCount()
+			if got != tt.Want {
+				t.Errorf("detectDiscCount() = %d, want %d", got, tt.Want)
+			}
+		})
+	}
+}
+
 // TestDetectDiscStructure tests detection of multi-disc albums
 func TestDetectDiscStructure(t *testing.T) {
 	tests := []struct {
-		name      string
-		lines     []string
-		wantDiscs int
+		Name      string
+		Lines     []string
+		WantDiscs int
 	}{
 		{
-			name: "single disc implicit",
-			lines: []string{
+			Name: "single disc implicit",
+			Lines: []string{
 				"Track 1: Aria",
 				"Track 2: Variation 1",
 				"Track 3: Variation 2",
 			},
-			wantDiscs: 1,
+			WantDiscs: 1,
 		},
 		{
-			name: "explicit CD1/CD2",
-			lines: []string{
+			Name: "explicit CD1/CD2",
+			Lines: []string{
 				"CD1",
 				"Track 1: Movement I",
 				"Track 2: Movement II",
@@ -30,41 +49,41 @@ func TestDetectDiscStructure(t *testing.T) {
 				"Track 1: Movement III",
 				"Track 2: Movement IV",
 			},
-			wantDiscs: 2,
+			WantDiscs: 2,
 		},
 		{
-			name: "Disc 1/Disc 2 format",
-			lines: []string{
+			Name: "Disc 1/Disc 2 format",
+			Lines: []string{
 				"Disc 1",
 				"Track 1: First",
 				"Disc 2",
 				"Track 1: Second",
 			},
-			wantDiscs: 2,
+			WantDiscs: 2,
 		},
 		{
-			name: "numbered format with colon",
-			lines: []string{
+			Name: "numbered format with colon",
+			Lines: []string{
 				"1:",
 				"Track 1: First",
 				"2:",
 				"Track 1: Second",
 			},
-			wantDiscs: 2,
+			WantDiscs: 2,
 		},
 		{
-			name: "track numbers resetting",
-			lines: []string{
+			Name: "track numbers resetting",
+			Lines: []string{
 				"1. Aria",
 				"2. Variation 1",
-				"1. Adagio",  // Reset indicates new disc
+				"1. Adagio", // Reset indicates new disc
 				"2. Allegro",
 			},
-			wantDiscs: 2,
+			WantDiscs: 2,
 		},
 		{
-			name: "three disc album",
-			lines: []string{
+			Name: "three disc album",
+			Lines: []string{
 				"CD 1",
 				"1. First",
 				"CD 2",
@@ -72,20 +91,20 @@ func TestDetectDiscStructure(t *testing.T) {
 				"CD 3",
 				"1. Third",
 			},
-			wantDiscs: 3,
+			WantDiscs: 3,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			structure := DetectDiscStructure(tt.lines)
-			
-			if structure.DiscCount() != tt.wantDiscs {
-				t.Errorf("DiscCount() = %d, want %d", structure.DiscCount(), tt.wantDiscs)
+		t.Run(tt.Name, func(t *testing.T) {
+			structure := DetectDiscStructure(tt.Lines)
+
+			if structure.DiscCount() != tt.WantDiscs {
+				t.Errorf("DiscCount() = %d, want %d", structure.DiscCount(), tt.WantDiscs)
 			}
-			
+
 			// Verify we have track assignments for all lines
-			if structure.IsMultiDisc() && tt.wantDiscs > 1 {
+			if structure.IsMultiDisc() && tt.WantDiscs > 1 {
 				if !structure.IsMultiDisc() {
 					t.Error("IsMultiDisc() = false, want true")
 				}
@@ -104,9 +123,9 @@ func TestDiscStructure_GetDiscNumber(t *testing.T) {
 		"Track 1: Third",
 		"Track 2: Fourth",
 	}
-	
+
 	structure := DetectDiscStructure(lines)
-	
+
 	tests := []struct {
 		lineIndex int
 		wantDisc  int
@@ -119,13 +138,13 @@ func TestDiscStructure_GetDiscNumber(t *testing.T) {
 		{lineIndex: 4, wantDisc: 2, wantTrack: true},  // Third track
 		{lineIndex: 5, wantDisc: 2, wantTrack: true},  // Fourth track
 	}
-	
+
 	for _, tt := range tests {
 		disc := structure.GetDiscNumber(tt.lineIndex)
 		if disc != tt.wantDisc {
 			t.Errorf("GetDiscNumber(%d) = %d, want %d", tt.lineIndex, disc, tt.wantDisc)
 		}
-		
+
 		isTrack := structure.IsTrackLine(tt.lineIndex)
 		if isTrack != tt.wantTrack {
 			t.Errorf("IsTrackLine(%d) = %v, want %v", tt.lineIndex, isTrack, tt.wantTrack)
@@ -139,13 +158,13 @@ func TestDiscStructure_Immutability(t *testing.T) {
 		"CD 1",
 		"Track 1",
 	}
-	
+
 	structure := DetectDiscStructure(lines)
 	discCount := structure.DiscCount()
-	
+
 	// Try to modify returned disc count (shouldn't affect original)
 	_ = discCount + 1
-	
+
 	if structure.DiscCount() != 1 {
 		t.Error("DiscStructure was mutated")
 	}
@@ -169,7 +188,7 @@ func TestIsDiscHeader(t *testing.T) {
 		{"", false},
 		{"CD", false}, // Missing number
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
 			if got := IsDiscHeader(tt.line); got != tt.wantHeader {
@@ -195,15 +214,15 @@ func TestExtractDiscNumber(t *testing.T) {
 		{"Track 1", 0, false},
 		{"", 0, false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
 			disc, ok := ExtractDiscNumber(tt.line)
-			
+
 			if ok != tt.wantOk {
 				t.Errorf("ExtractDiscNumber(%q) ok = %v, want %v", tt.line, ok, tt.wantOk)
 			}
-			
+
 			if ok && disc != tt.wantDisc {
 				t.Errorf("ExtractDiscNumber(%q) = %d, want %d", tt.line, disc, tt.wantDisc)
 			}
@@ -217,17 +236,17 @@ func TestDetectTrackReset(t *testing.T) {
 		"1. First track",
 		"2. Second track",
 		"3. Third track",
-		"1. First track of disc 2",  // Reset here
+		"1. First track of disc 2", // Reset here
 		"2. Second track of disc 2",
 	}
-	
+
 	structure := DetectDiscStructure(lines)
-	
+
 	// Should detect 2 discs due to track number reset
 	if structure.DiscCount() != 2 {
 		t.Errorf("DiscCount() = %d, want 2 (should detect reset)", structure.DiscCount())
 	}
-	
+
 	// Line 3 (index 3) should be on disc 2
 	if structure.GetDiscNumber(3) != 2 {
 		t.Errorf("GetDiscNumber(3) = %d, want 2", structure.GetDiscNumber(3))

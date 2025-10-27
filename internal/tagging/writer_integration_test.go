@@ -92,15 +92,23 @@ func TestFLACWriter_WriteTrack_Integration(t *testing.T) {
 	destPath := filepath.Join(tmpDir, "dest.flac")
 
 	// Create test metadata
-	composer, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-	performer, _ := domain.NewArtist("Glenn Gould", domain.RoleSoloist)
-	track, _ := domain.NewTrack(1, 1, "Goldberg Variations, BWV 988: Aria",
-		[]domain.Artist{composer, performer})
+	track := &domain.Track{
+		Disc: 1, 
+		Track: 1, 
+		Title: "Goldberg Variations, BWV 988: Aria", 
+		Artists: []domain.Artist{
+			{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
+			{Name: "Glenn Gould", Role: domain.RoleSoloist},
+		},
+	}
 
-	album, _ := domain.NewAlbum("Goldberg Variations", 1955)
-	edition, _ := domain.NewEdition("Sony Classical", 1992)
-	edition = edition.WithCatalogNumber("SK 52594")
-	album = album.WithEdition(edition)
+	album := &domain.Album{
+		Title: "Goldberg Variations", OriginalYear: 1955,
+		Edition: &domain.Edition{
+			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
+		},
+		Tracks: []*domain.Track{track},
+	}
 
 	// Write tags
 	writer := NewFLACWriter()
@@ -157,11 +165,22 @@ func TestFLACWriter_SpecialCharacters(t *testing.T) {
 	destPath := filepath.Join(tmpDir, "dest.flac")
 
 	// Create metadata with special characters
-	composer, _ := domain.NewArtist("Béla Bartók", domain.RoleComposer)
-	performer, _ := domain.NewArtist("Mstislav Rostropóvič", domain.RoleSoloist)
-	track, _ := domain.NewTrack(1, 1, "Sonate für Violine und Klavier: Frisch (Œuvre)",
-		[]domain.Artist{composer, performer})
-	album, _ := domain.NewAlbum("Bartók: Complete Works", 2020)
+	track := &domain.Track{
+		Disc: 1, 
+		Track: 1, 
+		Title: "Sonate für Violine und Klavier: Frisch (Œuvre)",
+		Artists: []domain.Artist{
+			{Name: "Béla Bartók", Role: domain.RoleComposer},
+			{Name: "Mstislav Rostropóvič", Role: domain.RoleSoloist},
+		},
+	}
+	album := &domain.Album{
+		Title: "Bartók: Complete Works", OriginalYear: 2020,
+		Edition: &domain.Edition{
+			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
+		},
+		Tracks: []*domain.Track{track},
+	}
 
 	writer := NewFLACWriter()
 	err := writer.WriteTrack(sourcePath, destPath, track, album)
@@ -194,14 +213,27 @@ func TestFLACWriter_MultiplePerformers(t *testing.T) {
 	destPath := filepath.Join(tmpDir, "dest.flac")
 
 	// Create metadata with multiple performers
-	composer, _ := domain.NewArtist("Johannes Brahms", domain.RoleComposer)
-	soloist, _ := domain.NewArtist("Anne-Sophie Mutter", domain.RoleSoloist)
-	ensemble, _ := domain.NewArtist("Berlin Philharmonic", domain.RoleEnsemble)
-	conductor, _ := domain.NewArtist("Herbert von Karajan", domain.RoleConductor)
-
-	track, _ := domain.NewTrack(1, 1, "Violin Concerto in D major, Op. 77: I. Allegro non troppo",
-		[]domain.Artist{composer, soloist, ensemble, conductor})
-	album, _ := domain.NewAlbum("Brahms: Violin Concerto", 1980)
+	track := &domain.Track{
+		Disc: 1, 
+		Track: 1, 
+		Title: "Violin Concerto in D major, Op. 77: I. Allegro non troppo",
+		Artists: []domain.Artist{
+			{Name: "Johannes Brahms", Role: domain.RoleComposer},
+			{Name: "Anne-Sophie Mutter", Role: domain.RoleSoloist},
+			{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+			{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+		},
+	}
+	album := &domain.Album{
+		Title: "Brahms: Violin Concerto", 
+		OriginalYear: 1980,
+		Edition: &domain.Edition{
+			Label: "Sony Classical", 
+			Year: 1992, 
+			CatalogNumber: "SK 52594",
+		},
+		Tracks: []*domain.Track{track},
+	}
 
 	writer := NewFLACWriter()
 	err := writer.WriteTrack(sourcePath, destPath, track, album)
@@ -237,9 +269,20 @@ func TestFLACWriter_NoEdition(t *testing.T) {
 	sourcePath := generateTestFLAC(t, tmpDir, "source.flac")
 	destPath := filepath.Join(tmpDir, "dest.flac")
 
-	composer, _ := domain.NewArtist("Test Composer", domain.RoleComposer)
-	track, _ := domain.NewTrack(1, 1, "Test Track", []domain.Artist{composer})
-	album, _ := domain.NewAlbum("Test Album", 2020)
+	track := &domain.Track{
+		Disc: 1, 
+		Track: 1, 
+		Title: "Test Track", 
+		Artists: []domain.Artist{{Name: "Test Composer", Role: domain.RoleComposer}},
+	}
+	album := &domain.Album{
+		Title: "Test Album", 
+		OriginalYear: 2020,
+		Edition: &domain.Edition{
+			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
+		},
+		Tracks: []*domain.Track{track},
+	}
 	// No edition
 
 	writer := NewFLACWriter()
@@ -272,33 +315,43 @@ func TestFLACWriter_ErrorHandling(t *testing.T) {
 	tmpDir := t.TempDir()
 	writer := NewFLACWriter()
 
-	composer, _ := domain.NewArtist("Test", domain.RoleComposer)
-	track, _ := domain.NewTrack(1, 1, "Test", []domain.Artist{composer})
-	album, _ := domain.NewAlbum("Test", 2020)
+	track := &domain.Track{
+		Disc: 1, 
+		Track: 1, 
+		Title: "Test", 
+		Artists: []domain.Artist{{Name: "Test", Role: domain.RoleComposer}},
+	}
+	album := &domain.Album{
+		Title: "Test", OriginalYear: 2020,
+		Edition: &domain.Edition{
+			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
+		},
+		Tracks: []*domain.Track{track},
+	}
 
 	tests := []struct {
-		name       string
-		sourcePath string
-		destPath   string
-		wantErr    bool
+		Name       string
+		SourcePath string
+		DestPath   string
+		WantErr    bool
 	}{
 		{
-			name:       "source does not exist",
-			sourcePath: filepath.Join(tmpDir, "nonexistent.flac"),
-			destPath:   filepath.Join(tmpDir, "dest.flac"),
-			wantErr:    true,
+			Name:       "source does not exist",
+			SourcePath: filepath.Join(tmpDir, "nonexistent.flac"),
+			DestPath:   filepath.Join(tmpDir, "dest.flac"),
+			WantErr:    true,
 		},
 		{
-			name:       "source is not a FLAC file",
-			sourcePath: filepath.Join(tmpDir, "notflac.txt"),
-			destPath:   filepath.Join(tmpDir, "dest.flac"),
-			wantErr:    true,
+			Name:       "source is not a FLAC file",
+			SourcePath: filepath.Join(tmpDir, "notflac.txt"),
+			DestPath:   filepath.Join(tmpDir, "dest.flac"),
+			WantErr:    true,
 		},
 		{
-			name:       "dest directory does not exist",
-			sourcePath: generateTestFLAC(t, tmpDir, "source.flac"),
-			destPath:   filepath.Join(tmpDir, "nonexistent", "dest.flac"),
-			wantErr:    true,
+			Name:       "dest directory does not exist",
+			SourcePath: generateTestFLAC(t, tmpDir, "source.flac"),
+			DestPath:   filepath.Join(tmpDir, "nonexistent", "dest.flac"),
+			WantErr:    true,
 		},
 	}
 
@@ -306,10 +359,10 @@ func TestFLACWriter_ErrorHandling(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "notflac.txt"), []byte("not a flac"), 0644)
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := writer.WriteTrack(tt.sourcePath, tt.destPath, track, album)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("WriteTrack() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(tt.Name, func(t *testing.T) {
+			err := writer.WriteTrack(tt.SourcePath, tt.DestPath, track, album)
+			if (err != nil) != tt.WantErr {
+				t.Errorf("WriteTrack() error = %v, wantErr %v", err, tt.WantErr)
 			}
 		})
 	}

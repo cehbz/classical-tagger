@@ -12,16 +12,16 @@ import (
 // FilenameCapitalization checks that filenames use proper Title Case (rule 2.3.11.1)
 func (r *Rules) FilenameCapitalization(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "2.3.11.1",
-		name:   "Filename capitalization must be Title Case",
-		level:  domain.LevelError,
-		weight: 1.0,
+		ID:     "2.3.11.1",
+		Name:   "Filename capitalization must be Title Case",
+		Level:  domain.LevelError,
+		Weight: 1.0,
 	}
 
 	var issues []domain.ValidationIssue
 
-	for _, track := range actual.Tracks() {
-		fileName := track.Name()
+	for _, track := range actual.Tracks {
+		fileName := track.Name
 		if fileName == "" {
 			continue
 		}
@@ -41,20 +41,16 @@ func (r *Rules) FilenameCapitalization(actual, reference *domain.Album) RuleResu
 		// Check capitalization
 		capIssue := checkCapitalization(fileTitle)
 		if capIssue != "" {
-			issues = append(issues, domain.NewIssue(
-				domain.LevelError,
-				track.Track(),
-				meta.id,
-				fmt.Sprintf("Track %s: %s in filename: '%s'",
+			issues = append(issues, domain.ValidationIssue{
+				Level: domain.LevelError,
+				Track: track.Track,
+				Rule:  meta.ID,
+				Message: fmt.Sprintf("Track %s: %s in fileName: '%s'",
 					formatTrackNumber(track), capIssue, justFileName),
-			))
+			})
 		}
 	}
-
-	if len(issues) == 0 {
-		return meta.Pass()
-	}
-	return meta.Fail(issues...)
+	return RuleResult{Meta: meta, Issues: issues}
 }
 
 // checkCapitalization returns an error message if capitalization is wrong, empty string if OK

@@ -2,84 +2,105 @@ package validation
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestAlbumValidator_ValidateMetadata(t *testing.T) {
 	validator := NewAlbumValidator()
-	
+
 	tests := []struct {
-		name           string
-		setupAlbum     func() *domain.Album
-		wantErrorCount int
-		wantWarnCount  int
+		Name           string
+		SetupAlbum     *domain.Album
+		WantErrorCount int
+		WantWarnCount  int
 	}{
 		{
-			name: "valid complete album",
-			setupAlbum: func() *domain.Album {
-				album, _ := domain.NewAlbum("Test Album", 2013)
-				edition, _ := domain.NewEdition("test label", 2013)
-				edition = edition.WithCatalogNumber("HMC902170")
-				album = album.WithEdition(edition)
-				
-				composer, _ := domain.NewArtist("Felix Mendelssohn", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("RIAS Kammerchor", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, "Frohlocket, Op. 79/1", []domain.Artist{composer, ensemble})
-				track = track.WithName("01 Frohlocket, Op. 79-1.flac")
-				album.AddTrack(track)
-				
-				return album
-			},
-			wantErrorCount: 0,
-			wantWarnCount:  0,
+			Name: "valid complete album",
+			SetupAlbum: &domain.Album{
+					Title: "Test Album", 
+					OriginalYear: 2013,
+					Edition: &domain.Edition{
+						Label: "test label",
+						Year: 2013,
+						CatalogNumber: "HMC902170",
+					},
+					Tracks: []*domain.Track{
+						&domain.Track{
+							Disc: 1, 
+							Track: 1, 
+							Title: "Frohlocket, Op. 79/1", 
+							Artists: []domain.Artist{
+								{Name: "Felix Mendelssohn", Role: domain.RoleComposer}, 
+								{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+							}, 
+							Name: "01 Frohlocket, Op. 79-1.flac",
+						},
+					},
+				},
+			WantErrorCount: 0,
+			WantWarnCount:  0,
 		},
 		{
-			name: "missing edition",
-			setupAlbum: func() *domain.Album {
-				album, _ := domain.NewAlbum("Test Album", 2013)
-				composer, _ := domain.NewArtist("Johannes Brahms", domain.RoleComposer)
-				track, _ := domain.NewTrack(1, 1, "Symphony No. 1", []domain.Artist{composer})
-				album.AddTrack(track)
-				return album
+			Name: "missing edition",
+			SetupAlbum: &domain.Album{
+				Title: "Test Album", 
+				OriginalYear: 2013, 
+				Tracks: []*domain.Track{
+					&domain.Track{
+						Disc: 1, 
+						Track: 1, 
+						Title: "Symphony No. 1", 
+						Artists: []domain.Artist{
+							{Name: "Johannes Brahms", Role: domain.RoleComposer},
+						},
+					},
+				},
 			},
-			wantErrorCount: 0,
-			wantWarnCount:  1, // missing edition
+			WantErrorCount: 0,
+			WantWarnCount:  1, // missing edition
 		},
 		{
-			name: "composer in title",
-			setupAlbum: func() *domain.Album {
-				album, _ := domain.NewAlbum("Test Album", 2013)
-				composer, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-				track, _ := domain.NewTrack(1, 1, "Bach: Goldberg Variations", []domain.Artist{composer})
-				album.AddTrack(track)
-				return album
+			Name: "composer in title",
+			SetupAlbum: &domain.Album{
+				Title: "Test Album", 
+				OriginalYear: 2013, 
+				Tracks: []*domain.Track{
+					&domain.Track{
+						Disc: 1, 
+						Track: 1, 
+						Title: "Bach: Goldberg Variations", 
+						Artists: []domain.Artist{
+							{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
+						},
+					},
+				},
 			},
-			wantErrorCount: 1, // composer in title
-			wantWarnCount:  1, // missing edition
+			WantErrorCount: 1, // composer in title
+			WantWarnCount:  1, // missing edition
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			album := tt.setupAlbum()
+		t.Run(tt.Name, func(t *testing.T) {
+			album := tt.SetupAlbum
 			issues := validator.ValidateMetadata(album)
-			
+
 			errorCount := 0
 			warnCount := 0
 			for _, issue := range issues {
-				if issue.Level() == domain.LevelError {
+				if issue.Level == domain.LevelError {
 					errorCount++
-				} else if issue.Level() == domain.LevelWarning {
+				} else if issue.Level == domain.LevelWarning {
 					warnCount++
 				}
 			}
-			
-			if errorCount != tt.wantErrorCount {
-				t.Errorf("ValidateMetadata() error count = %d, want %d", errorCount, tt.wantErrorCount)
+
+			if errorCount != tt.WantErrorCount {
+				t.Errorf("ValidateMetadata() error count = %d, want %d", errorCount, tt.WantErrorCount)
 			}
-			if warnCount != tt.wantWarnCount {
-				t.Errorf("ValidateMetadata() warning count = %d, want %d", warnCount, tt.wantWarnCount)
+			if warnCount != tt.WantWarnCount {
+				t.Errorf("ValidateMetadata() warning count = %d, want %d", warnCount, tt.WantWarnCount)
 			}
 		})
 	}

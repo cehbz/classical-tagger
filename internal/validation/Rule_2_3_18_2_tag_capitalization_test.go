@@ -2,87 +2,87 @@ package validation
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestRules_TagCapitalization(t *testing.T) {
 	rules := NewRules()
-	
+
 	tests := []struct {
-		name       string
-		actual     *domain.Album
-		wantPass   bool
-		wantErrors int
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantErrors int
 	}{
 		{
-			name:     "valid - Title Case",
-			actual:   buildAlbumWithTitle("Symphony No. 5 in C Minor", "1963"),
-			wantPass: true,
+			Name:     "valid - Title Case",
+			Actual:   buildAlbumWithTitle("Symphony No. 5 in C Minor", "1963"),
+			WantPass: true,
 		},
 		{
-			name:     "valid - Casual Title Case",
-			actual:   buildAlbumWithTitle("Symphony No. 5 In C Minor", "1963"),
-			wantPass: true,
+			Name:     "valid - Casual Title Case",
+			Actual:   buildAlbumWithTitle("Symphony No. 5 In C Minor", "1963"),
+			WantPass: true,
 		},
 		{
-			name:       "error - all uppercase",
-			actual:     buildAlbumWithTitle("SYMPHONY NO. 5", "1963"),
-			wantPass:   false,
-			wantErrors: 1,
+			Name:       "error - all uppercase",
+			Actual:     buildAlbumWithTitle("SYMPHONY NO. 5", "1963"),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name:       "error - all lowercase",
-			actual:     buildAlbumWithTitle("symphony no. 5", "1963"),
-			wantPass:   false,
-			wantErrors: 1,
+			Name:       "error - all lowercase",
+			Actual:     buildAlbumWithTitle("symphony no. 5", "1963"),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name:     "valid - mixed case acceptable",
-			actual:   buildAlbumWithTitle("Symphony No. 5", "1963"),
-			wantPass: true,
+			Name:     "valid - mixed case acceptable",
+			Actual:   buildAlbumWithTitle("Symphony No. 5", "1963"),
+			WantPass: true,
 		},
 		{
-			name:       "error - artist name all caps",
-			actual:     buildAlbumWithArtistName("BEETHOVEN"),
-			wantPass:   false,
-			wantErrors: 1,
+			Name:       "error - artist name all caps",
+			Actual:     buildAlbumWithArtistName("BEETHOVEN"),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name:       "error - artist name all lowercase",
-			actual:     buildAlbumWithArtistName("beethoven"),
-			wantPass:   false,
-			wantErrors: 1,
+			Name:       "error - artist name all lowercase",
+			Actual:     buildAlbumWithArtistName("beethoven"),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name:     "valid - proper artist name",
-			actual:   buildAlbumWithArtistName("Ludwig van Beethoven"),
-			wantPass: true,
+			Name:     "valid - proper artist name",
+			Actual:   buildAlbumWithArtistName("Ludwig van Beethoven"),
+			WantPass: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.TagCapitalization(tt.actual, tt.actual)
-			
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.TagCapitalization(tt.Actual, tt.Actual)
+
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
-			
-			if !tt.wantPass {
+
+			if !tt.WantPass {
 				errorCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelError {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelError {
 						errorCount++
 					}
 				}
-				
-				if errorCount != tt.wantErrors {
-					t.Errorf("Errors = %d, want %d", errorCount, tt.wantErrors)
+
+				if errorCount != tt.WantErrors {
+					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
 				}
-				
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -91,64 +91,64 @@ func TestRules_TagCapitalization(t *testing.T) {
 
 func TestRules_TagCapitalizationVsReference(t *testing.T) {
 	rules := NewRules()
-	
+
 	tests := []struct {
-		name         string
-		actual       *domain.Album
-		reference    *domain.Album
-		wantPass     bool
-		wantWarnings int
+		Name         string
+		Actual       *domain.Album
+		Reference    *domain.Album
+		WantPass     bool
+		WantWarnings int
 	}{
 		{
-			name:      "valid - exact match",
-			actual:    buildAlbumWithTitle("Symphony No. 5", "1963"),
-			reference: buildAlbumWithTitle("Symphony No. 5", "1963"),
-			wantPass:  true,
+			Name:      "valid - exact match",
+			Actual:    buildAlbumWithTitle("Symphony No. 5", "1963"),
+			Reference: buildAlbumWithTitle("Symphony No. 5", "1963"),
+			WantPass:  true,
 		},
 		{
-			name:         "warning - case mismatch",
-			actual:       buildAlbumWithTitle("Symphony No. 5", "1963"),
-			reference:    buildAlbumWithTitle("Symphony no. 5", "1963"),
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - case mismatch",
+			Actual:       buildAlbumWithTitle("Symphony No. 5", "1963"),
+			Reference:    buildAlbumWithTitle("Symphony no. 5", "1963"),
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:         "warning - all caps vs proper",
-			actual:       buildAlbumWithTitle("SYMPHONY NO. 5", "1963"),
-			reference:    buildAlbumWithTitle("Symphony No. 5", "1963"),
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - all caps vs proper",
+			Actual:       buildAlbumWithTitle("SYMPHONY NO. 5", "1963"),
+			Reference:    buildAlbumWithTitle("Symphony No. 5", "1963"),
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:      "pass - no reference",
-			actual:    buildAlbumWithTitle("Symphony No. 5", "1963"),
-			reference: nil,
-			wantPass:  true,
+			Name:      "pass - no reference",
+			Actual:    buildAlbumWithTitle("Symphony No. 5", "1963"),
+			Reference: nil,
+			WantPass:  true,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.TagCapitalizationVsReference(tt.actual, tt.reference)
-			
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.TagCapitalizationVsReference(tt.Actual, tt.Reference)
+
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
-			
-			if !tt.wantPass {
+
+			if !tt.WantPass {
 				warningCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelWarning {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelWarning {
 						warningCount++
 					}
 				}
-				
-				if warningCount != tt.wantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.wantWarnings)
+
+				if warningCount != tt.WantWarnings {
+					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
 				}
-				
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -167,7 +167,7 @@ func TestCapitalizationMatches(t *testing.T) {
 		{"Test", "Test", true},
 		{"test", "TEST", false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.s1+"_vs_"+tt.s2, func(t *testing.T) {
 			got := capitalizationMatches(tt.s1, tt.s2)

@@ -10,23 +10,23 @@ import (
 // FilenameSortingOrder checks that filenames sort alphabetically into playback order (rule 2.3.14)
 func (r *Rules) FilenameSortingOrder(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "2.3.14",
-		name:   "Filenames sort alphabetically into playback order",
-		level:  domain.LevelError,
-		weight: 1.0,
+		ID:     "2.3.14",
+		Name:   "Filenames sort alphabetically into playback order",
+		Level:  domain.LevelError,
+		Weight: 1.0,
 	}
 
 	var issues []domain.ValidationIssue
-	tracks := actual.Tracks()
+	tracks := actual.Tracks
 
 	if len(tracks) <= 1 {
-		return meta.Pass() // Single track or empty, nothing to sort
+		return RuleResult{Meta: meta, Issues: nil} // Single track or empty, nothing to sort
 	}
 
 	// Group tracks by disc
 	discTracks := make(map[int][]*domain.Track)
 	for _, track := range tracks {
-		disc := track.Disc()
+		disc := track.Disc
 		discTracks[disc] = append(discTracks[disc], track)
 	}
 
@@ -42,13 +42,13 @@ func (r *Rules) FilenameSortingOrder(actual, reference *domain.Album) RuleResult
 
 		// Sort by raw filename (exact bytewise order)
 		sort.Slice(sortedTracks, func(i, j int) bool {
-			return sortedTracks[i].Name() < sortedTracks[j].Name()
+			return sortedTracks[i].Name < sortedTracks[j].Name
 		})
 
 		// Build canonical order (by track number)
 		canonical := make([]*domain.Track, len(discTrackList))
 		copy(canonical, discTrackList)
-		sort.Slice(canonical, func(i, j int) bool { return canonical[i].Track() < canonical[j].Track() })
+		sort.Slice(canonical, func(i, j int) bool { return canonical[i].Track < canonical[j].Track })
 
 		// Compare sequences; report only the first mismatch overall
 		mismatchReported := false
@@ -56,13 +56,13 @@ func (r *Rules) FilenameSortingOrder(actual, reference *domain.Album) RuleResult
 			if sortedTracks[i] != canonical[i] {
 				a := sortedTracks[i]
 				b := canonical[i]
-				issues = append(issues, domain.NewIssue(
-					domain.LevelError,
-					b.Track(),
-					meta.id,
-					fmt.Sprintf("Disc %d: Filename sorting differs at position %d: got '%s' (track %d), expected '%s' (track %d)",
-						disc, i+1, a.Name(), a.Track(), b.Name(), b.Track()),
-				))
+				issues = append(issues, domain.ValidationIssue{
+					Level: domain.LevelError,
+					Track: b.Track,
+					Rule:  meta.ID,
+					Message: fmt.Sprintf("Disc %d: Filename sorting differs at position %d: got '%s' (track %d), expected '%s' (track %d)",
+						disc, i+1, a.Name, a.Track, b.Name, b.Track),
+				})
 				mismatchReported = true
 				break
 			}
@@ -72,9 +72,5 @@ func (r *Rules) FilenameSortingOrder(actual, reference *domain.Album) RuleResult
 			break
 		}
 	}
-
-	if len(issues) == 0 {
-		return meta.Pass()
-	}
-	return meta.Fail(issues...)
+	return RuleResult{Meta: meta, Issues: issues}
 }

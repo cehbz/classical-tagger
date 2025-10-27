@@ -24,7 +24,7 @@ func TestPrestoParser_Parse(t *testing.T) {
 		t.Fatal("Parse() returned nil result")
 	}
 
-	data := result.Data()
+	data := result.Album
 
 	// Test title extraction
 	if data.Title == "" || data.Title == MissingTitle {
@@ -51,7 +51,7 @@ func TestPrestoParser_Parse(t *testing.T) {
 		if track.Title == "" {
 			t.Errorf("Track %d has no title", i+1)
 		}
-		if track.Composer == "" {
+		if len(track.Composers()) == 0 {
 			t.Errorf("Track %d has no composer", i+1)
 		}
 		if track.Track != i+1 {
@@ -62,26 +62,26 @@ func TestPrestoParser_Parse(t *testing.T) {
 
 func TestPrestoParser_ParseTitle(t *testing.T) {
 	tests := []struct {
-		name    string
-		html    string
-		want    string
-		wantErr bool
+		Name    string
+		HTML    string
+		Want    string
+		WantErr bool
 	}{
 		{
-			name: "title with og:title meta tag - should prefer this",
-			html: `
+			Name: "title with og:title meta tag - should prefer this",
+			HTML: `
 			<html>
 			<head>
 				<title>RIAS Kammerchor: Christmas! - Harmonia Mundi: HMC902170 | Presto Music</title>
 				<meta property="og:title" content="Noël! Christmas! Weihnachten!" />
 			</head>
 			</html>`,
-			want:    "Noël! Christmas! Weihnachten!",
-			wantErr: false,
+			Want:    "Noël! Christmas! Weihnachten!",
+			WantErr: false,
 		},
 		{
-			name: "title with h1 product block title",
-			html: `
+			Name: "title with h1 product block title",
+			HTML: `
 			<html>
 			<head>
 				<title>Something - Label | Presto Music</title>
@@ -90,40 +90,40 @@ func TestPrestoParser_ParseTitle(t *testing.T) {
 				<h1 class="c-product-block__title">Actual Album Title</h1>
 			</body>
 			</html>`,
-			want:    "Actual Album Title",
-			wantErr: false,
+			Want:    "Actual Album Title",
+			WantErr: false,
 		},
 		{
-			name:    "standard title - fallback when no og:title",
-			html:    `<title>RIAS Kammerchor: Christmas! - Harmonia Mundi: HMC902170 - CD or download | Presto Music</title>`,
-			want:    "RIAS Kammerchor: Christmas!",
-			wantErr: false,
+			Name:    "standard title - fallback when no og:title",
+			HTML:    `<title>RIAS Kammerchor: Christmas! - Harmonia Mundi: HMC902170 - CD or download | Presto Music</title>`,
+			Want:    "RIAS Kammerchor: Christmas!",
+			WantErr: false,
 		},
 		{
-			name:    "title with special characters",
-			html:    `<title>Artist: Album – Title | Presto Music</title>`,
-			want:    "Artist: Album – Title",
-			wantErr: false,
+			Name:    "title with special characters",
+			HTML:    `<title>Artist: Album – Title | Presto Music</title>`,
+			Want:    "Artist: Album – Title",
+			WantErr: false,
 		},
 		{
-			name:    "no title tag",
-			html:    `<html><body>No title</body></html>`,
-			want:    "",
-			wantErr: true,
+			Name:    "no title tag",
+			HTML:    `<html><body>No title</body></html>`,
+			Want:    "",
+			WantErr: true,
 		},
 	}
 
 	parser := NewPrestoParser()
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parser.ParseTitle(tt.html)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseTitle() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(tt.Name, func(t *testing.T) {
+			got, err := parser.ParseTitle(tt.HTML)
+			if (err != nil) != tt.WantErr {
+				t.Errorf("ParseTitle() error = %v, wantErr %v", err, tt.WantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("ParseTitle() = %q, want %q", got, tt.want)
+			if got != tt.Want {
+				t.Errorf("ParseTitle() = %q, want %q", got, tt.Want)
 			}
 		})
 	}
@@ -131,36 +131,36 @@ func TestPrestoParser_ParseTitle(t *testing.T) {
 
 func TestPrestoParser_ParseCatalogNumber(t *testing.T) {
 	tests := []struct {
-		name    string
-		html    string
-		want    string
-		wantErr bool
+		Name    string
+		HTML    string
+		Want    string
+		WantErr bool
 	}{
 		{
-			name:    "catalog in product metadata",
-			html:    `<ul class="c-product-block__metadata"><li><strong>Catalogue number:</strong> HMC902170</li></ul>`,
-			want:    "HMC902170",
-			wantErr: false,
+			Name:    "catalog in product metadata",
+			HTML:    `<ul class="c-product-block__metadata"><li><strong>Catalogue number:</strong> HMC902170</li></ul>`,
+			Want:    "HMC902170",
+			WantErr: false,
 		},
 		{
-			name:    "no catalog number",
-			html:    `<ul class="c-product-block__metadata"><li>Some other info</li></ul>`,
-			want:    "",
-			wantErr: true,
+			Name:    "no catalog number",
+			HTML:    `<ul class="c-product-block__metadata"><li>Some other info</li></ul>`,
+			Want:    "",
+			WantErr: true,
 		},
 	}
 
 	parser := NewPrestoParser()
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parser.ParseCatalogNumber(tt.html)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseCatalogNumber() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(tt.Name, func(t *testing.T) {
+			got, err := parser.ParseCatalogNumber(tt.HTML)
+			if (err != nil) != tt.WantErr {
+				t.Errorf("ParseCatalogNumber() error = %v, wantErr %v", err, tt.WantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("ParseCatalogNumber() = %q, want %q", got, tt.want)
+			if got != tt.Want {
+				t.Errorf("ParseCatalogNumber() = %q, want %q", got, tt.Want)
 			}
 		})
 	}
@@ -168,63 +168,63 @@ func TestPrestoParser_ParseCatalogNumber(t *testing.T) {
 
 func TestPrestoParser_ParseCatalogAndLabel(t *testing.T) {
 	tests := []struct {
-		name        string
-		html        string
-		wantCatalog string
-		wantLabel   string
-		wantErr     bool
+		Name        string
+		HTML        string
+		WantCatalog string
+		WantLabel   string
+		WantErr     bool
 	}{
 		{
-			name: "catalog and label in metadata",
-			html: `<ul class="c-product-block__metadata">
+			Name: "catalog and label in metadata",
+			HTML: `<ul class="c-product-block__metadata">
 				<li><strong>Catalogue number:</strong> HMC902170</li>
 				<li><strong>Label: </strong><a href="/labels/harmonia-mundi">Harmonia Mundi</a></li>
 			</ul>`,
-			wantCatalog: "HMC902170",
-			wantLabel:   "Harmonia Mundi",
-			wantErr:     false,
+			WantCatalog: "HMC902170",
+			WantLabel:   "Harmonia Mundi",
+			WantErr:     false,
 		},
 		{
-			name: "only catalog",
-			html: `<ul class="c-product-block__metadata">
+			Name: "only catalog",
+			HTML: `<ul class="c-product-block__metadata">
 				<li><strong>Catalogue number:</strong> HMC902170</li>
 			</ul>`,
-			wantCatalog: "HMC902170",
-			wantLabel:   "",
-			wantErr:     false,
+			WantCatalog: "HMC902170",
+			WantLabel:   "",
+			WantErr:     false,
 		},
 		{
-			name: "only label",
-			html: `<ul class="c-product-block__metadata">
+			Name: "only label",
+			HTML: `<ul class="c-product-block__metadata">
 				<li><strong>Label: </strong><a href="/labels/harmonia-mundi">Harmonia Mundi</a></li>
 			</ul>`,
-			wantCatalog: "",
-			wantLabel:   "Harmonia Mundi",
-			wantErr:     false,
+			WantCatalog: "",
+			WantLabel:   "Harmonia Mundi",
+			WantErr:     false,
 		},
 		{
-			name:        "no catalog or label",
-			html:        `<ul class="c-product-block__metadata"><li>Other info</li></ul>`,
-			wantCatalog: "",
-			wantLabel:   "",
-			wantErr:     true,
+			Name:        "no catalog or label",
+			HTML:        `<ul class="c-product-block__metadata"><li>Other info</li></ul>`,
+			WantCatalog: "",
+			WantLabel:   "",
+			WantErr:     true,
 		},
 	}
 
 	parser := NewPrestoParser()
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotCatalog, gotLabel, err := parser.ParseCatalogAndLabel(tt.html)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseCatalogAndLabel() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(tt.Name, func(t *testing.T) {
+			gotCatalog, gotLabel, err := parser.ParseCatalogAndLabel(tt.HTML)
+			if (err != nil) != tt.WantErr {
+				t.Errorf("ParseCatalogAndLabel() error = %v, wantErr %v", err, tt.WantErr)
 				return
 			}
-			if gotCatalog != tt.wantCatalog {
-				t.Errorf("ParseCatalogAndLabel() catalog = %q, want %q", gotCatalog, tt.wantCatalog)
+			if gotCatalog != tt.WantCatalog {
+				t.Errorf("ParseCatalogAndLabel() catalog = %q, want %q", gotCatalog, tt.WantCatalog)
 			}
-			if gotLabel != tt.wantLabel {
-				t.Errorf("ParseCatalogAndLabel() label = %q, want %q", gotLabel, tt.wantLabel)
+			if gotLabel != tt.WantLabel {
+				t.Errorf("ParseCatalogAndLabel() label = %q, want %q", gotLabel, tt.WantLabel)
 			}
 		})
 	}
@@ -258,16 +258,26 @@ func TestPrestoParser_ParseTracks(t *testing.T) {
 	}
 
 	// Check first track
-	if tracks[0].Composer != "Mendelssohn" {
-		t.Errorf("Track 1 composer = %q, want %q", tracks[0].Composer, "Mendelssohn")
+	composers := tracks[0].Composers()
+	if len(composers) != 1 {
+		t.Errorf("Track 1 has %d composers, want 1", len(composers))
+	}
+	composer := composers[0]
+	if composer.Name != "Mendelssohn" {
+		t.Errorf("Track 1 composer = %q, want %q", composer.Name, "Mendelssohn")
 	}
 	if tracks[0].Title != "Frohlocket, ihr Völker auf Erden, Op.79 No.1" {
 		t.Errorf("Track 1 title = %q, want %q", tracks[0].Title, "Frohlocket, ihr Völker auf Erden, Op.79 No.1")
 	}
 
 	// Check second track
-	if tracks[1].Composer != "Johann Eccard" {
-		t.Errorf("Track 2 composer = %q, want %q", tracks[1].Composer, "Johann Eccard")
+	composers = tracks[1].Composers()
+	if len(composers) != 1 {
+		t.Errorf("Track 2 has %d composers, want 1", len(composers))
+	}
+	composer = composers[0]
+	if composer.Name != "Johann Eccard" {
+		t.Errorf("Track 2 composer = %q, want %q", composer.Name, "Johann Eccard")
 	}
 	if tracks[1].Title != "Ich lag in tiefster Todesnacht" {
 		t.Errorf("Track 2 title = %q, want %q", tracks[1].Title, "Ich lag in tiefster Todesnacht")
@@ -334,7 +344,9 @@ func TestPrestoParser_ParseTracks_FlattenHierarchy(t *testing.T) {
 		t.Errorf("Got %d tracks, want 4 (hierarchy should be flattened)", len(tracks))
 		t.Logf("Tracks extracted:")
 		for i, track := range tracks {
-			t.Logf("  %d. %s (composer: %s)", i+1, track.Title, track.Composer)
+			for _, composer := range track.Composers() {
+				t.Logf("  %d. %s (composer: %s)", i+1, track.Title, composer.Name)
+			}
 		}
 	}
 
@@ -355,8 +367,13 @@ func TestPrestoParser_ParseTracks_FlattenHierarchy(t *testing.T) {
 		}
 
 		// Verify composer is preserved from parent
-		if track.Composer != "Poulenc" {
-			t.Errorf("Track %d composer = %q, want %q", i+1, track.Composer, "Poulenc")
+		composers := track.Composers()
+		if len(composers) != 1 {
+			t.Errorf("Track %d has %d composers, want 1", i+1, len(composers))
+		}
+		composer := composers[0]
+		if composer.Name != "Poulenc" {
+			t.Errorf("Track %d composer = %q, want %q", i+1, composer.Name, "Poulenc")
 		}
 	}
 
@@ -366,8 +383,13 @@ func TestPrestoParser_ParseTracks_FlattenHierarchy(t *testing.T) {
 		if !strings.Contains(lastTrack.Title, "Stille Nacht") {
 			t.Errorf("Track 5 should be 'Stille Nacht', got %q", lastTrack.Title)
 		}
-		if lastTrack.Composer != "Mandyczewski" {
-			t.Errorf("Track 5 composer = %q, want %q", lastTrack.Composer, "Mandyczewski")
+		composers := lastTrack.Composers()
+		if len(composers) != 1 {
+			t.Errorf("Track 5 has %d composers, want 1", len(composers))
+		}
+		composer := composers[0]
+		if composer.Name != "Mandyczewski" {
+			t.Errorf("Track 5 composer = %q, want %q", composer.Name, "Mandyczewski")
 		}
 	}
 }

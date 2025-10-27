@@ -2,128 +2,128 @@ package validation
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestRules_FolderNameFormat(t *testing.T) {
 	rules := NewRules()
-	
+
 	tests := []struct {
-		name         string
-		albumTitle   string
-		albumYear    int
-		wantPass     bool
-		wantWarnings int
-		wantInfo     int
+		Name         string
+		AlbumTitle   string
+		AlbumYear    int
+		WantPass     bool
+		WantWarnings int
+		WantInfo     int
 	}{
 		{
-			name:       "valid - full format with FLAC",
-			albumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC]",
-			albumYear:  1963,
-			wantPass:   true,
+			Name:       "valid - full format with FLAC",
+			AlbumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC]",
+			AlbumYear:  1963,
+			WantPass:   true,
 		},
 		{
-			name:       "valid - full format with MP3",
-			albumTitle: "Bach - Brandenburg Concertos [1982] [MP3]",
-			albumYear:  1982,
-			wantPass:   true,
+			Name:       "valid - full format with MP3",
+			AlbumTitle: "Bach - Brandenburg Concertos [1982] [MP3]",
+			AlbumYear:  1982,
+			WantPass:   true,
 		},
 		{
-			name:         "info - missing format indicator",
-			albumTitle:   "Mozart - Piano Concertos [1990]",
-			albumYear:    1990,
-			wantPass:     false,
-			wantInfo:     1,
+			Name:       "info - missing format indicator",
+			AlbumTitle: "Mozart - Piano Concertos [1990]",
+			AlbumYear:  1990,
+			WantPass:   false,
+			WantInfo:   1,
 		},
 		{
-			name:         "warning - missing year",
-			albumTitle:   "Vivaldi - The Four Seasons [FLAC]",
-			albumYear:    1980,
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - missing year",
+			AlbumTitle:   "Vivaldi - The Four Seasons [FLAC]",
+			AlbumYear:    1980,
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:         "warning - missing separator",
-			albumTitle:   "Beethoven Symphony No. 5 [1963] [FLAC]",
-			albumYear:    1963,
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - missing separator",
+			AlbumTitle:   "Beethoven Symphony No. 5 [1963] [FLAC]",
+			AlbumYear:    1963,
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:         "warning - year mismatch",
-			albumTitle:   "Bach - Cello Suites [1990] [FLAC]",
-			albumYear:    1985,
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - year mismatch",
+			AlbumTitle:   "Bach - Cello Suites [1990] [FLAC]",
+			AlbumYear:    1985,
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:         "multiple issues",
-			albumTitle:   "Beethoven Symphony No. 5",
-			albumYear:    1963,
-			wantPass:     false,
-			wantWarnings: 2, // No separator, no year
+			Name:         "multiple issues",
+			AlbumTitle:   "Beethoven Symphony No. 5",
+			AlbumYear:    1963,
+			WantPass:     false,
+			WantWarnings: 2, // No separator, no year
 		},
 		{
-			name:       "valid - with extra info",
-			albumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC] [24-96]",
-			albumYear:  1963,
-			wantPass:   true,
+			Name:       "valid - with extra info",
+			AlbumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC] [24-96]",
+			AlbumYear:  1963,
+			WantPass:   true,
 		},
 		{
-			name:       "valid - various artist format",
-			albumTitle: "Various Artists - Classical Favorites [2000] [FLAC]",
-			albumYear:  2000,
-			wantPass:   true,
+			Name:       "valid - various artist format",
+			AlbumTitle: "Various Artists - Classical Favorites [2000] [FLAC]",
+			AlbumYear:  2000,
+			WantPass:   true,
 		},
 		{
-			name:       "valid - WAV format",
-			albumTitle: "Mahler - Symphony No. 2 [1991] [WAV]",
-			albumYear:  1991,
-			wantPass:   true,
+			Name:       "valid - WAV format",
+			AlbumTitle: "Mahler - Symphony No. 2 [1991] [WAV]",
+			AlbumYear:  1991,
+			WantPass:   true,
 		},
 		{
-			name:       "valid - ALAC format",
-			albumTitle: "Debussy - Préludes [1985] [ALAC]",
-			albumYear:  1985,
-			wantPass:   true,
+			Name:       "valid - ALAC format",
+			AlbumTitle: "Debussy - Préludes [1985] [ALAC]",
+			AlbumYear:  1985,
+			WantPass:   true,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-			ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-			track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
-			actual, _ := domain.NewAlbum(tt.albumTitle, tt.albumYear)
-			actual.AddTrack(track)
-		
-			result := rules.FolderNameFormat(actual, actual)
-			
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+		t.Run(tt.Name, func(t *testing.T) {
+			composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
+			ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
+			track := domain.Track{Disc: 1, Track: 1, Title: "Symphony", Artists: []domain.Artist{composer, ensemble}}
+			actual := domain.Album{Title: tt.AlbumTitle, OriginalYear: tt.AlbumYear}
+			actual.Tracks = append(actual.Tracks, &track)
+
+			result := rules.FolderNameFormat(&actual, &actual)
+
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
-			
-			if !tt.wantPass {
+
+			if !tt.WantPass {
 				warningCount := 0
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelWarning {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelWarning {
 						warningCount++
-					} else if issue.Level() == domain.LevelInfo {
+					} else if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
-				
-				if tt.wantWarnings > 0 && warningCount != tt.wantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.wantWarnings)
+
+				if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
+					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
 				}
-				if tt.wantInfo > 0 && infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+				if tt.WantInfo > 0 && infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
-				
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})

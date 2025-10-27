@@ -112,11 +112,11 @@ func (e *SiteNameExtractor) CanHandle(url string) bool {
     return strings.Contains(url, "sitename.com")
 }
 
-func (e *SiteNameExtractor) Extract(url string) (*AlbumData, error) {
+func (e *SiteNameExtractor) Extract(url string) (*domain.Album, error) {
     // 1. Fetch HTML
     // 2. Parse with goquery
     // 3. Extract fields
-    // 4. Return AlbumData
+    // 4. Return domain.Album
 }
 ```
 

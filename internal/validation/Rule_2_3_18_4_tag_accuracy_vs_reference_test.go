@@ -10,85 +10,85 @@ func TestRules_TagAccuracyVsReference(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name         string
-		actual       *domain.Album
-		reference    *domain.Album
-		wantPass     bool
-		wantErrors   int
-		wantWarnings int
-		wantInfo     int
+		Name         string
+		Actual       *domain.Album
+		Reference    *domain.Album
+		WantPass     bool
+		WantErrors   int
+		WantWarnings int
+		WantInfo     int
 	}{
 		{
-			name:      "valid - exact match",
-			actual:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			reference: buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			wantPass:  true,
+			Name:      "valid - exact match",
+			Actual:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Reference: buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			WantPass:  true,
 		},
 		{
-			name:         "warning - year mismatch",
-			actual:       buildBasicAlbum("Symphony No. 5", 1960, "Beethoven"),
-			reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - year mismatch",
+			Actual:       buildBasicAlbum("Symphony No. 5", 1960, "Beethoven"),
+			Reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:       "error - composer mismatch",
-			actual:     buildBasicAlbum("Symphony No. 5", 1963, "Mozart"),
-			reference:  buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			wantPass:   false,
-			wantErrors: 1,
+			Name:       "error - composer mismatch",
+			Actual:     buildBasicAlbum("Symphony No. 5", 1963, "Mozart"),
+			Reference:  buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name:       "error - title mismatch",
-			actual:     buildBasicAlbum("Symphony No. 6", 1963, "Beethoven"),
-			reference:  buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			wantPass:   false,
-			wantErrors: 1,
+			Name:       "error - title mismatch",
+			Actual:     buildBasicAlbum("Symphony No. 6", 1963, "Beethoven"),
+			Reference:  buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name:      "info - minor title difference",
-			actual:    buildBasicAlbum("Sympony No. 5", 1963, "Beethoven"), // Typo
-			reference: buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			wantPass:  false,
-			wantInfo:  1,
+			Name:      "info - minor title difference",
+			Actual:    buildBasicAlbum("Sympony No. 5", 1963, "Beethoven"), // Typo
+			Reference: buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			WantPass:  false,
+			WantInfo:  1,
 		},
 		{
-			name:         "warning - moderate title difference",
-			actual:       buildBasicAlbum("Symphony No. 5 Finale", 1963, "Beethoven"),
-			reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			wantPass:     false,
-			wantWarnings: 1,
+			Name:         "warning - moderate title difference",
+			Actual:       buildBasicAlbum("Symphony No. 5 Finale", 1963, "Beethoven"),
+			Reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			WantPass:     false,
+			WantWarnings: 1,
 		},
 		{
-			name:      "pass - no reference",
-			actual:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			reference: nil,
-			wantPass:  true,
+			Name:      "pass - no reference",
+			Actual:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Reference: nil,
+			WantPass:  true,
 		},
 		{
-			name:         "multiple errors",
-			actual:       buildBasicAlbum("Concerto", 1960, "Mozart"),
-			reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			wantPass:     false,
-			wantErrors:   2, // Composer + title
-			wantWarnings: 1, // Year
+			Name:         "multiple errors",
+			Actual:       buildBasicAlbum("Concerto", 1960, "Mozart"),
+			Reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			WantPass:     false,
+			WantErrors:   2, // Composer + title
+			WantWarnings: 1, // Year
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.TagAccuracyVsReference(tt.actual, tt.reference)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.TagAccuracyVsReference(tt.Actual, tt.Reference)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass {
+			if !tt.WantPass {
 				errorCount := 0
 				warningCount := 0
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					switch issue.Level() {
+				for _, issue := range result.Issues {
+					switch issue.Level {
 					case domain.LevelError:
 						errorCount++
 					case domain.LevelWarning:
@@ -98,18 +98,18 @@ func TestRules_TagAccuracyVsReference(t *testing.T) {
 					}
 				}
 
-				if tt.wantErrors > 0 && errorCount != tt.wantErrors {
-					t.Errorf("Errors = %d, want %d", errorCount, tt.wantErrors)
+				if tt.WantErrors > 0 && errorCount != tt.WantErrors {
+					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
 				}
-				if tt.wantWarnings > 0 && warningCount != tt.wantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.wantWarnings)
+				if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
+					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
 				}
-				if tt.wantInfo > 0 && infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+				if tt.WantInfo > 0 && infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
 
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -117,37 +117,37 @@ func TestRules_TagAccuracyVsReference(t *testing.T) {
 }
 
 func TestGetComposer(t *testing.T) {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	soloist, _ := domain.NewArtist("Pollini", domain.RoleSoloist)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
+	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
+	soloist := domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}
+	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
 
 	tests := []struct {
-		name    string
-		artists []domain.Artist
-		want    string
+		Name    string
+		Artists []domain.Artist
+		Want    string
 	}{
 		{
-			name:    "has composer",
-			artists: []domain.Artist{composer, soloist, ensemble},
-			want:    "Beethoven",
+			Name:    "has composer",
+			Artists: []domain.Artist{composer, soloist, ensemble},
+			Want:    "Beethoven",
 		},
 		{
-			name:    "no composer",
-			artists: []domain.Artist{soloist, ensemble},
-			want:    "",
+			Name:    "no composer",
+			Artists: []domain.Artist{soloist, ensemble},
+			Want:    "",
 		},
 		{
-			name:    "empty list",
-			artists: []domain.Artist{},
-			want:    "",
+			Name:    "empty list",
+			Artists: []domain.Artist{},
+			Want:    "",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := getComposer(tt.artists)
-			if got != tt.want {
-				t.Errorf("getComposer() = %q, want %q", got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := getComposer(tt.Artists)
+			if got != tt.Want {
+				t.Errorf("getComposer() = %q, want %q", got, tt.Want)
 			}
 		})
 	}
@@ -155,10 +155,8 @@ func TestGetComposer(t *testing.T) {
 
 // buildBasicAlbum creates a simple album for testing
 func buildBasicAlbum(trackTitle string, year int, composerName string) *domain.Album {
-	composer, _ := domain.NewArtist(composerName, domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	track, _ := domain.NewTrack(1, 1, trackTitle, []domain.Artist{composer, ensemble})
-	album, _ := domain.NewAlbum("Album", year)
-	album.AddTrack(track)
-	return album
+	composer := domain.Artist{Name: composerName, Role: domain.RoleComposer}
+	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
+	track := &domain.Track{Disc: 1, Track: 1, Title: trackTitle, Artists: []domain.Artist{composer, ensemble}}
+	return &domain.Album{Title: "Album", OriginalYear: year, Tracks: []*domain.Track{track}}
 }

@@ -107,7 +107,7 @@ track, err := domain.NewTrack(disc, num, title, artists)
 // Business rules (later)
 issues := album.Validate()
 for _, issue := range issues {
-    switch issue.Level() {
+    switch issue.Level {
     case domain.LevelError:
         // Critical
     case domain.LevelWarning:
@@ -150,21 +150,21 @@ func TestFeature(t *testing.T) {
         wantErr bool
     }{
         {
-            name:    "valid case",
+            Name:    "valid case",
             input:   validInput,
             want:    expectedOutput,
-            wantErr: false,
+            WantErr: false,
         },
         {
-            name:    "invalid case",
+            Name:    "invalid case",
             input:   invalidInput,
             want:    nil,
-            wantErr: true,
+            WantErr: true,
         },
     }
     
     for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
+        t.Run(tt.Name, func(t *testing.T) {
             got, err := Function(tt.input)
             
             if (err != nil) != tt.wantErr {

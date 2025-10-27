@@ -3,7 +3,7 @@ package validation
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -16,51 +16,51 @@ var guestIndicators = []string{
 // INFO level - suggests separating guest artists in tags
 func (r *Rules) GuestArtistIdentification(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "classical.guest",
-		name:   "Guest artists should be identified in tags or title",
-		level:  domain.LevelInfo,
-		weight: 0.1,
+		ID:     "classical.guest",
+		Name:   "Guest artists should be identified in tags or title",
+		Level:  domain.LevelInfo,
+		Weight: 0.1,
 	}
-	
+
 	var issues []domain.ValidationIssue
-	
+
 	// Analyze performers across tracks to identify potential guests
 	performerCounts := make(map[string]int)
-	totalTracks := len(actual.Tracks())
-	
+	totalTracks := len(actual.Tracks)
+
 	if totalTracks == 0 {
-		return meta.Pass()
+		return RuleResult{Meta: meta, Issues: nil}
 	}
-	
+
 	// Count appearances of each performer
-	for _, track := range actual.Tracks() {
-		for _, artist := range track.Artists() {
+	for _, track := range actual.Tracks {
+		for _, artist := range track.Artists {
 			// Count soloists and conductors (potential guests)
-			if artist.Role() == domain.RoleSoloist || artist.Role() == domain.RoleConductor {
-				performerCounts[artist.Name()]++
+			if artist.Role == domain.RoleSoloist || artist.Role == domain.RoleConductor {
+				performerCounts[artist.Name]++
 			}
 		}
 	}
-	
+
 	// Identify infrequent performers (potential guests)
 	for performer, count := range performerCounts {
 		// If appears in <30% of tracks, might be a guest
 		if count < totalTracks/3 && totalTracks > 3 {
 			// Check if already indicated in title
 			hasGuestIndication := false
-			
-			for _, track := range actual.Tracks() {
+
+			for _, track := range actual.Tracks {
 				// Check if this performer is on this track
 				hasPerformer := false
-				for _, artist := range track.Artists() {
-					if artist.Name() == performer {
+				for _, artist := range track.Artists {
+					if artist.Name == performer {
 						hasPerformer = true
 						break
 					}
 				}
-				
+
 				if hasPerformer {
-					titleLower := strings.ToLower(track.Title())
+					titleLower := strings.ToLower(track.Title)
 					// Check if title mentions guest status
 					for _, indicator := range guestIndicators {
 						if strings.Contains(titleLower, indicator) {
@@ -70,21 +70,17 @@ func (r *Rules) GuestArtistIdentification(actual, reference *domain.Album) RuleR
 					}
 				}
 			}
-			
+
 			if !hasGuestIndication {
-				issues = append(issues, domain.NewIssue(
-					domain.LevelInfo,
-					0,
-					meta.id,
-					fmt.Sprintf("Performer '%s' appears infrequently (%d/%d tracks) - consider marking as guest artist",
+				issues = append(issues, domain.ValidationIssue{
+					Level: domain.LevelInfo,
+					Track: 0,
+					Rule:  meta.ID,
+					Message: fmt.Sprintf("Performer '%s' appears infrequently (%d/%d tracks) - consider marking as guest artist",
 						performer, count, totalTracks),
-				))
+				})
 			}
 		}
 	}
-	
-	if len(issues) == 0 {
-		return meta.Pass()
-	}
-	return meta.Fail(issues...)
+	return RuleResult{Meta: meta, Issues: issues}
 }

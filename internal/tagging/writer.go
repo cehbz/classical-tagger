@@ -91,17 +91,17 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 	tags := make(map[string]string)
 
 	// Required tags per rules 2.3.16.4
-	tags["TITLE"] = track.Title()
-	tags["ALBUM"] = album.Title()
-	tags["TRACKNUMBER"] = strconv.Itoa(track.Track())
-	tags["DISCNUMBER"] = strconv.Itoa(track.Disc())
+	tags["TITLE"] = track.Title
+	tags["ALBUM"] = album.Title
+	tags["TRACKNUMBER"] = strconv.Itoa(track.Track)
+	tags["DISCNUMBER"] = strconv.Itoa(track.Disc)
 
 	// Find composer and format performers
 	var composer *domain.Artist
 	var performers []domain.Artist
 
-	for _, artist := range track.Artists() {
-		if artist.Role() == domain.RoleComposer {
+	for _, artist := range track.Artists {
+		if artist.Role == domain.RoleComposer {
 			composer = &artist
 		} else {
 			performers = append(performers, artist)
@@ -110,7 +110,7 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 
 	// COMPOSER tag (required for classical)
 	if composer != nil {
-		tags["COMPOSER"] = composer.Name()
+		tags["COMPOSER"] = composer.Name
 	}
 
 	// ARTIST tag (performers only, not composer)
@@ -119,18 +119,18 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 
 		// Also add individual role-specific tags for classical music players
 		for _, artist := range performers {
-			switch artist.Role() {
+			switch artist.Role {
 			case domain.RoleSoloist:
 				// Add to PERFORMER field (can be multiple)
 				if existing, ok := tags["PERFORMER"]; ok {
-					tags["PERFORMER"] = existing + "; " + artist.Name()
+					tags["PERFORMER"] = existing + "; " + artist.Name
 				} else {
-					tags["PERFORMER"] = artist.Name()
+					tags["PERFORMER"] = artist.Name
 				}
 			case domain.RoleEnsemble:
-				tags["ENSEMBLE"] = artist.Name()
+				tags["ENSEMBLE"] = artist.Name
 			case domain.RoleConductor:
-				tags["CONDUCTOR"] = artist.Name()
+				tags["CONDUCTOR"] = artist.Name
 			}
 		}
 	}
@@ -138,21 +138,21 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 	// Date fields following Vorbis/MusicBrainz conventions:
 	// - ORIGINALDATE: Year of original recording/release
 	// - DATE: Release date of this specific edition
-	if album.OriginalYear() > 0 {
-		tags["ORIGINALDATE"] = strconv.Itoa(album.OriginalYear())
+	if album.OriginalYear > 0 {
+		tags["ORIGINALDATE"] = strconv.Itoa(album.OriginalYear)
 	}
 
 	// Edition information (if present)
-	if edition := album.Edition(); edition != nil {
+	if edition := album.Edition; edition != nil {
 		// DATE: Edition year (this specific release)
-		if edition.Year() > 0 {
-			tags["DATE"] = strconv.Itoa(edition.Year())
+		if edition.Year > 0 {
+			tags["DATE"] = strconv.Itoa(edition.Year)
 		}
-		if edition.Label() != "" {
-			tags["LABEL"] = edition.Label()
+		if edition.Label != "" {
+			tags["LABEL"] = edition.Label
 		}
-		if edition.CatalogNumber() != "" {
-			tags["CATALOGNUMBER"] = edition.CatalogNumber()
+		if edition.CatalogNumber != "" {
+			tags["CATALOGNUMBER"] = edition.CatalogNumber
 		}
 	}
 
@@ -178,13 +178,13 @@ func FormatArtists(artists []domain.Artist) string {
 	var conductors []string
 
 	for _, artist := range artists {
-		switch artist.Role() {
+		switch artist.Role {
 		case domain.RoleSoloist:
-			soloists = append(soloists, artist.Name())
+			soloists = append(soloists, artist.Name)
 		case domain.RoleEnsemble:
-			ensembles = append(ensembles, artist.Name())
+			ensembles = append(ensembles, artist.Name)
 		case domain.RoleConductor:
-			conductors = append(conductors, artist.Name())
+			conductors = append(conductors, artist.Name)
 		case domain.RoleComposer:
 			// Composers excluded from ARTIST tag
 			continue
@@ -205,7 +205,7 @@ func FormatArtists(artists []domain.Artist) string {
 // Per classical music guide: "When the performer(s) do not remain the same throughout
 // all tracks, this tag is used to credit the one who does appear in all tracks."
 func DetermineAlbumArtist(album *domain.Album) (string, []domain.Artist) {
-	tracks := album.Tracks()
+	tracks := album.Tracks
 	if len(tracks) == 0 {
 		return "", nil
 	}
@@ -213,8 +213,8 @@ func DetermineAlbumArtist(album *domain.Album) (string, []domain.Artist) {
 	// Build set of all non-composer artists from first track
 	firstTrack := tracks[0]
 	var candidates []domain.Artist
-	for _, artist := range firstTrack.Artists() {
-		if artist.Role() != domain.RoleComposer {
+	for _, artist := range firstTrack.Artists {
+		if artist.Role != domain.RoleComposer {
 			candidates = append(candidates, artist)
 		}
 	}
@@ -225,8 +225,8 @@ func DetermineAlbumArtist(album *domain.Album) (string, []domain.Artist) {
 		appearsInAll := true
 		for _, track := range tracks[1:] {
 			found := false
-			for _, artist := range track.Artists() {
-				if artist.Name() == candidate.Name() && artist.Role() == candidate.Role() {
+			for _, artist := range track.Artists {
+				if artist.Name == candidate.Name && artist.Role == candidate.Role {
 					found = true
 					break
 				}

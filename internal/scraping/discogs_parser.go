@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 // DiscogsParser parses Discogs HTML pages.
@@ -21,13 +22,16 @@ func NewDiscogsParser() *DiscogsParser {
 
 // Parse parses a complete Discogs HTML page and returns extraction result.
 func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
-	data := &AlbumData{
+	data := &domain.Album{
 		Title:        MissingTitle,
 		OriginalYear: MissingYear,
-		Tracks:       make([]TrackData, 0),
+		Tracks:       make([]*domain.Track, 0),
 	}
 
-	result := NewExtractionResult(data)
+	result := &ExtractionResult{
+		Album: data,
+		Source: "discogs",
+	}
 	parsingNotes := make(map[string]interface{})
 	parsingNotes["source"] = "discogs"
 
@@ -35,14 +39,14 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	if title, err := p.ParseTitle(html); err == nil && title != "" {
 		data.Title = title
 	} else {
-		result = result.WithError(NewExtractionError("title", "not found in JSON-LD", true))
+		result.Warnings = append(result.Warnings, "title not found in JSON-LD")
 	}
 
 	// Parse year from JSON-LD
 	if year, err := p.ParseYear(html); err == nil && year > 0 {
 		data.OriginalYear = year
 	} else {
-		result = result.WithError(NewExtractionError("year", "not found in JSON-LD", true))
+		result.Warnings = append(result.Warnings, "year not found in JSON-LD")
 	}
 
 	// Parse catalog number and label from JSON-LD
@@ -50,14 +54,14 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	label, labelErr := p.ParseLabel(html)
 
 	if catalogErr == nil || labelErr == nil {
-		edition := &EditionData{
+		edition := &domain.Edition{
 			Label:         label,
 			CatalogNumber: catalog,
-			EditionYear:   data.OriginalYear,
+			Year:          data.OriginalYear,
 		}
 		data.Edition = edition
 	} else {
-		result = result.WithError(NewExtractionError("catalog_number", "not found in JSON-LD", false))
+		result.Warnings = append(result.Warnings, "catalog number or label not found in JSON-LD")
 	}
 
 	// Parse tracks from table structure
@@ -65,7 +69,7 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 		data.Tracks = tracks
 		parsingNotes["tracks_source"] = "tracklist_table"
 	} else {
-		result = result.WithError(NewExtractionError("tracks", "no tracks found in HTML", true))
+		result.Warnings = append(result.Warnings, "no tracks found in HTML")
 	}
 
 	// Add disc detection notes
@@ -85,7 +89,9 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 
 	// Add parsing notes to result
 	if len(parsingNotes) > 0 {
-		result = result.WithParsingNotes(parsingNotes)
+		for key, value := range parsingNotes {
+			result.Notes = append(result.Notes, fmt.Sprintf("%s: %v", key, value))
+		}
 	}
 
 	return result, nil
@@ -218,13 +224,13 @@ func (p *DiscogsParser) ParseLabel(html string) (string, error) {
 }
 
 // ParseTracks extracts track listings from the Discogs tracklist table.
-func (p *DiscogsParser) ParseTracks(html string) ([]TrackData, error) {
+func (p *DiscogsParser) ParseTracks(html string) ([]*domain.Track, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
-	tracks := make([]TrackData, 0)
+	tracks := make([]*domain.Track, 0)
 	var currentHeadingComposer string
 	var currentHeadingTitle string
 
@@ -318,11 +324,11 @@ func (p *DiscogsParser) ParseTracks(html string) ([]TrackData, error) {
 		}
 
 		if title != "" {
-			track := TrackData{
+			track := &domain.Track{
 				Disc:     1,
 				Track:    trackNum,
 				Title:    title,
-				Composer: composer,
+				Artists:  []domain.Artist{domain.Artist{Name: composer, Role: domain.RoleComposer}},
 			}
 			tracks = append(tracks, track)
 		}

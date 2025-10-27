@@ -295,10 +295,10 @@ For each scraper implementation:
 
 ## Expected Output
 
-Each scraper should produce consistent `AlbumData`:
+Each scraper should produce consistent `domain.Album`:
 
 ```go
-AlbumData{
+domain.Album{
     Title:        "Goldberg Variations",
     OriginalYear: 1981,
     Edition: &EditionData{

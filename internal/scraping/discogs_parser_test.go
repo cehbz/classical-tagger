@@ -24,7 +24,7 @@ func TestDiscogsParser_Parse(t *testing.T) {
 		t.Fatal("Parse() returned nil result")
 	}
 
-	data := result.Data()
+	data := result.Album
 
 	// Test title extraction
 	if data.Title == "" || data.Title == MissingTitle {
@@ -56,7 +56,7 @@ func TestDiscogsParser_Parse(t *testing.T) {
 		if track.Title == "" {
 			t.Errorf("Track %d has no title", i+1)
 		}
-		if track.Composer == "" {
+		if len(track.Composers()) == 0 {
 			t.Errorf("Track %d has no composer", i+1)
 		}
 		if track.Track != i+1 {
@@ -166,16 +166,24 @@ func TestDiscogsParser_ParseTracks(t *testing.T) {
 	if tracks[0].Title != "Frohlocket, Ihr Völker Auf Erden (op.79/1)" {
 		t.Errorf("Track 1 title = %q", tracks[0].Title)
 	}
-	if tracks[0].Composer != "Felix Mendelssohn Bartholdy" {
-		t.Errorf("Track 1 composer = %q", tracks[0].Composer)
+	if composers := tracks[0].Composers(); len(composers) == 0 || composers[0].Name != "Felix Mendelssohn Bartholdy" {
+		composerName := "<none>"
+		if len(composers) > 0 {
+			composerName = composers[0].Name
+		}
+		t.Errorf("Track 1 composer = %q", composerName)
 	}
 
 	// Check second track
 	if tracks[1].Title != "Die Nacht Ist Vorgedrungen" {
 		t.Errorf("Track 2 title = %q", tracks[1].Title)
 	}
-	if tracks[1].Composer != "Uwe Gronostay" {
-		t.Errorf("Track 2 composer = %q", tracks[1].Composer)
+	if composers := tracks[1].Composers(); len(composers) == 0 || composers[0].Name != "Uwe Gronostay" {
+		composerName := "<none>"
+		if len(composers) > 0 {
+			composerName = composers[0].Name
+		}
+		t.Errorf("Track 2 composer = %q", composerName)
 	}
 }
 
@@ -243,7 +251,7 @@ func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	tracks := result.Data().Tracks
+	tracks := result.Album.Tracks
 	if len(tracks) != 3 {
 		t.Fatalf("Expected 3 tracks, got %d", len(tracks))
 	}
@@ -256,7 +264,16 @@ func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
 	}
 
 	for i, track := range tracks {
-		composer := track.Composer
+		var composer string
+		composers := track.Composers()
+		switch len(composers) {
+		case 0:
+			t.Errorf("Track %d has no composer", i+1)
+		case 1:
+			composer = composers[0].Name
+		default:
+			t.Errorf("Track %d has multiple composers", i+1)
+		}
 		expected := expectedComposers[i]
 
 		// Check if composer name is duplicated (exact concatenation)
@@ -423,7 +440,12 @@ func TestDiscogsParser_ParseTracks_MultiMovementWork(t *testing.T) {
 		t.Errorf("Got %d tracks, want 6", len(tracks))
 		t.Logf("Tracks extracted:")
 		for _, track := range tracks {
-			t.Logf("  %d. %s (composer: %s)", track.Track, track.Title, track.Composer)
+			composers := track.Composers()
+			composerName := "<none>"
+			if len(composers) > 0 {
+				composerName = composers[0].Name
+			}
+			t.Logf("  %d. %s (composer: %s)", track.Track, track.Title, composerName)
 		}
 	}
 
@@ -433,8 +455,12 @@ func TestDiscogsParser_ParseTracks_MultiMovementWork(t *testing.T) {
 		if !strings.Contains(track.Title, "In Dulci Jubilo") {
 			t.Errorf("Track 1 title = %q, want to contain 'In Dulci Jubilo'", track.Title)
 		}
-		if track.Composer != "Michael Praetorius" {
-			t.Errorf("Track 1 composer = %q, want 'Michael Praetorius'", track.Composer)
+		if composers := track.Composers(); len(composers) == 0 || composers[0].Name != "Michael Praetorius" {
+			composerName := "<none>"
+			if len(composers) > 0 {
+				composerName = composers[0].Name
+			}
+			t.Errorf("Track 1 composer = %q, want 'Michael Praetorius'", composerName)
 		}
 		if track.Track != 15 {
 			t.Errorf("Track 1 track number = %d, want 15", track.Track)
@@ -458,8 +484,12 @@ func TestDiscogsParser_ParseTracks_MultiMovementWork(t *testing.T) {
 		}
 
 		// Verify composer is preserved from parent heading
-		if track.Composer != "Francis Poulenc" {
-			t.Errorf("Track %d composer = %q, want 'Francis Poulenc'", track.Track, track.Composer)
+		if composers := track.Composers(); len(composers) == 0 || composers[0].Name != "Francis Poulenc" {
+			composerName := "<none>"
+			if len(composers) > 0 {
+				composerName = composers[0].Name
+			}
+			t.Errorf("Track %d composer = %q, want 'Francis Poulenc'", track.Track, composerName)
 		}
 	}
 
@@ -469,8 +499,12 @@ func TestDiscogsParser_ParseTracks_MultiMovementWork(t *testing.T) {
 		if !strings.Contains(lastTrack.Title, "Stille Nacht") {
 			t.Errorf("Track 6 should contain 'Stille Nacht', got %q", lastTrack.Title)
 		}
-		if lastTrack.Composer != "Franz Xaver Gruber" {
-			t.Errorf("Track 6 composer = %q, want 'Franz Xaver Gruber'", lastTrack.Composer)
+		if composers := lastTrack.Composers(); len(composers) == 0 || composers[0].Name != "Franz Xaver Gruber" {
+			composerName := "<none>"
+			if len(composers) > 0 {
+				composerName = composers[0].Name
+			}
+			t.Errorf("Track 6 composer = %q, want 'Franz Xaver Gruber'", composerName)
 		}
 	}
 }

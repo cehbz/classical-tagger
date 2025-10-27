@@ -10,68 +10,68 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name       string
-		actual     *domain.Album
-		wantPass   bool
-		wantIssues int
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantIssues int
 	}{
 		{
-			name: "valid - single composer album (position irrelevant)",
-			actual: buildSingleComposerAlbumWithFilenames(
+			Name: "valid - single composer album (position irrelevant)",
+			Actual: buildSingleComposerAlbumWithFilenames(
 				"Beethoven",
 				"01 - Symphony No. 1.flac",
 				"02 - Symphony No. 2.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid - multi-composer, artist after track number",
-			actual: buildMultiComposerAlbumWithFilenames(
+			Name: "valid - multi-composer, artist after track number",
+			Actual: buildMultiComposerAlbumWithFilenames(
 				[]composerTrack{{"Bach", 1, "01 - Bach - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "02 - Vivaldi - Concerto.flac"}},
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "invalid - multi-composer, artist before track number",
-			actual: buildMultiComposerAlbumWithFilenames(
+			Name: "invalid - multi-composer, artist before track number",
+			Actual: buildMultiComposerAlbumWithFilenames(
 				[]composerTrack{{"Bach", 1, "Bach - 01 - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "Vivaldi - 02 - Concerto.flac"}},
 			),
-			wantPass:   false,
-			wantIssues: 2,
+			WantPass:   false,
+			WantIssues: 2,
 		},
 		{
-			name: "valid - multi-composer, no artist in filename",
-			actual: buildMultiComposerAlbumWithFilenames(
+			Name: "valid - multi-composer, no artist in filename",
+			Actual: buildMultiComposerAlbumWithFilenames(
 				[]composerTrack{{"Bach", 1, "01 - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "02 - Concerto.flac"}},
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "invalid - some tracks have artist before number",
-			actual: buildMultiComposerAlbumWithFilenames(
+			Name: "invalid - some tracks have artist before number",
+			Actual: buildMultiComposerAlbumWithFilenames(
 				[]composerTrack{{"Bach", 1, "01 - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "Vivaldi - 02 - Concerto.flac"}},
 			),
-			wantPass:   false,
-			wantIssues: 1,
+			WantPass:   false,
+			WantIssues: 1,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.ArtistPositionInFilename(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.ArtistPositionInFilename(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass && len(result.Issues()) != tt.wantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues()), tt.wantIssues)
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue: %s", issue.Message())
+			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+				for _, issue := range result.Issues {
+					t.Logf("  Issue: %s", issue.Message)
 				}
 			}
 		})
@@ -80,76 +80,76 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 
 func TestIsMultiComposerAlbum(t *testing.T) {
 	tests := []struct {
-		name      string
-		album     *domain.Album
-		wantMulti bool
+		Name      string
+		Album     *domain.Album
+		WantMulti bool
 	}{
 		{
-			name:      "single composer",
-			album:     buildSingleComposerAlbumWithFilenames("Bach", "01.flac", "02.flac"),
-			wantMulti: false,
+			Name:      "single composer",
+			Album:     buildSingleComposerAlbumWithFilenames("Bach", "01.flac", "02.flac"),
+			WantMulti: false,
 		},
 		{
-			name: "multiple composers",
-			album: buildMultiComposerAlbumWithFilenames(
+			Name: "multiple composers",
+			Album: buildMultiComposerAlbumWithFilenames(
 				[]composerTrack{{"Bach", 1, "01.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "02.flac"}},
 			),
-			wantMulti: true,
+			WantMulti: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isMultiComposerAlbum(tt.album)
-			if got != tt.wantMulti {
-				t.Errorf("isMultiComposerAlbum() = %v, want %v", got, tt.wantMulti)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := isMultiComposerAlbum(tt.Album)
+			if got != tt.WantMulti {
+				t.Errorf("isMultiComposerAlbum() = %v, want %v", got, tt.WantMulti)
 			}
 		})
 	}
 }
 
 func TestContainsArtistName(t *testing.T) {
-	bach, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-	vivaldi, _ := domain.NewArtist("Antonio Vivaldi", domain.RoleComposer)
+	bach := domain.Artist{Name: "Johann Sebastian Bach", Role: domain.RoleComposer}
+	vivaldi := domain.Artist{Name: "Antonio Vivaldi", Role: domain.RoleComposer}
 
 	tests := []struct {
-		name     string
-		filename string
-		artists  []domain.Artist
-		want     bool
+		Name     string
+		Filename string
+		Artists  []domain.Artist
+		Want     bool
 	}{
 		{
-			name:     "last name before track number",
-			filename: "Bach - 01 - Prelude.flac",
-			artists:  []domain.Artist{bach},
-			want:     true,
+			Name:     "last name before track number",
+			Filename: "Bach - 01 - Prelude.flac",
+			Artists:  []domain.Artist{bach},
+			Want:     true,
 		},
 		{
-			name:     "last name after track number",
-			filename: "01 - Bach - Prelude.flac",
-			artists:  []domain.Artist{bach},
-			want:     false,
+			Name:     "last name after track number",
+			Filename: "01 - Bach - Prelude.flac",
+			Artists:  []domain.Artist{bach},
+			Want:     false,
 		},
 		{
-			name:     "full name before track number",
-			filename: "Antonio Vivaldi - 01 - Concerto.flac",
-			artists:  []domain.Artist{vivaldi},
-			want:     true,
+			Name:     "full name before track number",
+			Filename: "Antonio Vivaldi - 01 - Concerto.flac",
+			Artists:  []domain.Artist{vivaldi},
+			Want:     true,
 		},
 		{
-			name:     "no artist in filename",
-			filename: "01 - Prelude.flac",
-			artists:  []domain.Artist{bach},
-			want:     false,
+			Name:     "no artist in filename",
+			Filename: "01 - Prelude.flac",
+			Artists:  []domain.Artist{bach},
+			Want:     false,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := containsArtistName(tt.filename, tt.artists)
-			if got != tt.want {
-				t.Errorf("containsArtistName(%q) = %v, want %v", tt.filename, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := containsArtistName(tt.Filename, tt.Artists)
+			if got != tt.Want {
+				t.Errorf("containsArtistName(%q) = %v, want %v", tt.Filename, got, tt.Want)
 			}
 		})
 	}
@@ -157,40 +157,53 @@ func TestContainsArtistName(t *testing.T) {
 
 // composerTrack represents a track with specific composer
 type composerTrack struct {
-	composerName string
-	trackNum     int
-	filename     string
+	ComposerName string
+	TrackNum     int
+	Filename     string
 }
 
 // buildSingleComposerAlbumWithFilenames creates album with one composer
 func buildSingleComposerAlbumWithFilenames(composerName string, filenames ...string) *domain.Album {
-	composer, _ := domain.NewArtist(composerName, domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	artists := []domain.Artist{composer, ensemble}
+	tracks := make([]*domain.Track, len(filenames))
 
-	album, _ := domain.NewAlbum("Album", 1963)
-	for i, filename := range filenames {
-		track, _ := domain.NewTrack(1, i+1, "Work "+string(rune('A'+i)), artists)
-		track = track.WithName(filename)
-		album.AddTrack(track)
+	for i, _ := range filenames {
+		tracks[i] = &domain.Track{
+			Disc:  1,
+			Track: i + 1,
+			Title: "Work " + string(rune('A'+i)),
+			Artists: []domain.Artist{
+				domain.Artist{Name: composerName, Role: domain.RoleComposer},
+				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
+			},
+		}
 	}
-	return album
+	return &domain.Album{
+		Title:        "Album",
+		OriginalYear: 1963,
+		Tracks:       tracks,
+	}
 }
 
 // buildMultiComposerAlbumWithFilenames creates album with multiple composers
 func buildMultiComposerAlbumWithFilenames(composerTracks ...[]composerTrack) *domain.Album {
-	album, _ := domain.NewAlbum("Various Composers", 1963)
+	tracks := make([]*domain.Track, 0)
 	for _, ctList := range composerTracks {
 		for _, ct := range ctList {
-			composer, _ := domain.NewArtist(ct.composerName, domain.RoleComposer)
-			ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-			artists := []domain.Artist{composer, ensemble}
-
-			track, _ := domain.NewTrack(1, ct.trackNum, "Work", artists)
-			track = track.WithName(ct.filename)
-			album.AddTrack(track)
+			tracks = append(tracks, &domain.Track{
+				Disc:  1,
+				Track: ct.TrackNum,
+				Title: "Work " + string(rune('A'+ct.TrackNum)),
+				Name:  ct.Filename,
+				Artists: []domain.Artist{
+					domain.Artist{Name: ct.ComposerName, Role: domain.RoleComposer},
+					domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
+				},
+			})
 		}
 	}
-
-	return album
+	return &domain.Album{
+		Title:        "Various Composers",
+		OriginalYear: 1963,
+		Tracks:       tracks,
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 // PrestoParser parses Presto Classical HTML pages.
@@ -20,39 +21,54 @@ func NewPrestoParser() *PrestoParser {
 
 // Parse parses a complete Presto Classical HTML page and returns extraction result.
 func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
-	data := &AlbumData{
+	data := &domain.Album{
 		Title:        MissingTitle,
 		OriginalYear: MissingYear,
-		Tracks:       make([]TrackData, 0),
+		Tracks:       make([]*domain.Track, 0),
 	}
 
-	result := NewExtractionResult(data)
+	result := &ExtractionResult{
+		Album:  data,
+		Source: "presto",
+	}
 	parsingNotes := make(map[string]interface{})
 
 	// Parse title
 	if title, err := p.ParseTitle(html); err == nil && title != "" {
 		data.Title = title
 	} else {
-		result = result.WithError(NewExtractionError("title", "not found in HTML", true))
+		result.Errors = append(result.Errors, ExtractionError{
+			Field:    "title",
+			Message:  "not found in HTML",
+			Required: true,
+		})
 	}
 
 	// Parse year from meta tag
 	if year, err := p.ParseYear(html); err == nil && year > 0 {
 		data.OriginalYear = year
 	} else {
-		result = result.WithError(NewExtractionError("year", "not found in HTML", true))
+		result.Errors = append(result.Errors, ExtractionError{
+			Field:    "year",
+			Message:  "not found in HTML",
+			Required: true,
+		})
 	}
 
 	// Parse catalog number and label
 	if catalog, label, err := p.ParseCatalogAndLabel(html); err == nil {
-		edition := &EditionData{
+		edition := &domain.Edition{
 			Label:         label,
 			CatalogNumber: catalog,
-			EditionYear:   data.OriginalYear,
+			Year:          data.OriginalYear,
 		}
 		data.Edition = edition
 	} else {
-		result = result.WithError(NewExtractionError("catalog_number", "not found in HTML", false))
+		result.Errors = append(result.Errors, ExtractionError{
+			Field:    "catalog_number",
+			Message:  "not found in HTML",
+			Required: false,
+		})
 	}
 
 	// Parse tracks using semantic structure
@@ -60,7 +76,11 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 		data.Tracks = tracks
 		parsingNotes["tracks_source"] = "semantic_structure"
 	} else {
-		result = result.WithError(NewExtractionError("tracks", "no tracks found in HTML", true))
+		result.Errors = append(result.Errors, ExtractionError{
+			Field:    "tracks",
+			Message:  "no tracks found in HTML",
+			Required: true,
+		})
 	}
 
 	// Add disc detection notes
@@ -79,8 +99,8 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 	}
 
 	// Add parsing notes to result
-	if len(parsingNotes) > 0 {
-		result = result.WithParsingNotes(parsingNotes)
+	for key, value := range parsingNotes {
+		result.Notes = append(result.Notes, fmt.Sprintf("%s: %v", key, value))
 	}
 
 	return result, nil
@@ -135,7 +155,7 @@ func (p *PrestoParser) ParseYear(html string) (int, error) {
 	}
 
 	yearRe := regexp.MustCompile(`\b(19|20)\d{2}\b`)
-	
+
 	// Look for release date in product metadata
 	doc.Find(".c-product-block__metadata li").Each(func(i int, s *goquery.Selection) {
 		text := s.Text()
@@ -195,13 +215,13 @@ func (p *PrestoParser) ParseCatalogAndLabel(html string) (catalog, label string,
 	// Look for structured metadata in .c-product-block__metadata
 	doc.Find(".c-product-block__metadata li").Each(func(i int, s *goquery.Selection) {
 		text := s.Text()
-		
+
 		// Extract catalog number from "Catalogue number: XXX"
 		if strings.Contains(text, "Catalogue number:") {
 			catalog = strings.TrimPrefix(text, "Catalogue number:")
 			catalog = strings.TrimSpace(catalog)
 		}
-		
+
 		// Extract label from "Label: <a>XXX</a>"
 		if strings.Contains(text, "Label:") {
 			labelLink := s.Find("a")
@@ -225,13 +245,13 @@ func (p *PrestoParser) ParseCatalogNumber(html string) (string, error) {
 }
 
 // ParseTracks extracts track listings from the semantic HTML structure.
-func (p *PrestoParser) ParseTracks(html string) ([]TrackData, error) {
+func (p *PrestoParser) ParseTracks(html string) ([]*domain.Track, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
-	tracks := make([]TrackData, 0)
+	tracks := make([]*domain.Track, 0)
 	trackNum := 1
 
 	doc.Find(".c-tracklist__work").Each(func(i int, work *goquery.Selection) {
@@ -248,12 +268,17 @@ func (p *PrestoParser) ParseTracks(html string) ([]TrackData, error) {
 				if movementTitle != "" {
 					// Prepend parent work title to movement
 					fullTitle := parentTitle + ": " + movementTitle
-					
-					track := TrackData{
-						Disc:     1,
-						Track:    trackNum,
-						Title:    fullTitle,
-						Composer: cleanHTMLEntities(parentComposer),
+
+					track := &domain.Track{
+						Disc:  1,
+						Track: trackNum,
+						Title: fullTitle,
+						Artists: []domain.Artist{
+							domain.Artist{
+								Name: cleanHTMLEntities(parentComposer),
+								Role: domain.RoleComposer,
+							},
+						},
 					}
 					tracks = append(tracks, track)
 					trackNum++
@@ -262,13 +287,13 @@ func (p *PrestoParser) ParseTracks(html string) ([]TrackData, error) {
 		} else {
 			// Flat structure: standard track
 			titleDiv := work.Find(".c-track__title").First()
-			
+
 			var composer, title string
 
 			composerLink := titleDiv.Find("a[href*='composer']")
 			if composerLink.Length() > 0 {
 				composer = strings.TrimSpace(composerLink.Text())
-				
+
 				workLink := titleDiv.Find("a[href*='works']")
 				if workLink.Length() > 0 {
 					title = strings.TrimSpace(workLink.Text())
@@ -289,11 +314,16 @@ func (p *PrestoParser) ParseTracks(html string) ([]TrackData, error) {
 			title = cleanHTMLEntities(title)
 
 			if title != "" {
-				track := TrackData{
-					Disc:     1,
-					Track:    trackNum,
-					Title:    title,
-					Composer: composer,
+				track := &domain.Track{
+					Disc: 1,
+					Track: trackNum,
+					Title: title,
+					Artists: []domain.Artist{
+						domain.Artist{
+							Name: composer,
+							Role: domain.RoleComposer,
+						},
+					},
 				}
 				tracks = append(tracks, track)
 				trackNum++
@@ -318,7 +348,7 @@ func (p *PrestoParser) detectHierarchy(work *goquery.Selection) (hasChildren boo
 
 	// Get parent title and composer
 	titleDiv := work.Find(".c-track__title").First()
-	
+
 	// Extract composer
 	composerLink := titleDiv.Find("a[href*='composer']")
 	if composerLink.Length() > 0 {

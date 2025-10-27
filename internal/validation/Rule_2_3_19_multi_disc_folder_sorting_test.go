@@ -10,80 +10,80 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name     string
-		actual   *domain.Album
-		wantPass bool
-		wantInfo int
+		Name     string
+		Actual   *domain.Album
+		WantPass bool
+		WantInfo int
 	}{
 		{
-			name:     "pass - single disc",
-			actual:   buildAlbumWithFilenames("01 - Track.flac"),
-			wantPass: true,
+			Name:     "pass - single disc",
+			Actual:   buildAlbumWithFilenames("01 - Track.flac"),
+			WantPass: true,
 		},
 		{
-			name:     "pass - no folders",
-			actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {2, 1}}),
-			wantPass: true,
+			Name:     "pass - no folders",
+			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {2, 1}}),
+			WantPass: true,
 		},
 		{
-			name: "pass - properly padded folders (10+ discs)",
-			actual: buildAlbumWithFilenames(
+			Name: "pass - properly padded folders (10+ discs)",
+			Actual: buildAlbumWithFilenames(
 				"CD01/01 - Track.flac",
 				"CD02/01 - Track.flac",
 				"CD10/01 - Track.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "info - unpadded folders with 10+ discs",
-			actual: buildAlbumWithFilenamesAndDiscs(
+			Name: "info - unpadded folders with 10+ discs",
+			Actual: buildAlbumWithFilenamesAndDiscs(
 				[]string{"CD1/01 - Track.flac", "CD2/01 - Track.flac", "CD10/01 - Track.flac"},
 				[]int{1, 2, 10},
 			),
-			wantPass: false,
-			wantInfo: 2, // CD1 and CD2 both need padding
+			WantPass: false,
+			WantInfo: 2, // CD1 and CD2 both need padding
 		},
 		{
-			name: "pass - two digit folders",
-			actual: buildAlbumWithFilenames(
+			Name: "pass - two digit folders",
+			Actual: buildAlbumWithFilenames(
 				"CD1/01 - Track.flac",
 				"CD2/01 - Track.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "pass - Disc naming with padding",
-			actual: buildAlbumWithFilenames(
+			Name: "pass - Disc naming with padding",
+			Actual: buildAlbumWithFilenames(
 				"Disc01/01 - Track.flac",
 				"Disc02/01 - Track.flac",
 				"Disc10/01 - Track.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.MultiDiscFolderSorting(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.MultiDiscFolderSorting(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass {
+			if !tt.WantPass {
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelInfo {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
 
-				if infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+				if infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
 
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -92,17 +92,14 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 
 // buildAlbumWithFilenamesAndDiscs creates album with specific filenames and disc numbers
 func buildAlbumWithFilenamesAndDiscs(filenames []string, discs []int) *domain.Album {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
+	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
+	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
 	artists := []domain.Artist{composer, ensemble}
 
-	album, _ := domain.NewAlbum("Album", 1963)
+	tracks := make([]*domain.Track, len(filenames))
 	for i, filename := range filenames {
 		disc := discs[i]
-		track, _ := domain.NewTrack(disc, i+1, "Track", artists)
-		track = track.WithName(filename)
-		album.AddTrack(track)
+		tracks[i] = &domain.Track{Disc: disc, Track: i + 1, Title: "Track", Artists: artists, Name: filename}
 	}
-
-	return album
+	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: tracks}
 }

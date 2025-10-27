@@ -6,52 +6,52 @@ import (
 
 func TestDecodeHTMLEntities(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		Name  string
+		Input string
+		Want  string
 	}{
 		{
-			name:  "standard entities",
-			input: "Bach &amp; Beethoven",
-			want:  "Bach & Beethoven",
+			Name:  "standard entities",
+			Input: "Bach &amp; Beethoven",
+			Want:  "Bach & Beethoven",
 		},
 		{
-			name:  "quotes",
-			input: "&quot;Goldberg Variations&quot;",
-			want:  `"Goldberg Variations"`,
+			Name:  "quotes",
+			Input: "&quot;Goldberg Variations&quot;",
+			Want:  `"Goldberg Variations"`,
 		},
 		{
-			name:  "apostrophe",
-			input: "Bach&#039;s Suite",
-			want:  "Bach's Suite",
+			Name:  "apostrophe",
+			Input: "Bach&#039;s Suite",
+			Want:  "Bach's Suite",
 		},
 		{
-			name:  "malformed UTF-8 - Noël",
-			input: "NoÃ«l",
-			want:  "Noël",
+			Name:  "malformed UTF-8 - Noël",
+			Input: "NoÃ«l",
+			Want:  "Noël",
 		},
 		{
-			name:  "malformed UTF-8 - umlaut",
-			input: "MÃ¼ller",
-			want:  "Müller",
+			Name:  "malformed UTF-8 - umlaut",
+			Input: "MÃ¼ller",
+			Want:  "Müller",
 		},
 		{
-			name:  "no entities",
-			input: "Plain Text",
-			want:  "Plain Text",
+			Name:  "no entities",
+			Input: "Plain Text",
+			Want:  "Plain Text",
 		},
 		{
-			name:  "mixed",
-			input: "NoÃ«l &amp; MÃ¼ller",
-			want:  "Noël & Müller",
+			Name:  "mixed",
+			Input: "NoÃ«l &amp; MÃ¼ller",
+			Want:  "Noël & Müller",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := decodeHTMLEntities(tt.input)
-			if got != tt.want {
-				t.Errorf("decodeHTMLEntities(%q) = %q, want %q", tt.input, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := decodeHTMLEntities(tt.Input)
+			if got != tt.Want {
+				t.Errorf("decodeHTMLEntities(%q) = %q, want %q", tt.Input, got, tt.Want)
 			}
 		})
 	}
@@ -59,42 +59,42 @@ func TestDecodeHTMLEntities(t *testing.T) {
 
 func TestStripHTMLTags(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		Name  string
+		Input string
+		Want  string
 	}{
 		{
-			name:  "simple tags",
-			input: "<b>Bold</b> and <i>italic</i>",
-			want:  "Bold and italic",
+			Name:  "simple tags",
+			Input: "<b>Bold</b> and <i>italic</i>",
+			Want:  "Bold and italic",
 		},
 		{
-			name:  "nested tags",
-			input: "<div><span>Text</span></div>",
-			want:  "Text",
+			Name:  "nested tags",
+			Input: "<div><span>Text</span></div>",
+			Want:  "Text",
 		},
 		{
-			name:  "tags with attributes",
-			input: `<a href="link">Link</a>`,
-			want:  "Link",
+			Name:  "tags with attributes",
+			Input: `<a href="link">Link</a>`,
+			Want:  "Link",
 		},
 		{
-			name:  "no tags",
-			input: "Plain text",
-			want:  "Plain text",
+			Name:  "no tags",
+			Input: "Plain text",
+			Want:  "Plain text",
 		},
 		{
-			name:  "empty tags",
-			input: "Text <br/> more text",
-			want:  "Text  more text",
+			Name:  "empty tags",
+			Input: "Text <br/> more text",
+			Want:  "Text  more text",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := stripHTMLTags(tt.input)
-			if got != tt.want {
-				t.Errorf("stripHTMLTags(%q) = %q, want %q", tt.input, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := stripHTMLTags(tt.Input)
+			if got != tt.Want {
+				t.Errorf("stripHTMLTags(%q) = %q, want %q", tt.Input, got, tt.Want)
 			}
 		})
 	}
@@ -102,37 +102,37 @@ func TestStripHTMLTags(t *testing.T) {
 
 func TestCleanWhitespace(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		Name  string
+		Input string
+		Want  string
 	}{
 		{
-			name:  "multiple spaces",
-			input: "Too    many   spaces",
-			want:  "Too many spaces",
+			Name:  "multiple spaces",
+			Input: "Too    many   spaces",
+			Want:  "Too many spaces",
 		},
 		{
-			name:  "leading and trailing",
-			input: "  trim me  ",
-			want:  "trim me",
+			Name:  "leading and trailing",
+			Input: "  trim me  ",
+			Want:  "trim me",
 		},
 		{
-			name:  "tabs and newlines",
-			input: "text\t\twith\ntabs\nand\nnewlines",
-			want:  "text with tabs and newlines",
+			Name:  "tabs and newlines",
+			Input: "text\t\twith\ntabs\nand\nnewlines",
+			Want:  "text with tabs and newlines",
 		},
 		{
-			name:  "already clean",
-			input: "clean text",
-			want:  "clean text",
+			Name:  "already clean",
+			Input: "clean text",
+			Want:  "clean text",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := cleanWhitespace(tt.input)
-			if got != tt.want {
-				t.Errorf("cleanWhitespace(%q) = %q, want %q", tt.input, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := cleanWhitespace(tt.Input)
+			if got != tt.Want {
+				t.Errorf("cleanWhitespace(%q) = %q, want %q", tt.Input, got, tt.Want)
 			}
 		})
 	}
@@ -140,42 +140,42 @@ func TestCleanWhitespace(t *testing.T) {
 
 func TestToTitleCase(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		Name  string
+		Input string
+		Want  string
 	}{
 		{
-			name:  "all caps",
-			input: "GOLDBERG VARIATIONS",
-			want:  "Goldberg Variations",
+			Name:  "all caps",
+			Input: "GOLDBERG VARIATIONS",
+			Want:  "Goldberg Variations",
 		},
 		{
-			name:  "with articles",
-			input: "THE ART OF FUGUE",
-			want:  "The Art of Fugue",
+			Name:  "with articles",
+			Input: "THE ART OF FUGUE",
+			Want:  "The Art of Fugue",
 		},
 		{
-			name:  "with prepositions",
-			input: "CONCERTO IN D MAJOR",
-			want:  "Concerto in D Major",
+			Name:  "with prepositions",
+			Input: "CONCERTO IN D MAJOR",
+			Want:  "Concerto in D Major",
 		},
 		{
-			name:  "already title case",
-			input: "Symphony No. 5",
-			want:  "Symphony No. 5",
+			Name:  "already title case",
+			Input: "Symphony No. 5",
+			Want:  "Symphony No. 5",
 		},
 		{
-			name:  "with de/la/von",
-			input: "MUSIC OF LA RUE",
-			want:  "Music of la Rue",
+			Name:  "with de/la/von",
+			Input: "MUSIC OF LA RUE",
+			Want:  "Music of la Rue",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := toTitleCase(tt.input)
-			if got != tt.want {
-				t.Errorf("toTitleCase(%q) = %q, want %q", tt.input, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := toTitleCase(tt.Input)
+			if got != tt.Want {
+				t.Errorf("toTitleCase(%q) = %q, want %q", tt.Input, got, tt.Want)
 			}
 		})
 	}
@@ -183,47 +183,47 @@ func TestToTitleCase(t *testing.T) {
 
 func TestNormalizeWhitespace(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		Name  string
+		Input string
+		Want  string
 	}{
 		{
-			name:  "tabs to spaces",
-			input: "text\twith\ttabs",
-			want:  "text with tabs",
+			Name:  "tabs to spaces",
+			Input: "text\twith\ttabs",
+			Want:  "text with tabs",
 		},
 		{
-			name:  "newlines to spaces",
-			input: "line1\nline2\nline3",
-			want:  "line1 line2 line3",
+			Name:  "newlines to spaces",
+			Input: "line1\nline2\nline3",
+			Want:  "line1 line2 line3",
 		},
 		{
-			name:  "non-breaking spaces",
-			input: "text\u00A0with\u00A0nbsp",
-			want:  "text with nbsp",
+			Name:  "non-breaking spaces",
+			Input: "text\u00A0with\u00A0nbsp",
+			Want:  "text with nbsp",
 		},
 		{
-			name:  "mixed whitespace",
-			input: "text\t\n\r  with   mixed",
-			want:  "text with mixed",
+			Name:  "mixed whitespace",
+			Input: "text\t\n\r  with   mixed",
+			Want:  "text with mixed",
 		},
 		{
-			name:  "multiple spaces",
-			input: "Too    many   spaces",
-			want:  "Too many spaces",
+			Name:  "multiple spaces",
+			Input: "Too    many   spaces",
+			Want:  "Too many spaces",
 		},
 		{
-			name:  "leading and trailing",
-			input: "  trim me  ",
-			want:  "trim me",
+			Name:  "leading and trailing",
+			Input: "  trim me  ",
+			Want:  "trim me",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeWhitespace(tt.input)
-			if got != tt.want {
-				t.Errorf("normalizeWhitespace(%q) = %q, want %q", tt.input, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := normalizeWhitespace(tt.Input)
+			if got != tt.Want {
+				t.Errorf("normalizeWhitespace(%q) = %q, want %q", tt.Input, got, tt.Want)
 			}
 		})
 	}
@@ -231,32 +231,32 @@ func TestNormalizeWhitespace(t *testing.T) {
 
 func TestSanitizeText(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		Name  string
+		Input string
+		Want  string
 	}{
 		{
-			name:  "complete sanitization",
-			input: "<b>NoÃ«l</b> &amp; <i>MÃ¼ller</i>",
-			want:  "Noël & Müller",
+			Name:  "complete sanitization",
+			Input: "<b>NoÃ«l</b> &amp; <i>MÃ¼ller</i>",
+			Want:  "Noël & Müller",
 		},
 		{
-			name:  "html with entities and whitespace",
-			input: "  <div>Text   with   &nbsp;  spaces</div>  ",
-			want:  "Text with spaces",
+			Name:  "html with entities and whitespace",
+			Input: "  <div>Text   with   &nbsp;  spaces</div>  ",
+			Want:  "Text with spaces",
 		},
 		{
-			name:  "complex example",
-			input: "<h1>Bach&#039;s   Goldberg\n\nVariations</h1>",
-			want:  "Bach's Goldberg Variations",
+			Name:  "complex example",
+			Input: "<h1>Bach&#039;s   Goldberg\n\nVariations</h1>",
+			Want:  "Bach's Goldberg Variations",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := sanitizeText(tt.input)
-			if got != tt.want {
-				t.Errorf("sanitizeText(%q) = %q, want %q", tt.input, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := sanitizeText(tt.Input)
+			if got != tt.Want {
+				t.Errorf("sanitizeText(%q) = %q, want %q", tt.Input, got, tt.Want)
 			}
 		})
 	}

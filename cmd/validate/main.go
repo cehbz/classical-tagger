@@ -180,12 +180,12 @@ type ValidationReport struct {
 // HasErrors returns true if there are any ERROR level issues
 func (r *ValidationReport) HasErrors() bool {
 	for _, issue := range r.StructureIssues {
-		if issue.Level() == domain.LevelError {
+		if issue.Level == domain.LevelError {
 			return true
 		}
 	}
 	for _, issue := range r.MetadataIssues {
-		if issue.Level() == domain.LevelError {
+		if issue.Level == domain.LevelError {
 			return true
 		}
 	}
@@ -195,12 +195,12 @@ func (r *ValidationReport) HasErrors() bool {
 // HasWarnings returns true if there are any WARNING level issues
 func (r *ValidationReport) HasWarnings() bool {
 	for _, issue := range r.StructureIssues {
-		if issue.Level() == domain.LevelWarning {
+		if issue.Level == domain.LevelWarning {
 			return true
 		}
 	}
 	for _, issue := range r.MetadataIssues {
-		if issue.Level() == domain.LevelWarning {
+		if issue.Level == domain.LevelWarning {
 			return true
 		}
 	}
@@ -268,7 +268,7 @@ func ValidateDirectory(path string) (*ValidationReport, error) {
 			// Read album-level metadata from first file
 			metadata, err := reader.ReadFile(file)
 			if err != nil {
-				report.ReadErrors = append(report.ReadErrors, fmt.Errorf("read album metadata: %w", err))
+				report.ReadErrors = append(report.ReadErrors, fmt.Errorf("read album Metadata: %w", err))
 				continue
 			}
 
@@ -284,15 +284,11 @@ func ValidateDirectory(path string) (*ValidationReport, error) {
 				originalYear = parseYearFromFolderName(structure.FolderName)
 			}
 
-			album, err = domain.NewAlbum(metadata.Album, originalYear)
-			if err != nil {
-				report.ReadErrors = append(report.ReadErrors, fmt.Errorf("create album: %w", err))
-				continue
-			}
+			album = &domain.Album{Title: metadata.Album, OriginalYear: originalYear}
 		}
 
 		// Add track to album
-		err = album.AddTrack(track)
+		album.Tracks = append(album.Tracks, track)
 		if err != nil {
 			report.ReadErrors = append(report.ReadErrors, fmt.Errorf("add track: %w", err))
 			continue
@@ -355,7 +351,7 @@ func PrintReport(report *ValidationReport) {
 func printIssues(issues []domain.ValidationIssue) {
 	for _, issue := range issues {
 		symbol := "  "
-		switch issue.Level() {
+		switch issue.Level {
 		case domain.LevelError:
 			symbol = "❌"
 		case domain.LevelWarning:

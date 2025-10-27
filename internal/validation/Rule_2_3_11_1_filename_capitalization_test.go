@@ -10,84 +10,84 @@ func TestRules_FilenameCapitalization(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name       string
-		actual     *domain.Album
-		wantPass   bool
-		wantIssues int
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantIssues int
 	}{
 		{
-			name: "valid - Title Case",
-			actual: buildAlbumWithFilenames(
+			Name: "valid - Title Case",
+			Actual: buildAlbumWithFilenames(
 				"01 - Symphony No. 5 in C Minor.flac",
 				"02 - Concerto for Violin.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid - Casual Title Case (every word capitalized)",
-			actual: buildAlbumWithFilenames(
+			Name: "valid - Casual Title Case (every word capitalized)",
+			Actual: buildAlbumWithFilenames(
 				"01 - Symphony No. 5 In C Minor.flac",
 				"02 - Concerto For Violin And Orchestra.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "invalid - all uppercase",
-			actual: buildAlbumWithFilenames(
+			Name: "invalid - all uppercase",
+			Actual: buildAlbumWithFilenames(
 				"01 - SYMPHONY NO. 5.flac",
 				"02 - CONCERTO.flac",
 			),
-			wantPass:   false,
-			wantIssues: 2,
+			WantPass:   false,
+			WantIssues: 2,
 		},
 		{
-			name: "invalid - all lowercase",
-			actual: buildAlbumWithFilenames(
+			Name: "invalid - all lowercase",
+			Actual: buildAlbumWithFilenames(
 				"01 - symphony no. 5.flac",
 				"02 - concerto.flac",
 			),
-			wantPass:   false,
-			wantIssues: 2,
+			WantPass:   false,
+			WantIssues: 2,
 		},
 		{
-			name: "invalid - some tracks all caps",
-			actual: buildAlbumWithFilenames(
+			Name: "invalid - some tracks all caps",
+			Actual: buildAlbumWithFilenames(
 				"01 - Symphony No. 5.flac",
 				"02 - CONCERTO IN D.flac",
 			),
-			wantPass:   false,
-			wantIssues: 1,
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "valid - mixed case (acceptable)",
-			actual: buildAlbumWithFilenames(
+			Name: "valid - mixed case (acceptable)",
+			Actual: buildAlbumWithFilenames(
 				"01 - Symphony No. 5.flac",
 				"02 - Concerto in D major.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid - with numbers and abbreviations",
-			actual: buildAlbumWithFilenames(
+			Name: "valid - with numbers and abbreviations",
+			Actual: buildAlbumWithFilenames(
 				"01 - BWV 1007 - Prelude.flac",
 				"02 - Op. 132 - Allegro.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.FilenameCapitalization(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.FilenameCapitalization(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass && len(result.Issues()) != tt.wantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues()), tt.wantIssues)
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue: %s", issue.Message())
+			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+				for _, issue := range result.Issues {
+					t.Logf("  Issue: %s", issue.Message)
 				}
 			}
 		})
@@ -96,9 +96,9 @@ func TestRules_FilenameCapitalization(t *testing.T) {
 
 func TestCheckCapitalization(t *testing.T) {
 	tests := []struct {
-		title   string
-		wantErr bool
-		errMsg  string
+		Title   string
+		WantErr bool
+		ErrMsg  string
 	}{
 		{"Symphony No. 5", false, ""},
 		{"SYMPHONY NO. 5", true, "Not Title Case or Casual Title Case"},
@@ -115,16 +115,16 @@ func TestCheckCapitalization(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.title, func(t *testing.T) {
-			got := checkCapitalization(tt.title)
+		t.Run(tt.Title, func(t *testing.T) {
+			got := checkCapitalization(tt.Title)
 			hasErr := got != ""
 
-			if hasErr != tt.wantErr {
-				t.Errorf("checkCapitalization(%q) error = %v, want %v", tt.title, hasErr, tt.wantErr)
+			if hasErr != tt.WantErr {
+				t.Errorf("checkCapitalization(%q) error = %v, want %v", tt.Title, hasErr, tt.WantErr)
 			}
 
-			if tt.wantErr && got != tt.errMsg {
-				t.Errorf("checkCapitalization(%q) = %q, want %q", tt.title, got, tt.errMsg)
+			if tt.WantErr && got != tt.ErrMsg {
+				t.Errorf("checkCapitalization(%q) = %q, want %q", tt.Title, got, tt.ErrMsg)
 			}
 		})
 	}
@@ -132,8 +132,8 @@ func TestCheckCapitalization(t *testing.T) {
 
 func TestAdditionalCapitalizationCases(t *testing.T) {
 	cases := []struct {
-		title string
-		ok    bool
+		Title string
+		Ok    bool
 	}{
 		{"Well-Tempered Clavier", true},
 		{"Symphony No. 5: Allegro con brio", true},
@@ -143,17 +143,17 @@ func TestAdditionalCapitalizationCases(t *testing.T) {
 		{"Concerto per pianoforte", true},
 	}
 	for _, c := range cases {
-		got := checkCapitalization(c.title)
-		if (got == "") != c.ok {
-			t.Errorf("%q ok=%v, got=%q", c.title, c.ok, got)
+		got := checkCapitalization(c.Title)
+		if (got == "") != c.Ok {
+			t.Errorf("%q ok=%v, got=%q", c.Title, c.Ok, got)
 		}
 	}
 }
 
 func TestIsAllUppercase(t *testing.T) {
 	tests := []struct {
-		input string
-		want  bool
+		Input string
+		Want  bool
 	}{
 		{"SYMPHONY", true},
 		{"Symphony", false},
@@ -165,10 +165,10 @@ func TestIsAllUppercase(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := isAllUppercase(tt.input)
-			if got != tt.want {
-				t.Errorf("isAllUppercase(%q) = %v, want %v", tt.input, got, tt.want)
+		t.Run(tt.Input, func(t *testing.T) {
+			got := isAllUppercase(tt.Input)
+			if got != tt.Want {
+				t.Errorf("isAllUppercase(%q) = %v, want %v", tt.Input, got, tt.Want)
 			}
 		})
 	}
@@ -176,8 +176,8 @@ func TestIsAllUppercase(t *testing.T) {
 
 func TestIsAllLowercase(t *testing.T) {
 	tests := []struct {
-		input string
-		want  bool
+		Input string
+		Want  bool
 	}{
 		{"symphony", true},
 		{"Symphony", false},
@@ -189,10 +189,10 @@ func TestIsAllLowercase(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := isAllLowercase(tt.input)
-			if got != tt.want {
-				t.Errorf("isAllLowercase(%q) = %v, want %v", tt.input, got, tt.want)
+		t.Run(tt.Input, func(t *testing.T) {
+			got := isAllLowercase(tt.Input)
+			if got != tt.Want {
+				t.Errorf("isAllLowercase(%q) = %v, want %v", tt.Input, got, tt.Want)
 			}
 		})
 	}
@@ -200,8 +200,8 @@ func TestIsAllLowercase(t *testing.T) {
 
 func TestIsTitleCase(t *testing.T) {
 	tests := []struct {
-		input string
-		want  bool
+		Input string
+		Want  bool
 	}{
 		{"Symphony No. 5", true},
 		{"Symphony No. 5 in C Minor", true}, // "in" is ok lowercase
@@ -213,10 +213,10 @@ func TestIsTitleCase(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := isTitleCase(tt.input)
-			if got != tt.want {
-				t.Errorf("isTitleCase(%q) = %v, want %v", tt.input, got, tt.want)
+		t.Run(tt.Input, func(t *testing.T) {
+			got := isTitleCase(tt.Input)
+			if got != tt.Want {
+				t.Errorf("isTitleCase(%q) = %v, want %v", tt.Input, got, tt.Want)
 			}
 		})
 	}

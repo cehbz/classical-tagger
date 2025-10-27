@@ -2,7 +2,7 @@ package validation
 
 import (
 	"fmt"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -10,33 +10,33 @@ import (
 // INFO level - suggests including label and catalog number in comment field
 func (r *Rules) CatalogInfoInComments(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "classical.catalog_comment",
-		name:   "Catalog information recommended in comment field",
-		level:  domain.LevelInfo,
-		weight: 0.1,
+		ID:     "classical.catalog_comment",
+		Name:   "Catalog information recommended in comment field",
+		Level:  domain.LevelInfo,
+		Weight: 0.1,
 	}
-	
+
 	var issues []domain.ValidationIssue
-	
+
 	// Check if album has edition information
-	edition := actual.Edition()
-	
+	edition := actual.Edition
+
 	if edition == nil {
 		// No edition info - suggest adding it
-		issues = append(issues, domain.NewIssue(
-			domain.LevelInfo,
-			0,
-			meta.id,
-			"Consider adding record label and catalog number information",
-		))
-		return meta.Fail(issues...)
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelInfo,
+			Track:   0,
+			Rule:    meta.ID,
+			Message: "Consider adding record label and catalog number information",
+		})
+		return RuleResult{Meta: meta, Issues: issues}
 	}
-	
+
 	// Check completeness of edition information
-	hasLabel := edition.Label() != ""
-	hasCatalog := edition.CatalogNumber() != ""
-	hasYear := edition.Year() != 0
-	
+	hasLabel := edition.Label != ""
+	hasCatalog := edition.CatalogNumber != ""
+	hasYear := edition.Year != 0
+
 	var missing []string
 	if !hasLabel {
 		missing = append(missing, "label")
@@ -47,18 +47,14 @@ func (r *Rules) CatalogInfoInComments(actual, reference *domain.Album) RuleResul
 	if !hasYear {
 		missing = append(missing, "release year")
 	}
-	
+
 	if len(missing) > 0 {
-		issues = append(issues, domain.NewIssue(
-			domain.LevelInfo,
-			0,
-			meta.id,
-			fmt.Sprintf("Edition information incomplete - consider adding: %v", missing),
-		))
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelInfo,
+			Track:   0,
+			Rule:    meta.ID,
+			Message: fmt.Sprintf("Edition information incomplete - consider adding: %v", missing),
+		})
 	}
-	
-	if len(issues) == 0 {
-		return meta.Pass()
-	}
-	return meta.Fail(issues...)
+	return RuleResult{Meta: meta, Issues: issues}
 }

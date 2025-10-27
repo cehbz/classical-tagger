@@ -10,104 +10,104 @@ func TestRules_TrackNumbersInFilenames(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name       string
-		actual     *domain.Album
-		wantPass   bool
-		wantIssues int
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantIssues int
 	}{
 		{
-			name: "valid track numbers with dash",
-			actual: buildAlbumWithFilenames(
+			Name: "valid track numbers with dash",
+			Actual: buildAlbumWithFilenames(
 				"01 - Symphony No. 5.flac",
 				"02 - Concerto.flac",
 				"03 - Finale.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid track numbers with underscore",
-			actual: buildAlbumWithFilenames(
+			Name: "valid track numbers with underscore",
+			Actual: buildAlbumWithFilenames(
 				"01_Symphony No. 5.flac",
 				"02_Concerto.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid track numbers no padding",
-			actual: buildAlbumWithFilenames(
+			Name: "valid track numbers no padding",
+			Actual: buildAlbumWithFilenames(
 				"1 - Symphony No. 5.flac",
 				"2 - Concerto.flac",
 				"10 - Finale.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid track numbers with period",
-			actual: buildAlbumWithFilenames(
+			Name: "valid track numbers with period",
+			Actual: buildAlbumWithFilenames(
 				"01. Symphony No. 5.flac",
 				"02. Concerto.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "missing track numbers",
-			actual: buildAlbumWithFilenames(
+			Name: "missing track numbers",
+			Actual: buildAlbumWithFilenames(
 				"Symphony No. 5.flac",
 				"Concerto.flac",
 			),
-			wantPass:   false,
-			wantIssues: 2,
+			WantPass:   false,
+			WantIssues: 2,
 		},
 		{
-			name: "some missing track numbers",
-			actual: buildAlbumWithFilenames(
+			Name: "some missing track numbers",
+			Actual: buildAlbumWithFilenames(
 				"01 - Symphony No. 5.flac",
 				"Concerto.flac",
 				"03 - Finale.flac",
 			),
-			wantPass:   false,
-			wantIssues: 1,
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "single track exception",
-			actual: buildAlbumWithFilenames(
+			Name: "single track exception",
+			Actual: buildAlbumWithFilenames(
 				"Complete Work.flac",
 			),
-			wantPass: true, // Exception: single tracks don't need numbers
+			WantPass: true, // Exception: single tracks don't need numbers
 		},
 		{
-			name: "multi-disc with subfolder",
-			actual: buildAlbumWithFilenames(
+			Name: "multi-disc with subfolder",
+			Actual: buildAlbumWithFilenames(
 				"CD1/01 - First Movement.flac",
 				"CD1/02 - Second Movement.flac",
 				"CD2/01 - Third Movement.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "multi-disc missing numbers in subfolder",
-			actual: buildAlbumWithFilenames(
+			Name: "multi-disc missing numbers in subfolder",
+			Actual: buildAlbumWithFilenames(
 				"CD1/01 - First Movement.flac",
 				"CD2/Second Movement.flac",
 			),
-			wantPass:   false,
-			wantIssues: 1,
+			WantPass:   false,
+			WantIssues: 1,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.Name, func(t *testing.T) {
 			// Use actual for both parameters (reference not used by this rule)
-			result := rules.TrackNumbersInFilenames(tt.actual, tt.actual)
+			result := rules.TrackNumbersInFilenames(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass && len(result.Issues()) != tt.wantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues()), tt.wantIssues)
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue: %s", issue.Message())
+			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+				for _, issue := range result.Issues {
+					t.Logf("  Issue: %s", issue.Message)
 				}
 			}
 		})
@@ -116,17 +116,22 @@ func TestRules_TrackNumbersInFilenames(t *testing.T) {
 
 // Helper function to build an album with specific filenames
 func buildAlbumWithFilenames(filenames ...string) *domain.Album {
-	composer, _ := domain.NewArtist("Ludwig van Beethoven", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Vienna Philharmonic", domain.RoleEnsemble)
-	conductor, _ := domain.NewArtist("Herbert von Karajan", domain.RoleConductor)
-	artists := []domain.Artist{composer, ensemble, conductor}
-
-	album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-	for i, filename := range filenames {
-		track, _ := domain.NewTrack(1, i+1, "Symphony No. 5", artists)
-		track = track.WithName(filename)
-		album.AddTrack(track)
+	tracks := make([]*domain.Track, len(filenames))
+	for i, _ := range filenames {
+		tracks[i] = &domain.Track{
+			Disc:  1,
+			Track: i + 1,
+			Title: "Symphony No. 5",
+			Artists: []domain.Artist{
+				domain.Artist{Name: "Ludwig van Beethoven", Role: domain.RoleComposer},
+				domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},
+				domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+			},
+		}
 	}
-
-	return album
+	return &domain.Album{
+		Title:        "Beethoven Symphonies",
+		OriginalYear: 1963,
+		Tracks:       tracks,
+	}
 }

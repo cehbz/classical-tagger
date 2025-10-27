@@ -282,7 +282,7 @@ type Artist struct {
 }
 
 // No setters, only getters
-func (a Artist) Name() string { return a.name }
+func (a Artist) Name() string { return a.Name }
 ```
 
 ### 2. Builder Pattern
@@ -305,7 +305,7 @@ if err != nil {
 // Check business rules later
 issues := album.Validate()
 for _, issue := range issues {
-    if issue.Level() == LevelError {
+    if issue.Level == LevelError {
         // Handle error
     }
 }

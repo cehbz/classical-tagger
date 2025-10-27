@@ -9,40 +9,39 @@ import (
 // ExampleAlbum demonstrates how to create and validate a complete classical music album.
 func ExampleAlbum() {
 	// Create an album
-	album, err := domain.NewAlbum("Noël ! Weihnachten ! Christmas!", 2013)
-	if err != nil {
-		panic(err)
+	album := domain.Album{
+		Title: "Noël ! Weihnachten ! Christmas!",
+		OriginalYear: 2013,
+		Edition: &domain.Edition{
+			Label: "test label",
+			Year: 2013,
+			CatalogNumber: "HMC902170",
+		},
+		Tracks: []*domain.Track{
+			&domain.Track{
+				Disc: 1,
+				Track: 1,
+				Title: "Frohlocket, ihr Völker auf Erden, Op. 79/1",
+				Artists: []domain.Artist{
+					domain.Artist{Name: "Felix Mendelssohn Bartholdy", Role: domain.RoleComposer},
+					domain.Artist{Name: "RIAS Kammerchor Berlin", Role: domain.RoleEnsemble},
+					domain.Artist{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor},
+				},
+				Name:  "01 Frohlocket, ihr Völker auf Erden, Op. 79-1.flac",
+			},
+			&domain.Track{
+				Disc: 1,
+				Track: 2,
+				Title: "O Heiland, reiß die Himmel auf, Op. 74/2",
+				Artists: []domain.Artist{
+					domain.Artist{Name: "Johannes Brahms", Role: domain.RoleComposer},
+					domain.Artist{Name: "RIAS Kammerchor Berlin", Role: domain.RoleEnsemble},
+					domain.Artist{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor},
+				},
+				Name: "02 O Heiland, reiß die Himmel auf, Op. 74-2.flac",
+			},
+		},
 	}
-
-	// Add edition information
-	edition, _ := domain.NewEdition("test label", 2013)
-	edition = edition.WithCatalogNumber("HMC902170")
-	album = album.WithEdition(edition)
-
-	// Create artists
-	mendelssohn, _ := domain.NewArtist("Felix Mendelssohn Bartholdy", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("RIAS Kammerchor Berlin", domain.RoleEnsemble)
-	conductor, _ := domain.NewArtist("Hans-Christoph Rademann", domain.RoleConductor)
-
-	// Create and add tracks
-	track1, _ := domain.NewTrack(
-		1, // disc
-		1, // track number
-		"Frohlocket, ihr Völker auf Erden, Op. 79/1",
-		[]domain.Artist{mendelssohn, ensemble, conductor},
-	)
-	track1 = track1.WithName("01 Frohlocket, ihr Völker auf Erden, Op. 79-1.flac")
-	album.AddTrack(track1)
-
-	brahms, _ := domain.NewArtist("Johannes Brahms", domain.RoleComposer)
-	track2, _ := domain.NewTrack(
-		1,
-		2,
-		"O Heiland, reiß die Himmel auf, Op. 74/2",
-		[]domain.Artist{brahms, ensemble, conductor},
-	)
-	track2 = track2.WithName("02 O Heiland, reiß die Himmel auf, Op. 74-2.flac")
-	album.AddTrack(track2)
 
 	// Validate the album
 	issues := album.Validate()
@@ -62,18 +61,22 @@ func ExampleAlbum() {
 
 // ExampleAlbum_withErrors demonstrates validation errors.
 func ExampleAlbum_withErrors() {
-	album, _ := domain.NewAlbum("Test Album", 2013)
-
-	// Create a track with composer name in title (ERROR)
-	bach, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-	badTrack, _ := domain.NewTrack(1, 1, "Bach: Goldberg Variations", []domain.Artist{bach})
-	album.AddTrack(badTrack)
+	album := domain.Album{
+		Title: "Test Album", OriginalYear: 2013, Tracks: []*domain.Track{
+			&domain.Track{
+				Disc: 1,
+				Track: 1,
+				Title: "Bach: Goldberg Variations",
+				Artists: []domain.Artist{domain.Artist{Name: "Johann Sebastian Bach", Role: domain.RoleComposer}},
+			},
+		},
+	}
 
 	// Validate
 	issues := album.Validate()
 
 	for _, issue := range issues {
-		fmt.Printf("[%s] %s\n", issue.Level(), issue.Message())
+		fmt.Printf("[%s] %s\n", issue.Level, issue.Message)
 	}
 
 	// Output:
@@ -83,16 +86,17 @@ func ExampleAlbum_withErrors() {
 
 // ExampleTrack_multipleComposers demonstrates the multiple composer error.
 func ExampleTrack_multipleComposers() {
-	composer1, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-	composer2, _ := domain.NewArtist("Carl Philipp Emanuel Bach", domain.RoleComposer)
-
-	tr, _ := domain.NewTrack(
-		1,
-		1,
-		"Some Work",
-		[]domain.Artist{composer1, composer2},
-	)
-	fmt.Println(tr.Title())
+	tr := domain.Track{
+		Disc: 1,
+		Track: 1,
+		Title: "Some Work",
+		Artists: []domain.Artist{
+			domain.Artist{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
+			domain.Artist{Name: "Carl Philipp Emanuel Bach", Role: domain.RoleComposer},
+		},
+		Name: "01 Some Work.flac",
+	}
+	fmt.Println(tr.Title)
 	// Output:
 	// Some Work
 }
@@ -100,26 +104,26 @@ func ExampleTrack_multipleComposers() {
 // ExampleTrack_arrangement demonstrates parsing arranger from title.
 func ExampleTrack_arrangement() {
 	// In the future, we would parse this automatically
-	title := "Goldberg Variations (arr. by Sitkovetsky)"
+	track := domain.Track{
+		Disc: 1,
+		Track: 1,
+		Title: "Goldberg Variations (arr. by Sitkovetsky)",
+		Artists: []domain.Artist{
+			domain.Artist{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
+			domain.Artist{Name: "Dmitry Sitkovetsky", Role: domain.RoleArranger},
+		},
+		Name: "01 Goldberg Variations.flac",
+	}
 
-	// For now, we handle it manually:
-	composer, _ := domain.NewArtist("Johann Sebastian Bach", domain.RoleComposer)
-	arranger, _ := domain.NewArtist("Dmitry Sitkovetsky", domain.RoleArranger)
-
-	track, _ := domain.NewTrack(
-		1,
-		1,
-		title,
-		[]domain.Artist{composer, arranger},
-	)
-
-	fmt.Printf("Track: %s\n", track.Title())
-	fmt.Printf("Composer: %s\n", track.Composer().Name())
+	fmt.Printf("Track: %s\n", track.Title)
+	for _, composer := range track.Composers() {
+		fmt.Printf("Composer: %s\n", composer.Name)
+	}
 
 	// Find arranger
-	for _, artist := range track.Artists() {
-		if artist.Role() == domain.RoleArranger {
-			fmt.Printf("Arranger: %s\n", artist.Name())
+	for _, artist := range track.Artists {
+		if artist.Role == domain.RoleArranger {
+			fmt.Printf("Arranger: %s\n", artist.Name)
 		}
 	}
 

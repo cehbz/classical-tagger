@@ -136,7 +136,7 @@ reader := tagging.NewFLACReader()
 track, _ := reader.ReadTrackFromFile("01 Aria.flac", 1, 1)
 
 // 2. Build album
-album, _ := domain.NewAlbum("Goldberg Variations", 1981)
+album := domain.Album{Title: "Goldberg Variations", OriginalYear: 1981}
 album.AddTrack(track)
 
 // 3. Validate metadata

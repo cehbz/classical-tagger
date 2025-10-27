@@ -38,12 +38,12 @@ func TestLoadMetadataJSON(t *testing.T) {
 		t.Fatalf("LoadMetadataJSON() error = %v", err)
 	}
 	
-	if album.Title() != "Test Album" {
-		t.Errorf("Title = %v, want 'Test Album'", album.Title())
+	if album.Title != "Test Album" {
+		t.Errorf("Title = %v, want 'Test Album'", album.Title)
 	}
 	
-	if len(album.Tracks()) != 1 {
-		t.Errorf("Track count = %d, want 1", len(album.Tracks()))
+	if len(album.Tracks) != 1 {
+		t.Errorf("Track count = %d, want 1", len(album.Tracks))
 	}
 }
 

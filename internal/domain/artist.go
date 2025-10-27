@@ -1,37 +1,33 @@
 package domain
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
-// Artist is a value object representing a performer, composer, conductor, etc.
-// It is immutable after creation.
+// Artist represents a person involved in a recording.
+// All fields are exported and mutable.
 type Artist struct {
-	name string
-	role Role
+	Name string `json:"name"`
+	Role Role   `json:"role"`
 }
 
-// NewArtist creates a new Artist with the given name and role.
-// Returns an error if the name is empty or whitespace-only.
-func NewArtist(name string, role Role) (Artist, error) {
+// String returns a string representation of the artist (Name - Role).
+func (a Artist) String() string {
+	return a.Name + " (" + a.Role.String() + ")"
+}
+
+// ParseArtist creates an Artist from name and role string.
+func ParseArtist(name, roleStr string) (Artist, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return Artist{}, fmt.Errorf("artist name cannot be empty")
+		return Artist{}, ErrEmptyArtistName
 	}
-	
+
+	role, err := ParseRole(roleStr)
+	if err != nil {
+		return Artist{}, err
+	}
+
 	return Artist{
-		name: name,
-		role: role,
+		Name: name,
+		Role: role,
 	}, nil
-}
-
-// Name returns the artist's name.
-func (a Artist) Name() string {
-	return a.name
-}
-
-// Role returns the artist's role.
-func (a Artist) Role() Role {
-	return a.role
 }

@@ -10,143 +10,192 @@ func TestRules_RequiredTags(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name         string
-		actual       *domain.Album
-		wantPass     bool
-		wantErrors   int
-		wantWarnings int
+		Name         string
+		Actual       *domain.Album
+		WantPass     bool
+		WantErrors   int
+		WantWarnings int
 	}{
 		{
-			name: "valid - all required tags present",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Ludwig van Beethoven", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Vienna Phil", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, "Symphony No. 5", []domain.Artist{composer, ensemble})
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass: true,
+			Name: "valid - all required tags present",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony No. 5",
+						Artists: []domain.Artist{
+							{Name: "Ludwig van Beethoven", Role: domain.RoleComposer},
+							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
+						},
+					},
+				},
+			},
+			WantPass:     true,
+			WantErrors:   0,
+			WantWarnings: 0,
 		},
 		{
-			name: "missing year - warning only",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Vienna Phil", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer, ensemble})
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 0)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:     false,
-			wantErrors:   0,
-			wantWarnings: 1,
+			Name: "missing year - warning only",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 0,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony",
+						Artists: []domain.Artist{
+							{Name: "Beethoven", Role: domain.RoleComposer},
+							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
+						},
+					},
+				},
+			},
+			WantPass:     false,
+			WantErrors:   0,
+			WantWarnings: 1,
 		},
 		{
-			name: "missing track title",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Vienna Phil", domain.RoleEnsemble)
-				track, _ := domain.NewTrack(1, 1, "", []domain.Artist{composer, ensemble})
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:   false,
-			wantErrors: 1,
+			Name: "missing track title",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "",
+						Artists: []domain.Artist{
+							{Name: "Beethoven", Role: domain.RoleComposer},
+							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
+						},
+					},
+				},
+			},
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name: "missing artists",
-			actual: func() *domain.Album {
-				track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{})
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:   false,
-			wantErrors: 1,
+			Name: "missing artists",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:    1,
+						Track:   1,
+						Title:   "Symphony",
+						Artists: []domain.Artist{},
+					},
+				},
+			},
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name: "only composer, no performers",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-				track, _ := domain.NewTrack(1, 1, "Symphony", []domain.Artist{composer})
-				album, _ := domain.NewAlbum("Beethoven Symphonies", 1963)
-				album.AddTrack(track)
-				return album
-			}(),
-			wantPass:   false,
-			wantErrors: 1,
+			Name: "only composer, no performers",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:    1,
+						Track:   1,
+						Title:   "Symphony",
+						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+					},
+				},
+			},
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name: "multiple tracks, some missing title",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Vienna Phil", domain.RoleEnsemble)
-				artists := []domain.Artist{composer, ensemble}
-
-				track1, _ := domain.NewTrack(1, 1, "Symphony No. 1", artists)
-				track2, _ := domain.NewTrack(1, 2, "", artists)
-				track3, _ := domain.NewTrack(1, 3, "Symphony No. 3", artists)
-
-				album, _ := domain.NewAlbum("Beethoven", 1963)
-				album.AddTrack(track1)
-				album.AddTrack(track2)
-				album.AddTrack(track3)
-				return album
-			}(),
-			wantPass:   false,
-			wantErrors: 1,
+			Name: "multiple tracks, some missing title",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:    1,
+						Track:   1,
+						Title:   "Symphony No. 1",
+						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+					},
+					{
+						Disc:    1,
+						Track:   2,
+						Title:   "",
+						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+					},
+					{
+						Disc:    1,
+						Track:   3,
+						Title:   "Symphony No. 3",
+						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+					},
+				},
+			},
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name: "multiple issues",
-			actual: func() *domain.Album {
-				composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Vienna Phil", domain.RoleEnsemble)
-				artists := []domain.Artist{composer, ensemble}
-
-				track1, _ := domain.NewTrack(1, 1, "", artists)
-				track2, _ := domain.NewTrack(1, 2, "Symphony", []domain.Artist{})
-
-				album, _ := domain.NewAlbum("", 0)
-				album.AddTrack(track1)
-				album.AddTrack(track2)
-				return album
-			}(),
-			wantPass:     false,
-			wantErrors:   3, // Album title, track1 title, track2 artists
-			wantWarnings: 1, // Year
+			Name: "multiple issues",
+			Actual: &domain.Album{
+				Title:        "Beethoven Symphonies",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{
+					{
+						Disc:    1,
+						Track:   1,
+						Title:   "",
+						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+					},
+					{
+						Disc:    1,
+						Track:   2,
+						Title:   "Symphony",
+						Artists: []domain.Artist{},
+					},
+				},
+			},
+			WantPass:     false,
+			WantErrors:   3, // Album title, track1 title, track2 artists
+			WantWarnings: 1, // Year
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.RequiredTags(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.RequiredTags(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass {
+			if !tt.WantPass {
 				errorCount := 0
 				warningCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelError {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelError {
 						errorCount++
-					} else if issue.Level() == domain.LevelWarning {
+					}
+					if issue.Level == domain.LevelWarning {
 						warningCount++
 					}
 				}
 
-				if errorCount != tt.wantErrors {
-					t.Errorf("Errors = %d, want %d", errorCount, tt.wantErrors)
+				if errorCount != tt.WantErrors {
+					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
 				}
-				if warningCount != tt.wantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.wantWarnings)
+				if warningCount != tt.WantWarnings {
+					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
 				}
 
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})

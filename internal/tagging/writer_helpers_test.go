@@ -9,67 +9,67 @@ import (
 // TestFormatArtists tests formatting multiple artists according to classical music rules.
 func TestFormatArtists(t *testing.T) {
 	tests := []struct {
-		name    string
-		artists []domain.Artist
-		want    string
+		Name    string
+		Artists []domain.Artist
+		Want    string
 	}{
 		{
-			name:    "single soloist",
-			artists: []domain.Artist{mustArtist("Glenn Gould", domain.RoleSoloist)},
-			want:    "Glenn Gould",
+			Name:    "single soloist",
+			Artists: []domain.Artist{{Name: "Glenn Gould", Role: domain.RoleSoloist}},
+			Want:    "Glenn Gould",
 		},
 		{
-			name: "soloist and ensemble",
-			artists: []domain.Artist{
-				mustArtist("Anne-Sophie Mutter", domain.RoleSoloist),
-				mustArtist("Berlin Philharmonic", domain.RoleEnsemble),
+			Name: "soloist and ensemble",
+			Artists: []domain.Artist{
+				{Name: "Anne-Sophie Mutter", Role: domain.RoleSoloist},
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
 			},
-			want: "Anne-Sophie Mutter, Berlin Philharmonic",
+			Want: "Anne-Sophie Mutter, Berlin Philharmonic",
 		},
 		{
-			name: "soloist, ensemble, and conductor",
-			artists: []domain.Artist{
-				mustArtist("Yo-Yo Ma", domain.RoleSoloist),
-				mustArtist("Chicago Symphony Orchestra", domain.RoleEnsemble),
-				mustArtist("Daniel Barenboim", domain.RoleConductor),
+			Name: "soloist, ensemble, and conductor",
+			Artists: []domain.Artist{
+				{Name: "Yo-Yo Ma", Role: domain.RoleSoloist},
+				{Name: "Chicago Symphony Orchestra", Role: domain.RoleEnsemble},
+				{Name: "Daniel Barenboim", Role: domain.RoleConductor},
 			},
-			want: "Yo-Yo Ma, Chicago Symphony Orchestra, Daniel Barenboim",
+			Want: "Yo-Yo Ma, Chicago Symphony Orchestra, Daniel Barenboim",
 		},
 		{
-			name: "multiple soloists",
-			artists: []domain.Artist{
-				mustArtist("Martha Argerich", domain.RoleSoloist),
-				mustArtist("Daniel Barenboim", domain.RoleSoloist),
+			Name: "multiple soloists",
+			Artists: []domain.Artist{
+				{Name: "Martha Argerich", Role: domain.RoleSoloist},
+				{Name: "Daniel Barenboim", Role: domain.RoleSoloist},
 			},
-			want: "Martha Argerich, Daniel Barenboim",
+			Want: "Martha Argerich, Daniel Barenboim",
 		},
 		{
-			name: "just ensemble",
-			artists: []domain.Artist{
-				mustArtist("The Academy of Ancient Music", domain.RoleEnsemble),
+			Name: "just ensemble",
+			Artists: []domain.Artist{
+				{Name: "The Academy of Ancient Music", Role: domain.RoleEnsemble},
 			},
-			want: "The Academy of Ancient Music",
+			Want: "The Academy of Ancient Music",
 		},
 		{
-			name: "ensemble and conductor",
-			artists: []domain.Artist{
-				mustArtist("London Symphony Orchestra", domain.RoleEnsemble),
-				mustArtist("Claudio Abbado", domain.RoleConductor),
+			Name: "ensemble and conductor",
+			Artists: []domain.Artist{
+				{Name: "London Symphony Orchestra", Role: domain.RoleEnsemble},
+				{Name: "Claudio Abbado", Role: domain.RoleConductor},
 			},
-			want: "London Symphony Orchestra, Claudio Abbado",
+			Want: "London Symphony Orchestra, Claudio Abbado",
 		},
 		{
-			name:    "empty artists",
-			artists: []domain.Artist{},
-			want:    "",
+			Name:    "empty artists",
+			Artists: []domain.Artist{},
+			Want:    "",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := FormatArtists(tt.artists)
-			if got != tt.want {
-				t.Errorf("FormatArtists() = %q, want %q", got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := FormatArtists(tt.Artists)
+			if got != tt.Want {
+				t.Errorf("FormatArtists() = %q, want %q", got, tt.Want)
 			}
 		})
 	}
@@ -78,98 +78,85 @@ func TestFormatArtists(t *testing.T) {
 // TestDetermineAlbumArtist tests determining the album artist from an album's tracks.
 func TestDetermineAlbumArtist(t *testing.T) {
 	tests := []struct {
-		name               string
-		album              *domain.Album
-		wantArtist         string
-		wantUniversalCount int
+		Name               string
+		Album              *domain.Album
+		WantArtist         string
+		WantUniversalCount int
 	}{
 		{
-			name: "single performer across all tracks",
-			album: func() *domain.Album {
-				composer, _ := domain.NewArtist("Bach", domain.RoleComposer)
-				performer, _ := domain.NewArtist("Glenn Gould", domain.RoleSoloist)
-
-				album, _ := domain.NewAlbum("Goldberg Variations", 1981)
-				track1, _ := domain.NewTrack(1, 1, "Aria", []domain.Artist{composer, performer})
-				track2, _ := domain.NewTrack(1, 2, "Variation 1", []domain.Artist{composer, performer})
-				track3, _ := domain.NewTrack(1, 3, "Variation 2", []domain.Artist{composer, performer})
-
-				album.AddTrack(track1)
-				album.AddTrack(track2)
-				album.AddTrack(track3)
+			Name: "single performer across all tracks",
+			Album: func() *domain.Album {
+				composer := domain.Artist{Name: "Bach", Role: domain.RoleComposer}
+				performer := domain.Artist{Name: "Glenn Gould", Role: domain.RoleSoloist}
+				album := &domain.Album{
+					Title: "Goldberg Variations", OriginalYear: 1981,
+					Tracks: []*domain.Track{
+						&domain.Track{Disc: 1, Track: 1, Title: "Aria", Artists: []domain.Artist{composer, performer}},
+						&domain.Track{Disc: 1, Track: 2, Title: "Variation 1", Artists: []domain.Artist{composer, performer}},
+						&domain.Track{Disc: 1, Track: 3, Title: "Variation 2", Artists: []domain.Artist{composer, performer}},
+					},
+				}
 
 				return album
 			}(),
-			wantArtist:         "Glenn Gould",
-			wantUniversalCount: 1,
+			WantArtist:         "Glenn Gould",
+			WantUniversalCount: 1,
 		},
 		{
-			name: "single ensemble across all tracks",
-			album: func() *domain.Album {
-				composer, _ := domain.NewArtist("Mozart", domain.RoleComposer)
-				ensemble, _ := domain.NewArtist("Vienna Philharmonic", domain.RoleEnsemble)
-				conductor, _ := domain.NewArtist("Herbert von Karajan", domain.RoleConductor)
+			Name: "single ensemble across all tracks",
+			Album: func() *domain.Album {
+				composer := domain.Artist{Name: "Mozart", Role: domain.RoleComposer}
+				ensemble := domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}
+				conductor := domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}
 
-				album, _ := domain.NewAlbum("Symphony No. 40", 1975)
-				track1, _ := domain.NewTrack(1, 1, "I. Allegro", []domain.Artist{composer, ensemble, conductor})
-				track2, _ := domain.NewTrack(1, 2, "II. Andante", []domain.Artist{composer, ensemble, conductor})
-
-				album.AddTrack(track1)
-				album.AddTrack(track2)
+				album := &domain.Album{Title: "Symphony No. 40", OriginalYear: 1975,
+					Tracks: []*domain.Track{
+						&domain.Track{Disc: 1, Track: 1, Title: "I. Allegro", Artists: []domain.Artist{composer, ensemble, conductor}},
+						&domain.Track{Disc: 1, Track: 2, Title: "II. Andante", Artists: []domain.Artist{composer, ensemble, conductor}},
+					},
+				}
 
 				return album
 			}(),
-			wantArtist:         "Vienna Philharmonic, Herbert von Karajan",
-			wantUniversalCount: 2,
+			WantArtist:         "Vienna Philharmonic, Herbert von Karajan",
+			WantUniversalCount: 2,
 		},
 		{
-			name: "varying performers - returns empty",
-			album: func() *domain.Album {
-				composer, _ := domain.NewArtist("Various", domain.RoleComposer)
-				performer1, _ := domain.NewArtist("Artist 1", domain.RoleSoloist)
-				performer2, _ := domain.NewArtist("Artist 2", domain.RoleSoloist)
+			Name: "varying performers - returns empty",
+			Album: func() *domain.Album {
+				composer := domain.Artist{Name: "Various", Role: domain.RoleComposer}
+				performer1 := domain.Artist{Name: "Artist 1", Role: domain.RoleSoloist}
+				performer2 := domain.Artist{Name: "Artist 2", Role: domain.RoleSoloist}
 
-				album, _ := domain.NewAlbum("Compilation", 2020)
-				track1, _ := domain.NewTrack(1, 1, "Track 1", []domain.Artist{composer, performer1})
-				track2, _ := domain.NewTrack(1, 2, "Track 2", []domain.Artist{composer, performer2})
-
-				album.AddTrack(track1)
-				album.AddTrack(track2)
+				album := &domain.Album{Title: "Compilation", OriginalYear: 2020,
+					Tracks: []*domain.Track{
+						&domain.Track{Disc: 1, Track: 1, Title: "Track 1", Artists: []domain.Artist{composer, performer1}},
+						&domain.Track{Disc: 1, Track: 2, Title: "Track 2", Artists: []domain.Artist{composer, performer2}},
+					},
+				}
 
 				return album
 			}(),
-			wantArtist:         "",
-			wantUniversalCount: 0,
+			WantArtist:         "",
+			WantUniversalCount: 0,
 		},
 		{
-			name: "empty album",
-			album: func() *domain.Album {
-				album, _ := domain.NewAlbum("Empty", 2020)
-				return album
-			}(),
-			wantArtist:         "",
-			wantUniversalCount: 0,
+			Name: "empty album",
+			Album: &domain.Album{Title: "Empty", OriginalYear: 2020},
+			WantArtist:         "",
+			WantUniversalCount: 0,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotArtist, gotUniversal := DetermineAlbumArtist(tt.album)
-			if gotArtist != tt.wantArtist {
-				t.Errorf("DetermineAlbumArtist() artist = %q, want %q", gotArtist, tt.wantArtist)
+		t.Run(tt.Name, func(t *testing.T) {
+			gotArtist, gotUniversal := DetermineAlbumArtist(tt.Album)
+			if gotArtist != tt.WantArtist {
+				t.Errorf("DetermineAlbumArtist() artist = %q, want %q", gotArtist, tt.WantArtist)
 			}
-			if len(gotUniversal) != tt.wantUniversalCount {
-				t.Errorf("DetermineAlbumArtist() universal count = %d, want %d", len(gotUniversal), tt.wantUniversalCount)
+			if len(gotUniversal) != tt.WantUniversalCount {
+				t.Errorf("DetermineAlbumArtist() universal count = %d, want %d", len(gotUniversal), tt.WantUniversalCount)
 			}
 		})
 	}
-}
-
-// mustArtist is a test helper that creates an artist and panics on error.
-func mustArtist(name string, role domain.Role) domain.Artist {
-	artist, err := domain.NewArtist(name, role)
-	if err != nil {
-		panic(err)
-	}
-	return artist
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -15,65 +15,61 @@ var filenameTrackPattern = regexp.MustCompile(`^\d+[\s\-_\.]+(.+?)\.[\w]+$`)
 // FilenamesMatchTitles checks that filenames accurately reflect track titles (rule 2.3.11)
 func (r *Rules) FilenamesMatchTitles(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "2.3.11",
-		name:   "Filenames must accurately reflect track titles",
-		level:  domain.LevelError,
-		weight: 1.0,
+		ID:     "2.3.11",
+		Name:   "Filenames must accurately reflect track titles",
+		Level:  domain.LevelError,
+		Weight: 1.0,
 	}
-	
+
 	var issues []domain.ValidationIssue
-	
-	for _, track := range actual.Tracks() {
-		fileName := track.Name()
+
+	for _, track := range actual.Tracks {
+		fileName := track.Name
 		if fileName == "" {
 			continue // Will be caught by other rules
 		}
-		
-		trackTitle := track.Title()
+
+		trackTitle := track.Title
 		if trackTitle == "" {
 			continue // Will be caught by RequiredTags rule
 		}
-		
+
 		// Extract just the filename (not path)
 		parts := strings.Split(fileName, "/")
 		justFileName := parts[len(parts)-1]
-		
+
 		// Extract the title portion from filename
 		matches := filenameTrackPattern.FindStringSubmatch(justFileName)
 		if len(matches) < 2 {
 			// Can't parse filename - might be "track.flac" format
 			continue
 		}
-		
+
 		fileTitle := matches[1]
-		
+
 		// Normalize both titles for comparison
 		normalizedFileTitle := normalizeTitle(fileTitle)
 		normalizedTrackTitle := normalizeTitle(trackTitle)
-		
+
 		// Check for similarity
 		if !titlesMatch(normalizedFileTitle, normalizedTrackTitle) {
-			issues = append(issues, domain.NewIssue(
-				domain.LevelError,
-				track.Track(),
-				meta.id,
-				fmt.Sprintf("Track %s: Filename '%s' does not match track title '%s'",
+			issues = append(issues, domain.ValidationIssue{
+				Level: domain.LevelError,
+				Track: track.Track,
+				Rule:  meta.ID,
+				Message: fmt.Sprintf("Track %s: Filename '%s' does not match track title '%s'",
 					formatTrackNumber(track), fileTitle, trackTitle),
-			))
+			})
 		}
 	}
-	
-	if len(issues) == 0 {
-		return meta.Pass()
-	}
-	return meta.Fail(issues...)
+	return RuleResult{Meta: meta, Issues: issues}
 }
 
 // normalizeTitle normalizes a title for comparison
 func normalizeTitle(title string) string {
 	// Convert to lowercase
 	normalized := strings.ToLower(title)
-	
+
 	// Remove common punctuation that might differ
 	normalized = strings.ReplaceAll(normalized, ":", "")
 	normalized = strings.ReplaceAll(normalized, ",", "")
@@ -86,10 +82,10 @@ func normalizeTitle(title string) string {
 	normalized = strings.ReplaceAll(normalized, ")", "")
 	normalized = strings.ReplaceAll(normalized, "[", "")
 	normalized = strings.ReplaceAll(normalized, "]", "")
-	
+
 	// Replace multiple spaces with single space
 	normalized = regexp.MustCompile(`\s+`).ReplaceAllString(normalized, " ")
-	
+
 	return strings.TrimSpace(normalized)
 }
 
@@ -99,18 +95,18 @@ func titlesMatch(title1, title2 string) bool {
 	if title1 == title2 {
 		return true
 	}
-	
+
 	// Check if one is a substring of the other (handles abbreviations)
 	// "Symphony No 5" matches "Symphony No 5 in C Minor"
 	if strings.Contains(title1, title2) || strings.Contains(title2, title1) {
 		return true
 	}
-	
+
 	// Check edit distance for minor differences (typos, slight misspellings)
 	if levenshteinDistance(title1, title2) <= 3 {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -122,13 +118,13 @@ func levenshteinDistance(s1, s2 string) int {
 	if len(s2) == 0 {
 		return len(s1)
 	}
-	
+
 	// Create matrix
 	matrix := make([][]int, len(s1)+1)
 	for i := range matrix {
 		matrix[i] = make([]int, len(s2)+1)
 	}
-	
+
 	// Initialize first row and column
 	for i := 0; i <= len(s1); i++ {
 		matrix[i][0] = i
@@ -136,7 +132,7 @@ func levenshteinDistance(s1, s2 string) int {
 	for j := 0; j <= len(s2); j++ {
 		matrix[0][j] = j
 	}
-	
+
 	// Fill matrix
 	for i := 1; i <= len(s1); i++ {
 		for j := 1; j <= len(s2); j++ {
@@ -144,7 +140,7 @@ func levenshteinDistance(s1, s2 string) int {
 			if s1[i-1] != s2[j-1] {
 				cost = 1
 			}
-			
+
 			matrix[i][j] = min(
 				matrix[i-1][j]+1,      // deletion
 				matrix[i][j-1]+1,      // insertion
@@ -152,7 +148,7 @@ func levenshteinDistance(s1, s2 string) int {
 			)
 		}
 	}
-	
+
 	return matrix[len(s1)][len(s2)]
 }
 

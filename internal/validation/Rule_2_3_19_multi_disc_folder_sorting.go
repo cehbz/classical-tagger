@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -13,56 +13,56 @@ import (
 // INFO level - suggests folder names that sort properly
 func (r *Rules) MultiDiscFolderSorting(actual, reference *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		id:     "2.3.19",
-		name:   "Multi-disc folders should sort properly (CD1, CD2, not CD1, CD10, CD2)",
-		level:  domain.LevelInfo,
-		weight: 0.1,
+		ID:     "2.3.19",
+		Name:   "Multi-disc folders should sort properly (CD1, CD2, not CD1, CD10, CD2)",
+		Level:  domain.LevelInfo,
+		Weight: 0.1,
 	}
-	
+
 	var issues []domain.ValidationIssue
-	
+
 	// Find disc count
 	maxDisc := 0
-	for _, track := range actual.Tracks() {
-		if track.Disc() > maxDisc {
-			maxDisc = track.Disc()
+	for _, track := range actual.Tracks {
+		if track.Disc > maxDisc {
+			maxDisc = track.Disc
 		}
 	}
-	
+
 	// Only relevant for multi-disc releases
 	if maxDisc <= 1 {
-		return meta.Pass()
+		return RuleResult{Meta: meta, Issues: nil}
 	}
-	
+
 	// Collect folder names used
 	discFolders := make(map[int]string)
-	for _, track := range actual.Tracks() {
-		if track.Name() == "" {
+	for _, track := range actual.Tracks {
+		if track.Name == "" {
 			continue
 		}
-		
+
 		// Extract folder name if present
-		dir := filepath.Dir(track.Name())
+		dir := filepath.Dir(track.Name)
 		if dir != "." && dir != "" {
-			discFolders[track.Disc()] = dir
+			discFolders[track.Disc] = dir
 		}
 	}
-	
+
 	if len(discFolders) == 0 {
-		return meta.Pass() // No folders used
+		return RuleResult{Meta: meta, Issues: nil} // No folders used
 	}
-	
+
 	// Check if folder names will sort properly
 	var folderNames []string
 	for _, folder := range discFolders {
 		folderNames = append(folderNames, folder)
 	}
-	
+
 	// Check natural sort order
 	sortedFolders := make([]string, len(folderNames))
 	copy(sortedFolders, folderNames)
 	sort.Strings(sortedFolders)
-	
+
 	// Check if numeric order matches alphabetic sort
 	if maxDisc >= 10 {
 		// Potential issue if not zero-padded
@@ -74,24 +74,20 @@ func (r *Rules) MultiDiscFolderSorting(actual, reference *domain.Album) RuleResu
 				hasProperPadding := strings.Contains(lowerFolder, "cd0") ||
 					strings.Contains(lowerFolder, "disc0") ||
 					strings.Contains(lowerFolder, "disk0")
-				
+
 				if !hasProperPadding && (strings.Contains(lowerFolder, "cd") ||
 					strings.Contains(lowerFolder, "disc") ||
 					strings.Contains(lowerFolder, "disk")) {
-					issues = append(issues, domain.NewIssue(
-						domain.LevelInfo,
-						0,
-						meta.id,
-						fmt.Sprintf("Disc %d folder '%s' may not sort properly (recommend CD01, CD02, etc. for 10+ discs)",
+					issues = append(issues, domain.ValidationIssue{
+						Level: domain.LevelInfo,
+						Track: 0,
+						Rule:  meta.ID,
+						Message: fmt.Sprintf("Disc %d folder '%s' may not sort properly (recommend CD01, CD02, etc. for 10+ discs)",
 							disc, folder),
-					))
+					})
 				}
 			}
 		}
 	}
-	
-	if len(issues) == 0 {
-		return meta.Pass()
-	}
-	return meta.Fail(issues...)
+	return RuleResult{Meta: meta, Issues: issues}
 }

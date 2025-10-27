@@ -2,91 +2,91 @@ package validation
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestRules_PerformerFormat(t *testing.T) {
 	rules := NewRules()
-	
+
 	tests := []struct {
-		name       string
-		actual     *domain.Album
-		wantPass   bool
-		wantErrors int
-		wantInfo   int
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantErrors int
+		WantInfo   int
 	}{
 		{
-			name: "valid - soloist, ensemble, conductor",
-			actual: buildAlbumWithArtists(
+			Name: "valid - soloist, ensemble, conductor",
+			Actual: buildAlbumWithArtists(
 				"Ludwig van Beethoven", domain.RoleComposer,
 				"Maurizio Pollini", domain.RoleSoloist,
 				"Berlin Philharmonic", domain.RoleEnsemble,
 				"Claudio Abbado", domain.RoleConductor,
 			),
-			wantPass: true, // Info messages don't fail
-			wantInfo: 1,
+			WantPass: true, // Info messages don't fail
+			WantInfo: 1,
 		},
 		{
-			name: "valid - just ensemble and conductor",
-			actual: buildAlbumWithArtists(
+			Name: "valid - just ensemble and conductor",
+			Actual: buildAlbumWithArtists(
 				"Bach", domain.RoleComposer,
 				"Vienna Philharmonic", domain.RoleEnsemble,
 				"Herbert von Karajan", domain.RoleConductor,
 			),
-			wantPass: true,
-			wantInfo: 1,
+			WantPass: true,
+			WantInfo: 1,
 		},
 		{
-			name: "valid - just ensemble (no conductor)",
-			actual: buildAlbumWithArtists(
+			Name: "valid - just ensemble (no conductor)",
+			Actual: buildAlbumWithArtists(
 				"Bach", domain.RoleComposer,
 				"Emerson String Quartet", domain.RoleEnsemble,
 			),
-			wantPass: true,
-			wantInfo: 1,
+			WantPass: true,
+			WantInfo: 1,
 		},
 		{
-			name: "valid - multiple soloists",
-			actual: buildAlbumWithArtists(
+			Name: "valid - multiple soloists",
+			Actual: buildAlbumWithArtists(
 				"Mozart", domain.RoleComposer,
 				"Anne-Sophie Mutter", domain.RoleSoloist,
 				"Yo-Yo Ma", domain.RoleSoloist,
 				"Chamber Orchestra of Europe", domain.RoleEnsemble,
 				"Daniel Barenboim", domain.RoleConductor,
 			),
-			wantPass: true,
-			wantInfo: 1,
+			WantPass: true,
+			WantInfo: 1,
 		},
 		{
-			name: "invalid - only composer (no performers)",
-			actual: buildAlbumWithArtists(
+			Name: "invalid - only composer (no performers)",
+			Actual: buildAlbumWithArtists(
 				"Beethoven", domain.RoleComposer,
 			),
-			wantPass:   false,
-			wantErrors: 1,
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name: "invalid - only composer and arranger",
-			actual: buildAlbumWithArtists(
+			Name: "invalid - only composer and arranger",
+			Actual: buildAlbumWithArtists(
 				"Bach", domain.RoleComposer,
 				"Busoni", domain.RoleArranger,
 			),
-			wantPass:   false,
-			wantErrors: 1,
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			name: "valid - soloist only (solo piano)",
-			actual: buildAlbumWithArtists(
+			Name: "valid - soloist only (solo piano)",
+			Actual: buildAlbumWithArtists(
 				"Chopin", domain.RoleComposer,
 				"Martha Argerich", domain.RoleSoloist,
 			),
-			wantPass: true,
-			wantInfo: 1,
+			WantPass: true,
+			WantInfo: 1,
 		},
 		{
-			name: "valid - opera with multiple soloists and ensemble",
-			actual: buildAlbumWithArtists(
+			Name: "valid - opera with multiple soloists and ensemble",
+			Actual: buildAlbumWithArtists(
 				"Verdi", domain.RoleComposer,
 				"Renée Fleming", domain.RoleSoloist,
 				"Plácido Domingo", domain.RoleSoloist,
@@ -94,36 +94,36 @@ func TestRules_PerformerFormat(t *testing.T) {
 				"Metropolitan Opera Orchestra", domain.RoleEnsemble,
 				"James Levine", domain.RoleConductor,
 			),
-			wantPass: true,
-			wantInfo: 1,
+			WantPass: true,
+			WantInfo: 1,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.PerformerFormat(tt.actual, tt.actual)
-			
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.PerformerFormat(tt.Actual, tt.Actual)
+
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
-			
-			if !tt.wantPass {
+
+			if !tt.WantPass {
 				errorCount := 0
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelError {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelError {
 						errorCount++
-					} else if issue.Level() == domain.LevelInfo {
+					} else if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
-				
-				if errorCount != tt.wantErrors {
-					t.Errorf("Errors = %d, want %d", errorCount, tt.wantErrors)
+
+				if errorCount != tt.WantErrors {
+					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
 				}
-				
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})
@@ -132,63 +132,63 @@ func TestRules_PerformerFormat(t *testing.T) {
 
 func TestFormatArtistsByRole(t *testing.T) {
 	tests := []struct {
-		name       string
-		soloists   []domain.Artist
-		ensembles  []domain.Artist
-		conductors []domain.Artist
-		want       string
+		Name       string
+		Soloists   []domain.Artist
+		Ensembles  []domain.Artist
+		Conductors []domain.Artist
+		Want       string
 	}{
 		{
-			name: "all roles present",
-			soloists: []domain.Artist{
+			Name: "all roles present",
+			Soloists: []domain.Artist{
 				mustCreateArtist("Maurizio Pollini", domain.RoleSoloist),
 			},
-			ensembles: []domain.Artist{
+			Ensembles: []domain.Artist{
 				mustCreateArtist("Berlin Philharmonic", domain.RoleEnsemble),
 			},
-			conductors: []domain.Artist{
+			Conductors: []domain.Artist{
 				mustCreateArtist("Claudio Abbado", domain.RoleConductor),
 			},
-			want: "Maurizio Pollini, Berlin Philharmonic, Claudio Abbado",
+			Want: "Maurizio Pollini, Berlin Philharmonic, Claudio Abbado",
 		},
 		{
-			name: "multiple soloists",
-			soloists: []domain.Artist{
+			Name: "multiple soloists",
+			Soloists: []domain.Artist{
 				mustCreateArtist("Anne-Sophie Mutter", domain.RoleSoloist),
 				mustCreateArtist("Yo-Yo Ma", domain.RoleSoloist),
 			},
-			ensembles: []domain.Artist{
+			Ensembles: []domain.Artist{
 				mustCreateArtist("Chamber Orchestra", domain.RoleEnsemble),
 			},
-			conductors: []domain.Artist{
+			Conductors: []domain.Artist{
 				mustCreateArtist("Daniel Barenboim", domain.RoleConductor),
 			},
-			want: "Anne-Sophie Mutter, Yo-Yo Ma, Chamber Orchestra, Daniel Barenboim",
+			Want: "Anne-Sophie Mutter, Yo-Yo Ma, Chamber Orchestra, Daniel Barenboim",
 		},
 		{
-			name: "just ensemble and conductor",
-			ensembles: []domain.Artist{
+			Name: "just ensemble and conductor",
+			Ensembles: []domain.Artist{
 				mustCreateArtist("Vienna Philharmonic", domain.RoleEnsemble),
 			},
-			conductors: []domain.Artist{
+			Conductors: []domain.Artist{
 				mustCreateArtist("Herbert von Karajan", domain.RoleConductor),
 			},
-			want: "Vienna Philharmonic, Herbert von Karajan",
+			Want: "Vienna Philharmonic, Herbert von Karajan",
 		},
 		{
-			name: "just ensemble",
-			ensembles: []domain.Artist{
+			Name: "just ensemble",
+			Ensembles: []domain.Artist{
 				mustCreateArtist("Emerson String Quartet", domain.RoleEnsemble),
 			},
-			want: "Emerson String Quartet",
+			Want: "Emerson String Quartet",
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := formatArtistsByRole(tt.soloists, tt.ensembles, tt.conductors)
-			if got != tt.want {
-				t.Errorf("formatArtistsByRole() = %q, want %q", got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := formatArtistsByRole(tt.Soloists, tt.Ensembles, tt.Conductors)
+			if got != tt.Want {
+				t.Errorf("formatArtistsByRole() = %q, want %q", got, tt.Want)
 			}
 		})
 	}
@@ -199,26 +199,20 @@ func buildAlbumWithArtists(artistSpecs ...interface{}) *domain.Album {
 	if len(artistSpecs)%2 != 0 {
 		panic("artistSpecs must be pairs of (name, role)")
 	}
-	
+
 	var artists []domain.Artist
 	for i := 0; i < len(artistSpecs); i += 2 {
 		name := artistSpecs[i].(string)
 		role := artistSpecs[i+1].(domain.Role)
-		artist, _ := domain.NewArtist(name, role)
+		artist := domain.Artist{Name: name, Role: role}
 		artists = append(artists, artist)
 	}
-	
-	track, _ := domain.NewTrack(1, 1, "Symphony No. 5", artists)
-	album, _ := domain.NewAlbum("Classical Album", 1963)
-	album.AddTrack(track)
-	return album
+
+	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony No. 5", Artists: artists}
+	return &domain.Album{Title: "Classical Album", OriginalYear: 1963, Tracks: []*domain.Track{&track}}
 }
 
 // Helper to create artist without error handling
 func mustCreateArtist(name string, role domain.Role) domain.Artist {
-	artist, err := domain.NewArtist(name, role)
-	if err != nil {
-		panic(err)
-	}
-	return artist
+	return domain.Artist{Name: name, Role: role}
 }

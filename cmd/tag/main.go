@@ -39,8 +39,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Loaded album: %s (%d)\n", album.Title(), album.OriginalYear())
-	fmt.Printf("  Tracks: %d\n\n", len(album.Tracks()))
+	fmt.Printf("✓ Loaded album: %s (%d)\n", album.Title, album.OriginalYear)
+	fmt.Printf("  Tracks: %d\n\n", len(album.Tracks))
 
 	// Validate metadata unless --force
 	if !*force {
@@ -50,10 +50,10 @@ func main() {
 
 		hasErrors := false
 		for _, issue := range issues {
-			if issue.Level() == domain.LevelError {
+			if issue.Level == domain.LevelError {
 				hasErrors = true
 				fmt.Printf("❌ %s\n", issue)
-			} else if issue.Level() == domain.LevelWarning {
+			} else if issue.Level == domain.LevelWarning {
 				fmt.Printf("⚠️  %s\n", issue)
 			}
 		}
@@ -93,9 +93,9 @@ func main() {
 	for track, file := range matches {
 		if file == "" {
 			unmatchedTracks++
-			fmt.Printf("⚠️  No file found for track %d: %s\n", track.Track(), track.Title())
+			fmt.Printf("⚠️  No file found for track %d: %s\n", track.Track, track.Title)
 		} else {
-			fmt.Printf("✓ Track %d -> %s\n", track.Track(), filepath.Base(file))
+			fmt.Printf("✓ Track %d -> %s\n", track.Track, filepath.Base(file))
 		}
 	}
 
@@ -121,11 +121,16 @@ func main() {
 		fmt.Printf("Would write tagged files to: %s\n", outDir)
 		fmt.Println("Would apply tags to the following files:")
 		for track, file := range matches {
+			composers := track.Composers()
+			composerName := ""
+			if len(composers) > 0 {
+				composerName = composers[0].Name
+			}
 			if file != "" {
 				destPath := filepath.Join(outDir, filepath.Base(file))
 				fmt.Printf("  %s -> %s\n", filepath.Base(file), destPath)
-				fmt.Printf("    Title: %s\n", track.Title())
-				fmt.Printf("    Composer: %s\n", track.Composer().Name())
+				fmt.Printf("    Title: %s\n", track.Title)
+				fmt.Printf("    Composer: %s\n", composerName)
 			}
 		}
 		fmt.Println("\nNo files were modified.")
@@ -218,11 +223,11 @@ func FindFLACFiles(dir string) ([]string, error) {
 func MatchTracksToFiles(album *domain.Album, files []string) map[*domain.Track]string {
 	matches := make(map[*domain.Track]string)
 
-	for _, track := range album.Tracks() {
+	for _, track := range album.Tracks {
 		matches[track] = ""
 
 		// Try to find file by track number prefix
-		trackPrefix := fmt.Sprintf("%02d", track.Track())
+		trackPrefix := fmt.Sprintf("%02d", track.Track)
 
 		for _, file := range files {
 			base := filepath.Base(file)

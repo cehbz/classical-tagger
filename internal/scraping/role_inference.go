@@ -2,7 +2,17 @@ package scraping
 
 import (
 	"strings"
+
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
+
+type ArtistInference struct {
+	OriginalText string
+	Artist domain.Artist
+	Reason string
+	Confidence string
+	AlternateRoles []domain.Role
+}
 
 // Ensemble keywords that indicate an ensemble/orchestra/choir
 var ensembleKeywords = []string{
@@ -43,30 +53,58 @@ func InferArtistRoleWithContext(text string, afterEnsemble bool) ArtistInference
 				confidence = "medium"
 			}
 
-			return NewArtistInference(text, text, "ensemble", confidence).
-				WithReason("keyword: '" + origKeyword + "' indicates ensemble")
+			return ArtistInference{
+				OriginalText: text,
+				Artist: domain.Artist{
+					Name: text,
+					Role: domain.RoleEnsemble,
+				},
+				Reason: "keyword: '" + origKeyword + "' indicates ensemble",
+				Confidence: confidence,
+			}
 		}
 	}
 
 	// Check for titles (medium confidence for conductor)
 	for _, title := range titleKeywords {
 		if strings.HasPrefix(lowerText, title+" ") {
-			inference := NewArtistInference(text, text, "conductor", "medium").
-				WithReason("title '" + title + "' suggests conductor or notable performer")
-			return inference.WithAlternateRole("soloist")
+			return ArtistInference{
+				OriginalText: text,
+				Artist: domain.Artist{
+					Name: text,
+					Role: domain.RoleConductor,
+				},
+				Reason: "title '" + title + "' suggests conductor or notable performer",
+				Confidence: "medium",
+				AlternateRoles: []domain.Role{domain.RoleSoloist},
+			}
 		}
 	}
 
 	// Context: name after ensemble suggests conductor (high confidence)
 	if afterEnsemble {
-		return NewArtistInference(text, text, "conductor", "high").
-			WithReason("positioned after ensemble; typical conductor position")
+		return ArtistInference{
+			OriginalText: text,
+			Artist: domain.Artist{
+				Name: text,
+				Role: domain.RoleConductor,
+			},
+			Reason: "positioned after ensemble; typical conductor position",
+			Confidence: "high",
+		}
 	}
 
 	// Default: assume soloist (medium confidence, could be conductor)
-	inference := NewArtistInference(text, text, "soloist", "medium").
-		WithReason("default assumption for individual name")
-	return inference.WithAlternateRole("conductor")
+	return ArtistInference{
+		OriginalText: text,
+		Artist: domain.Artist{
+			Name: text,
+			Role: domain.RoleSoloist,
+		},
+		Reason: "default assumption for individual name",
+		Confidence: "medium",
+		AlternateRoles: []domain.Role{domain.RoleConductor},
+	}
 }
 
 // ParseArtistList parses a comma-separated list of artists and infers roles.
@@ -91,7 +129,7 @@ func ParseArtistList(text string) []ArtistInference {
 		inferences = append(inferences, inference)
 
 		// Track if this was an ensemble for next iteration
-		previousWasEnsemble = inference.InferredRole() == "ensemble"
+		previousWasEnsemble = inference.Artist.Role == domain.RoleEnsemble
 	}
 
 	return inferences
@@ -103,14 +141,14 @@ func InferArtistRoleWithAlternates(text string) ArtistInference {
 	inference := InferArtistRole(text)
 
 	// For low/medium confidence, add alternates
-	if inference.Confidence() != "high" {
-		role := inference.InferredRole()
+	if inference.Confidence != "high" {
+		role := inference.Artist.Role
 
 		// Add common alternates based on primary inference
-		if role == "soloist" {
-			inference = inference.WithAlternateRole("conductor")
-		} else if role == "conductor" {
-			inference = inference.WithAlternateRole("soloist")
+		if role == domain.RoleSoloist {
+			inference.AlternateRoles = append(inference.AlternateRoles, domain.RoleConductor)
+		} else if role == domain.RoleConductor {
+			inference.AlternateRoles = append(inference.AlternateRoles, domain.RoleSoloist)
 		}
 	}
 
@@ -119,21 +157,21 @@ func InferArtistRoleWithAlternates(text string) ArtistInference {
 
 // IsLowConfidence returns true if the inference confidence is low or medium.
 func IsLowConfidence(inference ArtistInference) bool {
-	return inference.Confidence() == "low" || inference.Confidence() == "medium"
+	return inference.Confidence == "low" || inference.Confidence == "medium"
 }
 
 // FormatInferenceForJSON formats an ArtistInference for JSON parsing notes.
 func FormatInferenceForJSON(inference ArtistInference) map[string]interface{} {
 	result := map[string]interface{}{
-		"text":       inference.OriginalText(),
-		"name":       inference.ParsedName(),
-		"role":       inference.InferredRole(),
-		"confidence": inference.Confidence(),
-		"reason":     inference.Reason(),
+		"text":       inference.OriginalText,
+		"name":       inference.Artist.Name,
+		"role":       inference.Artist.Role,
+		"confidence": inference.Confidence,
+		"reason":     inference.Reason,
 	}
 
-	if len(inference.AlternateRoles()) > 0 {
-		result["alternate_roles"] = inference.AlternateRoles()
+	if len(inference.AlternateRoles) > 0 {
+		result["alternate_roles"] = inference.AlternateRoles
 	}
 
 	return result

@@ -2,90 +2,90 @@ package validation
 
 import (
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestRules_RecordingDateVsYear(t *testing.T) {
 	rules := NewRules()
-	
+
 	tests := []struct {
-		name      string
-		actual    *domain.Album
-		reference *domain.Album
-		wantPass  bool
-		wantInfo  int
+		Name      string
+		Actual    *domain.Album
+		Reference *domain.Album
+		WantPass  bool
+		WantInfo  int
 	}{
 		{
-			name:     "pass - no edition year",
-			actual:   buildAlbumWithTitle("Symphony", "No. 9"),
-			wantPass: true,
+			Name:     "pass - no edition year",
+			Actual:   buildAlbumWithTitle("Symphony", "No. 9"),
+			WantPass: true,
 		},
 		{
-			name:     "pass - same year",
-			actual:   buildAlbumWithEditionYear(1963, 1963),
-			wantPass: true,
+			Name:     "pass - same year",
+			Actual:   buildAlbumWithEditionYear(1963, 1963),
+			WantPass: true,
 		},
 		{
-			name:     "pass - small difference (1-2 years)",
-			actual:   buildAlbumWithEditionYear(1963, 1965),
-			wantPass: true,
+			Name:     "pass - small difference (1-2 years)",
+			Actual:   buildAlbumWithEditionYear(1963, 1965),
+			WantPass: true,
 		},
 		{
-			name:     "info - moderate gap (3-10 years)",
-			actual:   buildAlbumWithEditionYear(1963, 1968),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - moderate gap (3-10 years)",
+			Actual:   buildAlbumWithEditionYear(1963, 1968),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "info - large gap (>10 years)",
-			actual:   buildAlbumWithEditionYear(1963, 1990),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - large gap (>10 years)",
+			Actual:   buildAlbumWithEditionYear(1963, 1990),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:     "info - edition before recording",
-			actual:   buildAlbumWithEditionYear(1990, 1985),
-			wantPass: false,
-			wantInfo: 1,
+			Name:     "info - edition before recording",
+			Actual:   buildAlbumWithEditionYear(1990, 1985),
+			WantPass: false,
+			WantInfo: 1,
 		},
 		{
-			name:      "info - differs from reference",
-			actual:    buildAlbumWithTitle("Symphony", "No. 9"),
-			reference: buildAlbumWithTitle("Symphony", "Number nine"),
-			wantPass:  false,
-			wantInfo:  1,
+			Name:      "info - differs from reference",
+			Actual:    buildAlbumWithTitle("Symphony", "No. 9"),
+			Reference: buildAlbumWithTitle("Symphony", "Number nine"),
+			WantPass:  false,
+			WantInfo:  1,
 		},
 		{
-			name:      "pass - close to reference",
-			actual:    buildAlbumWithTitle("Symphony", "No. 9"),
-			reference: buildAlbumWithTitle("Symphony", "No 9"),
-			wantPass:  true,
+			Name:      "pass - close to reference",
+			Actual:    buildAlbumWithTitle("Symphony", "No. 9"),
+			Reference: buildAlbumWithTitle("Symphony", "No 9"),
+			WantPass:  true,
 		},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.RecordingDateVsYear(tt.actual, tt.reference)
-			
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.RecordingDateVsYear(tt.Actual, tt.Reference)
+
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
-			
-			if !tt.wantPass {
+
+			if !tt.WantPass {
 				infoCount := 0
-				for _, issue := range result.Issues() {
-					if issue.Level() == domain.LevelInfo {
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelInfo {
 						infoCount++
 					}
 				}
-				
-				if infoCount != tt.wantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.wantInfo)
+
+				if infoCount != tt.WantInfo {
+					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
 				}
-				
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue [%s]: %s", issue.Level(), issue.Message())
+
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
 			}
 		})

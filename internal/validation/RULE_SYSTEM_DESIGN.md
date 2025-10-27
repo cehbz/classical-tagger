@@ -45,7 +45,7 @@ type RuleResult struct {
 ```
 
 **Methods:**
-- `Meta() RuleMetadata`
+- `Meta RuleMetadata`
 - `Issues() []ValidationIssue`
 - `Passed() bool` - True if no issues
 
@@ -101,32 +101,32 @@ Every rule method follows this pattern:
 func (r *Rules) RuleName(actual, reference *domain.AlbumMetadata) RuleResult {
     // 1. Define metadata
     meta := RuleMetadata{
-        id:     "section.number",
-        name:   "Human readable description",
-        level:  LevelError,  // or LevelWarning
-        weight: 1.0,
+        ID:     "section.number",
+        Name:   "Human readable description",
+        Level:  LevelError,  // or LevelWarning
+        Weight: 1.0,
     }
     
     // 2. Collect issues
     var issues []ValidationIssue
     
     // 3. Perform validation checks
-    for _, track := range actual.Tracks() {
+    for _, track := range actual.Tracks {
         if violatesRule(track) {
-            issues = append(issues, NewIssue(
-                LevelError,
-                track.Track(),
-                meta.id,
-                "Description of violation",
-            ))
+            issues = append(issues, ValidationIssue{
+                Level: LevelError,
+                Track: track.Track,
+                Rule: meta.ID,
+                Message: "Description of violation",
+            })
         }
     }
     
     // 4. Return result
     if len(issues) == 0 {
-        return meta.Pass()
+        return meta.Pass
     }
-    return meta.Fail(issues...)
+    return RuleResult{Meta: meta, Issues: issues}
 }
 ```
 
@@ -171,13 +171,13 @@ Where:
 func (r *ValidationResult) ImprovementScore() float64 {
     maxPenalty := 0.0
     for _, rr := range r.ruleResults {
-        maxPenalty += rr.Meta().Weight()
+        maxPenalty += rr.Meta.Weight
     }
     
     actualPenalty := 0.0
     for _, rr := range r.ruleResults {
         if !rr.Passed() {
-            actualPenalty += rr.Meta().Weight()
+            actualPenalty += rr.Meta.Weight
         }
     }
     
@@ -212,18 +212,18 @@ internal/validation/
 ```go
 func (r *Rules) MyCheck(actual, reference *domain.AlbumMetadata) RuleResult {
     meta := RuleMetadata{
-        id:     "2.3.X",
-        name:   "My validation check",
-        level:  LevelError,
-        weight: 1.0,
+        ID:     "2.3.X",
+        Name:   "My validation check",
+        Level:  LevelError,
+        Weight: 1.0,
     }
     
     // ... validation logic ...
     
     if len(issues) == 0 {
-        return meta.Pass()
+        return meta.Pass
     }
-    return meta.Fail(issues...)
+    return RuleResult{Meta: meta, Issues: issues}
 }
 ```
 
@@ -255,7 +255,7 @@ func TestRules_PathLength(t *testing.T) {
     }
     
     for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
+        t.Run(tt.Name, func(t *testing.T) {
             result := rules.PathLength(tt.album, tt.album)
             // Assert result...
         })

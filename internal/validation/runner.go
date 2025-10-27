@@ -2,7 +2,7 @@ package validation
 
 import (
 	"math"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -57,20 +57,20 @@ func (r *ValidationResult) WarningCount() int {
 func (r *ValidationResult) ImprovementScore() float64 {
 	maxPenalty := 0.0
 	for _, rr := range r.ruleResults {
-		maxPenalty += rr.Meta().Weight()
+		maxPenalty += rr.Meta.Weight
 	}
-	
+
 	if maxPenalty == 0 {
 		return 0
 	}
-	
+
 	actualPenalty := 0.0
 	for _, rr := range r.ruleResults {
 		if !rr.Passed() {
-			actualPenalty += rr.Meta().Weight()
+			actualPenalty += rr.Meta.Weight
 		}
 	}
-	
+
 	return math.Max(0, 1.0-(actualPenalty/maxPenalty))
 }
 
@@ -88,7 +88,7 @@ func (r *ValidationResult) FailedRules() []RuleResult {
 // RuleByID finds a specific rule result by its ID
 func (r *ValidationResult) RuleByID(id string) *RuleResult {
 	for _, rr := range r.ruleResults {
-		if rr.Meta().ID() == id {
+		if rr.Meta.ID == id {
 			return &rr
 		}
 	}
@@ -98,23 +98,23 @@ func (r *ValidationResult) RuleByID(id string) *RuleResult {
 // RunAll executes all provided rules and aggregates the results
 func RunAll(actual, reference *domain.Album, rules []RuleFunc) *ValidationResult {
 	result := &ValidationResult{
-		albumPath:   actual.Title(), // Use title as path for now
+		albumPath:   actual.Title, // Use title as path for now
 		totalRules:  len(rules),
 		ruleResults: make([]RuleResult, 0, len(rules)),
 	}
-	
+
 	for _, ruleFunc := range rules {
 		ruleResult := ruleFunc(actual, reference)
 		result.ruleResults = append(result.ruleResults, ruleResult)
-		
+
 		if ruleResult.Passed() {
 			result.passedRules++
 		} else {
 			result.failedRules++
-			
+
 			// Count errors and warnings
-			for _, issue := range ruleResult.Issues() {
-				switch issue.Level() {
+			for _, issue := range ruleResult.Issues {
+				switch issue.Level {
 				case domain.LevelError:
 					result.errorCount++
 				case domain.LevelWarning:
@@ -123,6 +123,6 @@ func RunAll(actual, reference *domain.Album, rules []RuleFunc) *ValidationResult
 			}
 		}
 	}
-	
+
 	return result
 }

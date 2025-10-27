@@ -11,10 +11,10 @@ import (
 
 func TestParseLeadingTrackNumber(t *testing.T) {
 	tests := []struct {
-		name string
-		in   string
-		want int
-		ok   bool
+		Name string
+		In   string
+		Want int
+		Ok   bool
 	}{
 		{"two-digit with dash", "01 - Title.flac", 1, true},
 		{"multi-digit no dash", "123 Title.flac", 123, true},
@@ -26,16 +26,16 @@ func TestParseLeadingTrackNumber(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseLeadingTrackNumber(tt.in)
-			if tt.ok && err != nil {
+		t.Run(tt.Name, func(t *testing.T) {
+			got, err := parseLeadingTrackNumber(tt.In)
+			if tt.Ok && err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
-			if !tt.ok && err == nil {
+			if !tt.Ok && err == nil {
 				t.Fatalf("expected error, got nil")
 			}
-			if tt.ok && got != tt.want {
-				t.Fatalf("got %d, want %d", got, tt.want)
+			if tt.Ok && got != tt.Want {
+				t.Fatalf("got %d, want %d", got, tt.Want)
 			}
 		})
 	}
@@ -43,9 +43,9 @@ func TestParseLeadingTrackNumber(t *testing.T) {
 
 func TestParseYearFromFolderName(t *testing.T) {
 	tests := []struct {
-		name string
-		in   string
-		want int
+		Name string
+		In   string
+		Want int
 	}{
 		{"leading YYYY dash", "2019 - Album Title [FLAC]", 2019},
 		{"paren year", "Artist - Album (1974) [FLAC]", 1974},
@@ -59,10 +59,10 @@ func TestParseYearFromFolderName(t *testing.T) {
 		{"too early year rejected", "Artist - Title (1899)", 0},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := parseYearFromFolderName(tt.in)
-			if got != tt.want {
-				t.Fatalf("parseYearFromFolderName(%q)=%d, want %d", tt.in, got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			got := parseYearFromFolderName(tt.In)
+			if got != tt.Want {
+				t.Fatalf("parseYearFromFolderName(%q)=%d, want %d", tt.In, got, tt.Want)
 			}
 		})
 	}
@@ -169,7 +169,7 @@ func TestValidatePathLength(t *testing.T) {
 	// Should have at least one error about path length
 	hasPathError := false
 	for _, issue := range issues {
-		if issue.Track() == -1 { // directory-level issue
+		if issue.Track == -1 { // directory-level issue
 			hasPathError = true
 			break
 		}

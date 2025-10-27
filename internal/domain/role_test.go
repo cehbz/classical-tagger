@@ -4,9 +4,9 @@ import "testing"
 
 func TestRole_String(t *testing.T) {
 	tests := []struct {
-		name string
-		role Role
-		want string
+		Name string
+		Role Role
+		Want string
 	}{
 		{"composer", RoleComposer, "composer"},
 		{"soloist", RoleSoloist, "soloist"},
@@ -15,11 +15,11 @@ func TestRole_String(t *testing.T) {
 		{"arranger", RoleArranger, "arranger"},
 		{"guest", RoleGuest, "guest"},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.role.String(); got != tt.want {
-				t.Errorf("Role.String() = %v, want %v", got, tt.want)
+		t.Run(tt.Name, func(t *testing.T) {
+			if got := tt.Role.String(); got != tt.Want {
+				t.Errorf("Role.String() = %v, want %v", got, tt.Want)
 			}
 		})
 	}
@@ -27,10 +27,10 @@ func TestRole_String(t *testing.T) {
 
 func TestParseRole(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    Role
-		wantErr bool
+		Name    string
+		Input   string
+		Want    Role
+		WantErr bool
 	}{
 		{"valid composer", "composer", RoleComposer, false},
 		{"valid soloist", "soloist", RoleSoloist, false},
@@ -43,16 +43,16 @@ func TestParseRole(t *testing.T) {
 		{"invalid role", "pianist", Role(0), true},
 		{"empty string", "", Role(0), true},
 	}
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseRole(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseRole() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(tt.Name, func(t *testing.T) {
+			got, err := ParseRole(tt.Input)
+			if (err != nil) != tt.WantErr {
+				t.Errorf("ParseRole() error = %v, wantErr %v", err, tt.WantErr)
 				return
 			}
-			if !tt.wantErr && got != tt.want {
-				t.Errorf("ParseRole() = %v, want %v", got, tt.want)
+			if !tt.WantErr && got != tt.Want {
+				t.Errorf("ParseRole() = %v, want %v", got, tt.Want)
 			}
 		})
 	}

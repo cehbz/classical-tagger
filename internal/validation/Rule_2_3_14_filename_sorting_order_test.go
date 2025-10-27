@@ -10,61 +10,61 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
-		name       string
-		actual     *domain.Album
-		wantPass   bool
-		wantIssues int
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantIssues int
 	}{
 		{
-			name: "valid - correct sorting with zero padding",
-			actual: buildAlbumWithFilenames(
+			Name: "valid - correct sorting with zero padding",
+			Actual: buildAlbumWithFilenames(
 				"01 - First.flac",
 				"02 - Second.flac",
 				"03 - Third.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "invalid - lexicographic sort without zero padding is incorrect",
-			actual: buildAlbumWithFilenames(
+			Name: "invalid - lexicographic sort without zero padding is incorrect",
+			Actual: buildAlbumWithFilenames(
 				"1 - First.flac",
 				"2 - Second.flac",
 				"3 - Third.flac",
 				"10 - Tenth.flac",
 			),
-			wantPass:   false,
-			wantIssues: 1,
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "invalid - no zero padding causes sorting issue",
-			actual: buildAlbumWithTrackFilenames(
+			Name: "invalid - no zero padding causes sorting issue",
+			Actual: buildAlbumWithTrackFilenames(
 				trackFile{1, "1 - First.flac"},
 				trackFile{2, "2 - Second.flac"},
 				trackFile{10, "10 - Tenth.flac"},
 				trackFile{3, "3 - Third.flac"}, // Will sort before "10"
 			),
-			wantPass:   false,
-			wantIssues: 1, // Track 10 sorts before track 3
+			WantPass:   false,
+			WantIssues: 1, // Track 10 sorts before track 3
 		},
 		{
-			name: "invalid - incorrect ordering",
-			actual: buildAlbumWithTrackFilenames(
+			Name: "invalid - incorrect ordering",
+			Actual: buildAlbumWithTrackFilenames(
 				trackFile{1, "02 - Second.flac"}, // Wrong filename for track 1
 				trackFile{2, "01 - First.flac"},  // Wrong filename for track 2
 			),
-			wantPass:   false,
-			wantIssues: 1,
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			name: "valid - single track",
-			actual: buildAlbumWithFilenames(
+			Name: "valid - single track",
+			Actual: buildAlbumWithFilenames(
 				"Complete Work.flac",
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 		{
-			name: "valid - multi-disc with proper organization",
-			actual: buildMultiDiscAlbumWithFilenames(
+			Name: "valid - multi-disc with proper organization",
+			Actual: buildMultiDiscAlbumWithFilenames(
 				[]trackFile{
 					{1, "CD1/01 - First.flac"},
 					{2, "CD1/02 - Second.flac"},
@@ -74,22 +74,22 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 					{2, "CD2/02 - Fourth.flac"},
 				},
 			),
-			wantPass: true,
+			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := rules.FilenameSortingOrder(tt.actual, tt.actual)
+		t.Run(tt.Name, func(t *testing.T) {
+			result := rules.FilenameSortingOrder(tt.Actual, tt.Actual)
 
-			if result.Passed() != tt.wantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.wantPass)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 			}
 
-			if !tt.wantPass && len(result.Issues()) != tt.wantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues()), tt.wantIssues)
-				for _, issue := range result.Issues() {
-					t.Logf("  Issue: %s", issue.Message())
+			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+				for _, issue := range result.Issues {
+					t.Logf("  Issue: %s", issue.Message)
 				}
 			}
 		})
@@ -98,43 +98,62 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 
 // trackFile pairs track number with filename
 type trackFile struct {
-	trackNum int
-	filename string
+	TrackNum int
+	Filename string
 }
 
 // buildAlbumWithTrackFilenames creates an album with specific track/filename pairs
 func buildAlbumWithTrackFilenames(trackFiles ...trackFile) *domain.Album {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	artists := []domain.Artist{composer, ensemble}
-
-	album, _ := domain.NewAlbum("Test Album", 1963)
+	tracks := make([]*domain.Track, len(trackFiles))
 	for i, tf := range trackFiles {
-		track, _ := domain.NewTrack(1, tf.trackNum, "Work "+string(rune('A'+i)), artists)
-		track = track.WithName(tf.filename)
-		album.AddTrack(track)
+		tracks[i] = &domain.Track{
+			Disc:  1,
+			Track: tf.TrackNum,
+			Artists: []domain.Artist{
+				domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
+				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
+			},
+			Title: "Work " + string(rune('A'+tf.TrackNum)),
+			Name:  tf.Filename,
+		}
 	}
-
-	return album
+	return &domain.Album{
+		Title:        "Test Album",
+		OriginalYear: 1963,
+		Tracks:       tracks,
+	}
 }
 
 // buildMultiDiscAlbumWithFilenames creates multi-disc album
 func buildMultiDiscAlbumWithFilenames(disc1, disc2 []trackFile) *domain.Album {
-	composer, _ := domain.NewArtist("Beethoven", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("Orchestra", domain.RoleEnsemble)
-	artists := []domain.Artist{composer, ensemble}
-
-	album, _ := domain.NewAlbum("Multi-Disc Album", 1963)
-	for _, tf := range disc1 {
-		track, _ := domain.NewTrack(1, tf.trackNum, "Work D1-"+string(rune('A'+tf.trackNum)), artists)
-		track = track.WithName(tf.filename)
-		album.AddTrack(track)
+	tracks := make([]*domain.Track, len(disc1)+len(disc2))
+	for i, tf := range disc1 {
+		tracks[i] = &domain.Track{
+			Disc:  1,
+			Track: tf.TrackNum,
+			Title: "Work " + string(rune('A'+tf.TrackNum)),
+			Artists: []domain.Artist{
+				domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
+				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
+			},
+			Name: tf.Filename,
+		}
 	}
-
-	for _, tf := range disc2 {
-		track, _ := domain.NewTrack(2, tf.trackNum, "Work D2-"+string(rune('A'+tf.trackNum)), artists)
-		track = track.WithName(tf.filename)
-		album.AddTrack(track)
+	for i, tf := range disc2 {
+		tracks[len(disc1)+i] = &domain.Track{
+			Disc:  2,
+			Track: tf.TrackNum,
+			Title: "Work " + string(rune('A'+tf.TrackNum)),
+			Artists: []domain.Artist{
+				domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
+				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
+			},
+			Name: tf.Filename,
+		}
 	}
-	return album
+	return &domain.Album{
+		Title:        "Multi-Disc Album",
+		OriginalYear: 1963,
+		Tracks:       tracks,
+	}
 }

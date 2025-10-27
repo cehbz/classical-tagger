@@ -3,151 +3,152 @@ package storage
 import (
 	"encoding/json"
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-func TestAlbumDTO_ToAlbum(t *testing.T) {
-	dto := AlbumDTO{
-		Title:        "Noël ! Weihnachten ! Christmas!",
+func TestRepository_SaveAndLoad(t *testing.T) {
+	repo := NewRepository()
+
+	// Create album directly (no constructors needed)
+	album := &domain.Album{
+		Title:        "Test Album",
 		OriginalYear: 2013,
-		Edition: &EditionDTO{
-			Label:         "test label",
-			CatalogNumber: "HMC902170",
-			EditionYear:   2013,
+		Edition: &domain.Edition{
+			Label:         "Test Label",
+			CatalogNumber: "TL123",
+			Year:          2013,
 		},
-		Tracks: []TrackDTO{
+		Tracks: []*domain.Track{
 			{
 				Disc:  1,
 				Track: 1,
-				Title: "Frohlocket, ihr Völker auf Erden, Op. 79/1",
-				Composer: ArtistDTO{
-					Name: "Felix Mendelssohn Bartholdy",
-					Role: "composer",
+				Title: "Ave Maria",
+				Artists: []domain.Artist{
+					{Name: "Anton Bruckner", Role: domain.RoleComposer},
 				},
-				Artists: []ArtistDTO{
-					{
-						Name: "RIAS Kammerchor Berlin",
-						Role: "ensemble",
-					},
-					{
-						Name: "Hans-Christoph Rademann",
-						Role: "conductor",
-					},
-				},
-				Name: "01 Frohlocket, ihr Völker auf Erden, Op. 79-1.flac",
 			},
 		},
 	}
-	
-	album, err := dto.ToAlbum()
-	if err != nil {
-		t.Fatalf("ToAlbum() error = %v", err)
-	}
-	
-	if album.Title() != dto.Title {
-		t.Errorf("Title = %v, want %v", album.Title(), dto.Title)
-	}
-	if album.OriginalYear() != dto.OriginalYear {
-		t.Errorf("OriginalYear = %v, want %v", album.OriginalYear(), dto.OriginalYear)
-	}
-	if album.Edition() == nil {
-		t.Fatal("Edition should not be nil")
-	}
-	if len(album.Tracks()) != len(dto.Tracks) {
-		t.Errorf("Track count = %d, want %d", len(album.Tracks()), len(dto.Tracks))
-	}
-}
 
-func TestAlbumDTO_FromAlbum(t *testing.T) {
-	// Create domain album
-	album, _ := domain.NewAlbum("Test Album", 2013)
-	edition, _ := domain.NewEdition("test label", 2013)
-	edition = edition.WithCatalogNumber("HMC902170")
-	album = album.WithEdition(edition)
-	
-	composer, _ := domain.NewArtist("Felix Mendelssohn", domain.RoleComposer)
-	ensemble, _ := domain.NewArtist("RIAS Kammerchor", domain.RoleEnsemble)
-	track, _ := domain.NewTrack(1, 1, "Test Work", []domain.Artist{composer, ensemble})
-	track = track.WithName("01 Test Work.flac")
-	album.AddTrack(track)
-	
-	// Convert to DTO
-	dto := FromAlbum(album)
-	
-	if dto.Title != album.Title() {
-		t.Errorf("DTO.Title = %v, want %v", dto.Title, album.Title())
-	}
-	if dto.Edition == nil {
-		t.Fatal("DTO.Edition should not be nil")
-	}
-	if len(dto.Tracks) != len(album.Tracks()) {
-		t.Errorf("DTO track count = %d, want %d", len(dto.Tracks), len(album.Tracks()))
-	}
-	
-	// Check composer in track
-	if dto.Tracks[0].Composer.Name != "Felix Mendelssohn" {
-		t.Errorf("Composer name = %v, want %v", dto.Tracks[0].Composer.Name, "Felix Mendelssohn")
-	}
-}
-
-func TestJSON_RoundTrip(t *testing.T) {
-	// Create album
-	album, _ := domain.NewAlbum("Test Album", 2013)
-	composer, _ := domain.NewArtist("Johannes Brahms", domain.RoleComposer)
-	track, _ := domain.NewTrack(1, 1, "Symphony No. 1", []domain.Artist{composer})
-	album.AddTrack(track)
-	
-	// Convert to DTO and marshal
-	dto := FromAlbum(album)
-	data, err := json.MarshalIndent(dto, "", "  ")
-	if err != nil {
-		t.Fatalf("Marshal error: %v", err)
-	}
-	
-	// Unmarshal and convert back
-	var dto2 AlbumDTO
-	if err := json.Unmarshal(data, &dto2); err != nil {
-		t.Fatalf("Unmarshal error: %v", err)
-	}
-	
-	album2, err := dto2.ToAlbum()
-	if err != nil {
-		t.Fatalf("ToAlbum error: %v", err)
-	}
-	
-	// Verify
-	if album2.Title() != album.Title() {
-		t.Errorf("Round-trip title = %v, want %v", album2.Title(), album.Title())
-	}
-	if len(album2.Tracks()) != len(album.Tracks()) {
-		t.Errorf("Round-trip track count = %d, want %d", len(album2.Tracks()), len(album.Tracks()))
-	}
-}
-
-func TestRepository_SaveAndLoad(t *testing.T) {
-	repo := NewRepository()
-	
-	// Create album
-	album, _ := domain.NewAlbum("Test Album", 2013)
-	composer, _ := domain.NewArtist("Anton Bruckner", domain.RoleComposer)
-	track, _ := domain.NewTrack(1, 1, "Ave Maria", []domain.Artist{composer})
-	album.AddTrack(track)
-	
 	// Save
 	data, err := repo.SaveToJSON(album)
 	if err != nil {
 		t.Fatalf("SaveToJSON error: %v", err)
 	}
-	
+
 	// Load
-	album2, err := repo.LoadFromJSON(data)
+	loaded, err := repo.LoadFromJSON(data)
 	if err != nil {
 		t.Fatalf("LoadFromJSON error: %v", err)
 	}
-	
-	// Verify
-	if album2.Title() != album.Title() {
-		t.Errorf("Loaded title = %v, want %v", album2.Title(), album.Title())
+
+	// Verify (direct field access)
+	if loaded.Title != album.Title {
+		t.Errorf("Title = %v, want %v", loaded.Title, album.Title)
+	}
+	if loaded.OriginalYear != album.OriginalYear {
+		t.Errorf("OriginalYear = %v, want %v", loaded.OriginalYear, album.OriginalYear)
+	}
+	if len(loaded.Tracks) != len(album.Tracks) {
+		t.Errorf("Track count = %d, want %d", len(loaded.Tracks), len(album.Tracks))
+	}
+}
+
+func TestRepository_JSONFormat(t *testing.T) {
+	repo := NewRepository()
+
+	album := &domain.Album{
+		Title:        "Simple Album",
+		OriginalYear: 2013,
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Work",
+				Artists: []domain.Artist{
+					{Name: "Bach", Role: domain.RoleComposer},
+				},
+			},
+		},
+	}
+
+	data, err := repo.SaveToJSON(album)
+	if err != nil {
+		t.Fatalf("SaveToJSON error: %v", err)
+	}
+
+	// Verify it's valid JSON
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Invalid JSON: %v", err)
+	}
+
+	// Verify expected fields exist
+	if _, ok := decoded["title"]; !ok {
+		t.Error("JSON missing 'title' field")
+	}
+	if _, ok := decoded["original_year"]; !ok {
+		t.Error("JSON missing 'original_year' field")
+	}
+	if _, ok := decoded["tracks"]; !ok {
+		t.Error("JSON missing 'tracks' field")
+	}
+}
+
+func TestRepository_RoleJSON(t *testing.T) {
+	// Test that Role enum serializes correctly
+	repo := NewRepository()
+
+	album := &domain.Album{
+		Title:        "Role Test",
+		OriginalYear: 2013,
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Test",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+					{Name: "Soloist", Role: domain.RoleSoloist},
+					{Name: "Ensemble", Role: domain.RoleEnsemble},
+					{Name: "Conductor", Role: domain.RoleConductor},
+				},
+			},
+		},
+	}
+
+	// Marshal
+	data, err := repo.SaveToJSON(album)
+	if err != nil {
+		t.Fatalf("SaveToJSON error: %v", err)
+	}
+
+	// Unmarshal
+	loaded, err := repo.LoadFromJSON(data)
+	if err != nil {
+		t.Fatalf("LoadFromJSON error: %v", err)
+	}
+
+	// Verify roles round-trip correctly
+	if len(loaded.Tracks) != 1 {
+		t.Fatal("Expected 1 track")
+	}
+	artists := loaded.Tracks[0].Artists
+	if len(artists) != 4 {
+		t.Fatalf("Expected 4 artists, got %d", len(artists))
+	}
+
+	expectedRoles := []domain.Role{
+		domain.RoleComposer,
+		domain.RoleSoloist,
+		domain.RoleEnsemble,
+		domain.RoleConductor,
+	}
+
+	for i, expected := range expectedRoles {
+		if artists[i].Role != expected {
+			t.Errorf("Artist %d role = %v, want %v", i, artists[i].Role, expected)
+		}
 	}
 }
