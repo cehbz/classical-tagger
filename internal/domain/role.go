@@ -9,7 +9,8 @@ import (
 type Role int
 
 const (
-	RoleComposer Role = iota
+	RoleUnknown Role = iota
+	RoleComposer
 	RoleSoloist
 	RoleEnsemble
 	RoleConductor
@@ -53,7 +54,7 @@ func ParseRole(s string) (Role, error) {
 	case "guest":
 		return RoleGuest, nil
 	default:
-		return Role(0), fmt.Errorf("invalid role: %q", s)
+		return RoleUnknown, fmt.Errorf("invalid role: %q", s)
 	}
 }
 

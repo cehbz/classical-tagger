@@ -29,7 +29,7 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	}
 
 	result := &ExtractionResult{
-		Album: data,
+		Album:  data,
 		Source: "discogs",
 	}
 	parsingNotes := make(map[string]interface{})
@@ -72,6 +72,28 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 		result.Warnings = append(result.Warnings, "no tracks found in HTML")
 	}
 
+	// Parse album-level performers and merge into tracks
+	if performers, err := p.ParsePerformers(html); err == nil && len(performers) > 0 {
+		parsingNotes["album_performers_found"] = len(performers)
+
+		// Merge performers into each track
+		for _, track := range data.Tracks {
+			// Build new artist list: composer + performers
+			mergedArtists := make([]domain.Artist, 0, len(track.Artists)+len(performers))
+
+			// Add existing artists (composers)
+			mergedArtists = append(mergedArtists, track.Artists...)
+
+			// Add album-level performers
+			mergedArtists = append(mergedArtists, performers...)
+
+			// Replace track's artist list
+			track.Artists = mergedArtists
+		}
+	} else if err != nil {
+		result.Warnings = append(result.Warnings, fmt.Sprintf("album performers: %v", err))
+	}
+
 	// Add disc detection notes
 	if len(data.Tracks) > 0 {
 		trackLines := make([]string, len(data.Tracks))
@@ -95,6 +117,269 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	}
 
 	return result, nil
+}
+
+// ParsePerformers extracts album-level performers from page GraphQL data.
+// Returns a list of performers (ensemble, conductor, soloists) that appear on the album level.
+// Prioritizes releaseCredits from GraphQL data which includes role information.
+func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	// Step 1: Get performer names from JSON-LD byArtist (authoritative list)
+	jsonLD := doc.Find("script#release_schema[type='application/ld+json']").First().Text()
+	if jsonLD == "" {
+		return nil, fmt.Errorf("no JSON-LD release_schema found")
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonLD), &data); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON-LD: %w", err)
+	}
+
+	performerNames := make([]string, 0)
+
+	if releaseOf, ok := data["releaseOf"].(map[string]interface{}); ok {
+		if byArtist, ok := releaseOf["byArtist"].([]interface{}); ok {
+			for _, artistData := range byArtist {
+				if artistMap, ok := artistData.(map[string]interface{}); ok {
+					if name, ok := artistMap["name"].(string); ok && name != "" {
+						performerNames = append(performerNames, strings.TrimSpace(name))
+					}
+				}
+			}
+		}
+	}
+
+	if len(performerNames) == 0 {
+		return nil, fmt.Errorf("no performers found in JSON-LD byArtist")
+	}
+
+	// Step 2: Extract role mappings from releaseCredits in Apollo state
+	roleMap, _ := p.extractReleaseCredits(html)
+	// If extraction fails, roleMap will be empty and we'll infer all roles
+
+	// Step 3: Build performer list by matching names with roles
+	performers := make([]domain.Artist, 0)
+	seen := make(map[string]bool)
+
+	for _, name := range performerNames {
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+
+		var role domain.Role
+
+		// Try to get role from releaseCredits
+		if roleStr, hasRole := roleMap[name]; hasRole {
+			// Try deterministic mapping
+			if mappedRole, ok := mapDiscogsRoleToDomainRole(roleStr); ok {
+				role = mappedRole
+			} else {
+				// Role string exists but not mappable, infer from name
+				role = inferRoleFromName(name)
+			}
+		} else {
+			// No role in releaseCredits, must infer from name
+			role = inferRoleFromName(name)
+		}
+
+		performers = append(performers, domain.Artist{
+			Name: name,
+			Role: role,
+		})
+	}
+
+	// Step 4: Add any performers from releaseCredits that weren't in JSON-LD
+	for name, roleStr := range roleMap {
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+
+		var role domain.Role
+		if mappedRole, ok := mapDiscogsRoleToDomainRole(roleStr); ok {
+			role = mappedRole
+		} else {
+			role = inferRoleFromName(name)
+		}
+
+		performers = append(performers, domain.Artist{
+			Name: name,
+			Role: role,
+		})
+	}
+
+	if len(performers) == 0 {
+		return nil, fmt.Errorf("no performers extracted")
+	}
+
+	return performers, nil
+}
+
+// extractReleaseCredits extracts the releaseCredits from Apollo GraphQL state.
+// Returns a map of artist name -> role string.
+func (p *DiscogsParser) extractReleaseCredits(html string) (map[string]string, error) {
+	// Find the releaseCredits array in Apollo state
+	startIdx := strings.Index(html, `"releaseCredits":[`)
+	if startIdx == -1 {
+		return nil, fmt.Errorf("no releaseCredits found")
+	}
+
+	// Find matching closing bracket for the array
+	arrayStart := startIdx + len(`"releaseCredits":`)
+	depth := 0
+	inString := false
+	escape := false
+	endIdx := -1
+
+	for i := arrayStart; i < len(html) && i < arrayStart+50000; i++ {
+		ch := html[i]
+
+		if escape {
+			escape = false
+			continue
+		}
+
+		if ch == '\\' {
+			escape = true
+			continue
+		}
+
+		if ch == '"' {
+			inString = !inString
+			continue
+		}
+
+		if inString {
+			continue
+		}
+
+		if ch == '[' || ch == '{' {
+			depth++
+		} else if ch == ']' || ch == '}' {
+			depth--
+			if depth == 0 && ch == ']' {
+				endIdx = i + 1
+				break
+			}
+		}
+	}
+
+	if endIdx == -1 {
+		return nil, fmt.Errorf("could not find end of releaseCredits array")
+	}
+
+	creditsJSON := html[arrayStart:endIdx]
+
+	var credits []map[string]interface{}
+	if err := json.Unmarshal([]byte(creditsJSON), &credits); err != nil {
+		return nil, fmt.Errorf("failed to parse releaseCredits: %w", err)
+	}
+
+	roleMap := make(map[string]string)
+
+	for _, credit := range credits {
+		displayName, _ := credit["displayName"].(string)
+		creditRole, _ := credit["creditRole"].(string)
+
+		if displayName != "" {
+			displayName = strings.TrimSpace(displayName)
+			roleMap[displayName] = creditRole
+		}
+
+		// Also check nameVariation field (sometimes used)
+		if nameVar, ok := credit["nameVariation"].(string); ok && nameVar != "" {
+			nameVar = strings.TrimSpace(nameVar)
+			// Add variation as alternative key for matching
+			if _, exists := roleMap[nameVar]; !exists {
+				roleMap[nameVar] = creditRole
+			}
+		}
+	}
+
+	return roleMap, nil
+}
+
+// mapDiscogsRoleToDomainRole maps Discogs role strings to domain.Role.
+// Returns (role, true) if deterministically mappable, (empty, false) otherwise.
+func mapDiscogsRoleToDomainRole(discogsRole string) (domain.Role, bool) {
+	roleLower := strings.ToLower(strings.TrimSpace(discogsRole))
+
+	// Ensemble/Orchestra indicators
+	ensembleRoles := map[string]bool{
+		"choir":          true,
+		"chorus":         true,
+		"orchestra":      true,
+		"ensemble":       true,
+		"vocal ensemble": true,
+		"chamber choir":  true,
+		"kammerchor":     true,
+	}
+
+	if ensembleRoles[roleLower] {
+		return domain.RoleEnsemble, true
+	}
+
+	// Conductor indicators
+	conductorRoles := map[string]bool{
+		"conductor":     true,
+		"chorus master": true,
+		"chorusmaster":  true,
+		"director":      true,
+		"maestro":       true,
+	}
+
+	if conductorRoles[roleLower] {
+		return domain.RoleConductor, true
+	}
+
+	// Soloist indicators
+	soloistRoles := map[string]bool{
+		"soloist":         true,
+		"vocalist":        true,
+		"singer":          true,
+		"performer":       true,
+		"instrumentalist": true,
+	}
+
+	if soloistRoles[roleLower] {
+		return domain.RoleSoloist, true
+	}
+
+	// Cannot deterministically map
+	return domain.RoleUnknown, false
+}
+
+// inferRoleFromName attempts to infer artist role from their name.
+// This is a fallback heuristic when role string is unavailable.
+func inferRoleFromName(name string) domain.Role {
+	nameLower := strings.ToLower(name)
+
+	// Check for explicit role indicators in name
+	if strings.Contains(nameLower, "conductor") || strings.Contains(nameLower, "director") {
+		return domain.RoleConductor
+	}
+
+	// Check for ensemble indicators
+	ensembleKeywords := []string{
+		"orchestra", "philharmonic", "symphony", "ensemble",
+		"choir", "chorus", "kammerchor", "kammer",
+		"quartet", "trio", "quintet", "sextet",
+		"chamber", "band", "consort", "players",
+	}
+
+	for _, keyword := range ensembleKeywords {
+		if strings.Contains(nameLower, keyword) {
+			return domain.RoleEnsemble
+		}
+	}
+
+	// Default to soloist for individual names
+	return domain.RoleSoloist
 }
 
 // ParseTitle extracts the album title from JSON-LD structured data.
@@ -325,10 +610,10 @@ func (p *DiscogsParser) ParseTracks(html string) ([]*domain.Track, error) {
 
 		if title != "" {
 			track := &domain.Track{
-				Disc:     1,
-				Track:    trackNum,
-				Title:    title,
-				Artists:  []domain.Artist{domain.Artist{Name: composer, Role: domain.RoleComposer}},
+				Disc:    1,
+				Track:   trackNum,
+				Title:   title,
+				Artists: []domain.Artist{domain.Artist{Name: composer, Role: domain.RoleComposer}},
 			}
 			tracks = append(tracks, track)
 		}

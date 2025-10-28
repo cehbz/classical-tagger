@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+	
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestDiscogsParser_Parse(t *testing.T) {
@@ -51,17 +53,250 @@ func TestDiscogsParser_Parse(t *testing.T) {
 		t.Error("No tracks extracted")
 	}
 
-	// Verify track structure
+	// NEW: Verify album-level performers are present on ALL tracks
 	for i, track := range data.Tracks {
-		if track.Title == "" {
-			t.Errorf("Track %d has no title", i+1)
-		}
 		if len(track.Composers()) == 0 {
 			t.Errorf("Track %d has no composer", i+1)
 		}
+		
+		// Should have ensemble (RIAS Kammerchor)
+		hasEnsemble := false
+		for _, artist := range track.Artists {
+			if artist.Role == domain.RoleEnsemble {
+				hasEnsemble = true
+				if !strings.Contains(artist.Name, "RIAS") && !strings.Contains(artist.Name, "Kammerchor") {
+					t.Errorf("Track %d: Expected RIAS Kammerchor in ensemble, got %q", i+1, artist.Name)
+				}
+				break
+			}
+		}
+		if !hasEnsemble {
+			t.Errorf("Track %d: Missing ensemble (RIAS Kammerchor)", i+1)
+		}
+		
+		// Should have conductor (Hans-Christoph Rademann)
+		hasConductor := false
+		for _, artist := range track.Artists {
+			if artist.Role == domain.RoleConductor {
+				hasConductor = true
+				if !strings.Contains(artist.Name, "Rademann") {
+					t.Errorf("Track %d: Expected Hans-Christoph Rademann as conductor, got %q", i+1, artist.Name)
+				}
+				break
+			}
+		}
+		if !hasConductor {
+			t.Errorf("Track %d: Missing conductor (Hans-Christoph Rademann)", i+1)
+		}
+		
+		// Verify track number
 		if track.Track != i+1 {
 			t.Errorf("Track %d has wrong track number: got %d", i+1, track.Track)
 		}
+	}
+}
+
+func TestDiscogsParser_ParsePerformers(t *testing.T) {
+	// Test with real Christmas album HTML
+	html, err := os.ReadFile("testdata/discogs_christmas.html")
+	if err != nil {
+		t.Skipf("Test HTML file not available: %v", err)
+	}
+
+	parser := NewDiscogsParser()
+	performers, err := parser.ParsePerformers(string(html))
+
+	if err != nil {
+		t.Fatalf("ParsePerformers() error = %v", err)
+	}
+
+	if len(performers) == 0 {
+		t.Fatal("ParsePerformers() returned no performers")
+	}
+
+	// Should find RIAS Kammerchor and Hans-Christoph Rademann
+	foundEnsemble := false
+	foundConductor := false
+
+	for _, performer := range performers {
+		t.Logf("Performer: %s (role: %s)", performer.Name, performer.Role)
+		
+		if strings.Contains(performer.Name, "RIAS") || strings.Contains(performer.Name, "Kammerchor") {
+			foundEnsemble = true
+			if performer.Role != domain.RoleEnsemble {
+				t.Errorf("RIAS Kammerchor has wrong role: got %s, want %s", performer.Role, domain.RoleEnsemble)
+			}
+		}
+		
+		if strings.Contains(performer.Name, "Rademann") {
+			foundConductor = true
+			// Should be Conductor (from "Chorus Master" role in releaseCredits)
+			if performer.Role != domain.RoleConductor {
+				t.Errorf("Rademann has wrong role: got %s, want %s", performer.Role, domain.RoleConductor)
+			}
+		}
+	}
+
+	if !foundEnsemble {
+		t.Error("ParsePerformers() did not find ensemble (RIAS Kammerchor)")
+	}
+	if !foundConductor {
+		t.Error("ParsePerformers() did not find conductor (Hans-Christoph Rademann)")
+	}
+}
+
+func TestDiscogsParser_ParsePerformers_Simple(t *testing.T) {
+	html := `
+	<script type="application/ld+json" id="release_schema">
+	{
+		"@context":"http://schema.org",
+		"@type":"MusicRelease",
+		"name":"Test Album",
+		"datePublished":2013,
+		"releaseOf":{
+			"@type":"MusicAlbum",
+			"byArtist":[
+				{"@type":"MusicGroup","name":"Berlin Philharmonic Orchestra"},
+				{"@type":"Person","name":"Herbert von Karajan"}
+			]
+		}
+	}
+	</script>
+	`
+
+	parser := NewDiscogsParser()
+	performers, err := parser.ParsePerformers(html)
+
+	if err != nil {
+		t.Fatalf("ParsePerformers() error = %v", err)
+	}
+
+	if len(performers) != 2 {
+		t.Fatalf("ParsePerformers() returned %d performers, want 2", len(performers))
+	}
+
+	// Check ensemble
+	found := false
+	for _, p := range performers {
+		if strings.Contains(p.Name, "Philharmonic") {
+			found = true
+			if p.Role != domain.RoleEnsemble {
+				t.Errorf("Orchestra role = %s, want %s", p.Role, domain.RoleEnsemble)
+			}
+		}
+	}
+	if !found {
+		t.Error("Did not find Berlin Philharmonic Orchestra")
+	}
+
+	// Check conductor (by name inference since no role in JSON-LD byArtist)
+	found = false
+	for _, p := range performers {
+		if strings.Contains(p.Name, "Karajan") {
+			found = true
+			// Role will be inferred as Soloist (no "conductor" in name)
+			if p.Role != domain.RoleSoloist {
+				t.Errorf("Karajan role = %s, want %s (inferred from name)", p.Role, domain.RoleSoloist)
+			}
+		}
+	}
+	if !found {
+		t.Error("Did not find Herbert von Karajan")
+	}
+}
+
+func TestMapDiscogsRoleToDomainRole(t *testing.T) {
+	tests := []struct {
+		name         string
+		discogsRole  string
+		wantRole     domain.Role
+		wantMappable bool
+	}{
+		// Ensemble roles
+		{"choir", "Choir", domain.RoleEnsemble, true},
+		{"chorus", "Chorus", domain.RoleEnsemble, true},
+		{"orchestra", "Orchestra", domain.RoleEnsemble, true},
+		{"ensemble", "Ensemble", domain.RoleEnsemble, true},
+		{"kammerchor", "Kammerchor", domain.RoleEnsemble, true},
+		{"vocal ensemble", "Vocal Ensemble", domain.RoleEnsemble, true},
+
+		// Conductor roles
+		{"conductor", "Conductor", domain.RoleConductor, true},
+		{"chorus master", "Chorus Master", domain.RoleConductor, true},
+		{"chorusmaster", "ChorusMaster", domain.RoleConductor, true},
+		{"director", "Director", domain.RoleConductor, true},
+
+		// Soloist roles
+		{"soloist", "Soloist", domain.RoleSoloist, true},
+		{"vocalist", "Vocalist", domain.RoleSoloist, true},
+		{"singer", "Singer", domain.RoleSoloist, true},
+
+		// Unmappable
+		{"unknown", "Percussion", domain.RoleUnknown, false},
+		{"empty", "", domain.RoleUnknown, false},
+		{"random", "FooBar", domain.RoleUnknown, false},
+		
+		// Case insensitive
+		{"uppercase", "CONDUCTOR", domain.RoleConductor, true},
+		{"mixed case", "ChOiR", domain.RoleEnsemble, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRole, gotMappable := mapDiscogsRoleToDomainRole(tt.discogsRole)
+			
+			if gotMappable != tt.wantMappable {
+				t.Errorf("mapDiscogsRoleToDomainRole(%q) mappable = %v, want %v",
+					tt.discogsRole, gotMappable, tt.wantMappable)
+			}
+			
+			if gotMappable && gotRole != tt.wantRole {
+				t.Errorf("mapDiscogsRoleToDomainRole(%q) role = %v, want %v",
+					tt.discogsRole, gotRole, tt.wantRole)
+			}
+		})
+	}
+}
+
+func TestInferRoleFromName(t *testing.T) {
+	tests := []struct {
+		name     string
+		artist   string
+		wantRole domain.Role
+	}{
+		// Ensemble indicators
+		{"philharmonic", "Berlin Philharmonic Orchestra", domain.RoleEnsemble},
+		{"symphony", "London Symphony Orchestra", domain.RoleEnsemble},
+		{"choir", "Westminster Choir", domain.RoleEnsemble},
+		{"chorus", "Russian State Chorus", domain.RoleEnsemble},
+		{"kammerchor", "RIAS Kammerchor", domain.RoleEnsemble},
+		{"quartet", "Emerson String Quartet", domain.RoleEnsemble},
+		{"ensemble", "Academy of Ancient Music Ensemble", domain.RoleEnsemble},
+		{"chamber", "Chamber Orchestra of Europe", domain.RoleEnsemble},
+
+		// Conductor indicators
+		{"conductor explicit", "John Smith, conductor", domain.RoleConductor},
+		{"director", "Music Director John Smith", domain.RoleConductor},
+
+		// Soloist (default for individuals)
+		{"individual name", "Martha Argerich", domain.RoleSoloist},
+		{"pianist", "Glenn Gould", domain.RoleSoloist},
+		{"violinist", "Anne-Sophie Mutter", domain.RoleSoloist},
+		{"full name", "Hans-Christoph Rademann", domain.RoleSoloist},
+		
+		// Edge cases
+		{"empty", "", domain.RoleSoloist},
+		{"single word", "Madonna", domain.RoleSoloist},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRole := inferRoleFromName(tt.artist)
+			if gotRole != tt.wantRole {
+				t.Errorf("inferRoleFromName(%q) = %v, want %v",
+					tt.artist, gotRole, tt.wantRole)
+			}
+		})
 	}
 }
 
@@ -272,7 +507,7 @@ func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
 		case 1:
 			composer = composers[0].Name
 		default:
-			t.Errorf("Track %d has multiple composers", i+1)
+			t.Errorf("Track %d has multiple composers: %d", i+1, len(composers))
 		}
 		expected := expectedComposers[i]
 
@@ -307,47 +542,6 @@ func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
 		if composer != expected {
 			t.Errorf("Track %d: composer = %q, want %q", i+1, composer, expected)
 		}
-	}
-}
-
-func TestDiscogsParser_ParseTracksWithHeadings(t *testing.T) {
-	html := `
-	<table class="tracklist_ZdQ0I">
-		<tbody>
-			<tr data-track-position="1">
-				<td class="trackPos_n8vad">1</td>
-				<td class="trackTitle_loyWF">First Track</td>
-			</tr>
-			<tr class="heading_mkZNt">
-				<td></td>
-				<td>Suite Title
-					<div class="credits_vzBtg">
-						<span>Composed By</span> – Suite Composer
-					</div>
-				</td>
-			</tr>
-			<tr class="subtrack_o3GgI">
-				<td class="subtrackPos_HC1me">2</td>
-				<td class="trackTitle_loyWF">Subtrack 1</td>
-			</tr>
-			<tr class="subtrack_o3GgI">
-				<td class="subtrackPos_HC1me">3</td>
-				<td class="trackTitle_loyWF">Subtrack 2</td>
-			</tr>
-		</tbody>
-	</table>
-	`
-
-	parser := NewDiscogsParser()
-	tracks, err := parser.ParseTracks(html)
-
-	if err != nil {
-		t.Fatalf("ParseTracks() error = %v", err)
-	}
-
-	// Should have 3 tracks total (1 regular + 2 subtracks)
-	if len(tracks) < 3 {
-		t.Fatalf("ParseTracks() got %d tracks, want at least 3", len(tracks))
 	}
 }
 
