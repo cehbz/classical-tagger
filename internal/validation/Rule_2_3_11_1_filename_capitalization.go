@@ -98,7 +98,7 @@ func validCasualTitleCase(s string) bool {
 			continue
 		}
 		// Allow acronyms/roman/catalog anywhere
-		if isAcronym(tok) || isRomanNumeral(tok) || (isCatalogToken(tok) && isCanonicalCatalogToken(tok)) {
+		if isAcronym(tok) || isRomanNumeral(tok) || isCatalogToken(tok) {
 			continue
 		}
 		// First letter uppercase if it's a letter
@@ -146,10 +146,6 @@ func validTitleCase(title string) bool {
 					continue
 				}
 				if isAcronym(part) || isRomanNumeral(part) || isCatalogToken(part) {
-					// In strict mode, catalogue tokens must be canonical
-					if !isCanonicalCatalogToken(part) {
-						return false
-					}
 					continue
 				}
 				if isSmallWord(lower) && !isBoundary {
@@ -187,20 +183,6 @@ func validTitleCase(title string) bool {
 		}
 	}
 	return true
-}
-
-// isCanonicalCatalogToken enforces exact casing for strict mode.
-func isCanonicalCatalogToken(s string) bool {
-	switch s {
-	case "No.", "Op.", "Hob.", "K.", "D.":
-		return true
-	}
-	up := strings.ToUpper(s)
-	switch up {
-	case "BWV", "KV", "RV":
-		return s == up
-	}
-	return false
 }
 
 func splitOnDelimiters(s string) []string {
@@ -280,29 +262,15 @@ func isRomanNumeral(s string) bool {
 	return true
 }
 
+var catalogTokens = map[string]struct{}{
+	"Op.": {}, "No.": {}, "Hob.": {}, "Wq.": {},
+	"K.": {}, "D.": {}, "S.": {}, "L.": {}, "P.": {},
+	"BWV": {}, "KV": {}, "RV": {}, "HWV": {}, "TWV": {},
+}
+
 func isCatalogToken(s string) bool {
-	upper := strings.ToUpper(s)
-	if strings.HasPrefix(upper, "OP") { // Op or Op.
-		return true
-	}
-	if strings.HasPrefix(upper, "NO") { // No or No.
-		return true
-	}
-	switch {
-	case strings.HasPrefix(upper, "BWV"):
-		return true
-	case strings.HasPrefix(upper, "KV"):
-		return true
-	case strings.HasPrefix(upper, "RV"):
-		return true
-	case strings.HasPrefix(upper, "HOB"):
-		return true
-	case upper == "K." || upper == "K":
-		return true
-	case upper == "D." || upper == "D":
-		return true
-	}
-	return false
+	_, ok := catalogTokens[s]
+	return ok
 }
 
 func isLowercaseWord(s string) bool {

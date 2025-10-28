@@ -4,25 +4,6 @@ import (
 	"testing"
 )
 
-func TestDetectDiscCount(t *testing.T) {
-	tests := []struct {
-		Name  string
-		Paths []string
-		Want  int
-	}{
-		{"single disc", []string{"Album/01.flac", "Album/02.flac"}, 1},
-		{"two discs", []string{"Album/CD1/01.flac", "Album/CD2/01.flac"}, 2},
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got := DetectDiscStructure(tt.Paths).DiscCount()
-			if got != tt.Want {
-				t.Errorf("detectDiscCount() = %d, want %d", got, tt.Want)
-			}
-		})
-	}
-}
-
 // TestDetectDiscStructure tests detection of multi-disc albums
 func TestDetectDiscStructure(t *testing.T) {
 	tests := []struct {

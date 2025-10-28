@@ -93,9 +93,9 @@ func TestFLACWriter_WriteTrack_Integration(t *testing.T) {
 
 	// Create test metadata
 	track := &domain.Track{
-		Disc: 1, 
-		Track: 1, 
-		Title: "Goldberg Variations, BWV 988: Aria", 
+		Disc:  1,
+		Track: 1,
+		Title: "Goldberg Variations, BWV 988: Aria",
 		Artists: []domain.Artist{
 			{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
 			{Name: "Glenn Gould", Role: domain.RoleSoloist},
@@ -166,8 +166,8 @@ func TestFLACWriter_SpecialCharacters(t *testing.T) {
 
 	// Create metadata with special characters
 	track := &domain.Track{
-		Disc: 1, 
-		Track: 1, 
+		Disc:  1,
+		Track: 1,
 		Title: "Sonate für Violine und Klavier: Frisch (Œuvre)",
 		Artists: []domain.Artist{
 			{Name: "Béla Bartók", Role: domain.RoleComposer},
@@ -214,8 +214,8 @@ func TestFLACWriter_MultiplePerformers(t *testing.T) {
 
 	// Create metadata with multiple performers
 	track := &domain.Track{
-		Disc: 1, 
-		Track: 1, 
+		Disc:  1,
+		Track: 1,
 		Title: "Violin Concerto in D major, Op. 77: I. Allegro non troppo",
 		Artists: []domain.Artist{
 			{Name: "Johannes Brahms", Role: domain.RoleComposer},
@@ -225,11 +225,11 @@ func TestFLACWriter_MultiplePerformers(t *testing.T) {
 		},
 	}
 	album := &domain.Album{
-		Title: "Brahms: Violin Concerto", 
+		Title:        "Brahms: Violin Concerto",
 		OriginalYear: 1980,
 		Edition: &domain.Edition{
-			Label: "Sony Classical", 
-			Year: 1992, 
+			Label:         "Sony Classical",
+			Year:          1992,
 			CatalogNumber: "SK 52594",
 		},
 		Tracks: []*domain.Track{track},
@@ -269,24 +269,21 @@ func TestFLACWriter_NoEdition(t *testing.T) {
 	sourcePath := generateTestFLAC(t, tmpDir, "source.flac")
 	destPath := filepath.Join(tmpDir, "dest.flac")
 
-	track := &domain.Track{
-		Disc: 1, 
-		Track: 1, 
-		Title: "Test Track", 
-		Artists: []domain.Artist{{Name: "Test Composer", Role: domain.RoleComposer}},
-	}
 	album := &domain.Album{
-		Title: "Test Album", 
+		Title:        "Test Album",
 		OriginalYear: 2020,
-		Edition: &domain.Edition{
-			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
-		},
-		Tracks: []*domain.Track{track},
+		Edition:      nil,
+		Tracks: []*domain.Track{{
+			Disc:    1,
+			Track:   1,
+			Title:   "Test Track",
+			Artists: []domain.Artist{{Name: "Test Composer", Role: domain.RoleComposer}},
+		}},
 	}
 	// No edition
 
 	writer := NewFLACWriter()
-	err := writer.WriteTrack(sourcePath, destPath, track, album)
+	err := writer.WriteTrack(sourcePath, destPath, album.Tracks[0], album)
 	if err != nil {
 		t.Fatalf("WriteTrack() error = %v", err)
 	}
@@ -316,9 +313,9 @@ func TestFLACWriter_ErrorHandling(t *testing.T) {
 	writer := NewFLACWriter()
 
 	track := &domain.Track{
-		Disc: 1, 
-		Track: 1, 
-		Title: "Test", 
+		Disc:    1,
+		Track:   1,
+		Title:   "Test",
 		Artists: []domain.Artist{{Name: "Test", Role: domain.RoleComposer}},
 	}
 	album := &domain.Album{

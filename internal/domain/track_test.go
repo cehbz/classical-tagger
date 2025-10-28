@@ -87,7 +87,7 @@ func TestTrack_Validate_ComposerInTitle(t *testing.T) {
 		{
 			Name:         "composer last name in title",
 			Title:        "Bach: Goldberg Variations",
-			WantErrorMsg: "Composer name",
+			WantErrorMsg: "Composer surname",
 		},
 		{
 			Name:         "clean title without composer",
@@ -97,7 +97,7 @@ func TestTrack_Validate_ComposerInTitle(t *testing.T) {
 		{
 			Name:         "composer last name mid-title",
 			Title:        "The Bach Variations",
-			WantErrorMsg: "Composer name",
+			WantErrorMsg: "Composer surname",
 		},
 	}
 

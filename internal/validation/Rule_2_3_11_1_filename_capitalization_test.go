@@ -81,7 +81,7 @@ func TestRules_FilenameCapitalization(t *testing.T) {
 			result := rules.FilenameCapitalization(tt.Actual, tt.Actual)
 
 			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+				t.Errorf("FilenameCapitalization(%q) passed = %v, want %v", tt.Actual.Title, result.Passed(), tt.WantPass)
 			}
 
 			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
