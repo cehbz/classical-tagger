@@ -89,7 +89,7 @@ type Parser interface {
 
 // extractFromDirectory extracts metadata from local FLAC files
 func extractFromDirectory() {
-	fmt.Printf("Extracting from local directory: %s\n", *dir)
+	fmt.Fprintf(os.Stderr, "Extracting from local directory: %s\n", *dir)
 
 	// Create local extractor
 	extractor := scraping.NewLocalExtractor()
