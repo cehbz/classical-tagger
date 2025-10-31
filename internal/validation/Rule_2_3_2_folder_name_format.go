@@ -16,7 +16,7 @@ var folderNamePattern = regexp.MustCompile(`^.+\s+-\s+.+\s+\[\d{4}\]`)
 
 // FolderNameFormat checks that album title follows proper folder naming format (rule 2.3.2)
 // Format: "Artist - Album [Year] [Format] [Extra Info]"
-func (r *Rules) FolderNameFormat(actual, reference *domain.Album) RuleResult {
+func (r *Rules) FolderNameFormat(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.2",
 		Name:   "Folder name format: Artist - Album [Year] [Format]",
@@ -24,14 +24,13 @@ func (r *Rules) FolderNameFormat(actual, reference *domain.Album) RuleResult {
 		Weight: 0.5,
 	}
 
-	var issues []domain.ValidationIssue
-
-	albumTitle := actual.Title
-	if albumTitle == "" {
-		// Will be caught by RequiredTags
+	if actual == nil || actual.Title == "" {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 
+	var issues []domain.ValidationIssue
+
+	albumTitle := actual.Title
 	// Check for basic structure: should have " - " separator
 	if !strings.Contains(albumTitle, " - ") {
 		issues = append(issues, domain.ValidationIssue{
@@ -40,7 +39,6 @@ func (r *Rules) FolderNameFormat(actual, reference *domain.Album) RuleResult {
 			Rule:    meta.ID,
 			Message: fmt.Sprintf("Album title '%s' should contain ' - ' separator between artist and title", albumTitle),
 		})
-		return RuleResult{Meta: meta, Issues: issues}
 	}
 
 	// Check for year in brackets

@@ -77,7 +77,7 @@ func TestRules_NoRequestTagInTitle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			actual := buildAlbumWithTitle(tt.AlbumTitle, "1963")
+			actual := NewAlbum().WithTitle(tt.AlbumTitle).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
 			result := rules.NoRequestTagInTitle(actual, actual)
 
 			if result.Passed() != tt.WantPass {

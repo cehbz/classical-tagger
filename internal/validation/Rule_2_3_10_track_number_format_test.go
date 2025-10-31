@@ -47,7 +47,7 @@ func TestRules_TrackNumberFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.TrackNumberFormat(tt.Actual, tt.Actual)
+			result := rules.TrackNumberFormat(tt.Actual, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)

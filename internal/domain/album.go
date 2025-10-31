@@ -1,59 +1,30 @@
 package domain
 
 // Album represents a classical music release.
-// All fields are exported and mutable.
 type Album struct {
+	FolderName   string    `json:"folder_name"`
 	Title        string    `json:"title"`
 	OriginalYear int       `json:"original_year"`
 	Edition      *Edition  `json:"edition,omitempty"`
 	Tracks       []*Track  `json:"tracks"`
 }
 
-// Validate checks the entire album for compliance with rules.
-// Returns all validation issues from the album and all its tracks.
-func (a *Album) Validate() []ValidationIssue {
-	var issues []ValidationIssue
-
-	// Album must have at least one track (2.3.16.4 implies music content)
-	if len(a.Tracks) == 0 {
-		issues = append(issues, ValidationIssue{
-			Level:   LevelError,
-			Track:   0, // album-level
-			Rule:    "2.3.16.4",
-			Message: "Album must have at least one track",
-		})
+// IsMultiDisc returns true if the album contains tracks from multiple discs.
+// An album is considered multi-disc if any track has Disc > 1 or if there are multiple distinct disc numbers.
+func (a *Album) IsMultiDisc() bool {
+	if a == nil || len(a.Tracks) == 0 {
+		return false
 	}
 
-	// Edition is optional but strongly recommended (Classical Guide preamble)
-	if a.Edition == nil {
-		issues = append(issues, ValidationIssue{
-			Level:   LevelWarning,
-			Track:   0, // album-level
-			Rule:    "Classical Guide: Step 3",
-			Message: "Edition information (label, catalog number) is strongly recommended",
-		})
-	} else {
-		// Validate edition if present
-		editionIssues := a.Edition.Validate()
-		issues = append(issues, editionIssues...)
-	}
-
-	// Year tag is optional but strongly encouraged (2.3.16.4).
-	// Warn if unknown, basic sanity otherwise can be checked elsewhere if needed.
-	if a.OriginalYear == 0 {
-		issues = append(issues, ValidationIssue{
-			Level:   LevelWarning,
-			Track:   0,
-			Rule:    "2.3.16.4",
-			Message: "Year is optional but strongly encouraged; consider adding original release year",
-		})
-	}
-
-	// Validate all tracks
+	maxDisc := 1
+	discSet := make(map[int]bool)
 	for _, track := range a.Tracks {
-		trackIssues := track.Validate()
-		issues = append(issues, trackIssues...)
+		if track.Disc > maxDisc {
+			maxDisc = track.Disc
+		}
+		discSet[track.Disc] = true
 	}
 
-	return issues
+	// Multi-disc if max disc > 1 OR if there are multiple distinct disc numbers
+	return maxDisc > 1 || len(discSet) > 1
 }

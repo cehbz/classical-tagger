@@ -20,55 +20,55 @@ func TestRules_TagAccuracyVsReference(t *testing.T) {
 	}{
 		{
 			Name:      "valid - exact match",
-			Actual:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
-			Reference: buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference: NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:  true,
 		},
 		{
 			Name:         "warning - year mismatch",
-			Actual:       buildBasicAlbum("Symphony No. 5", 1960, "Beethoven"),
-			Reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:       NewAlbum().WithOriginalYear(1960).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:       "error - composer mismatch",
-			Actual:     buildBasicAlbum("Symphony No. 5", 1963, "Mozart"),
-			Reference:  buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:     NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Mozart", domain.RoleComposer).Build().Build(),
+			Reference:  NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - title mismatch",
-			Actual:     buildBasicAlbum("Symphony No. 6", 1963, "Beethoven"),
-			Reference:  buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:     NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 6").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference:  NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:      "info - minor title difference",
-			Actual:    buildBasicAlbum("Sympony No. 5", 1963, "Beethoven"), // Typo
-			Reference: buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Sympony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(), // Typo
+			Reference: NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
 		{
 			Name:         "warning - moderate title difference",
-			Actual:       buildBasicAlbum("Symphony No. 5 Finale", 1963, "Beethoven"),
-			Reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:       NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5 Finale").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:      "pass - no reference",
-			Actual:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			Reference: nil,
 			WantPass:  true,
 		},
 		{
 			Name:         "multiple errors",
-			Actual:       buildBasicAlbum("Concerto", 1960, "Mozart"),
-			Reference:    buildBasicAlbum("Symphony No. 5", 1963, "Beethoven"),
+			Actual:       NewAlbum().WithOriginalYear(1960).ClearTracks().AddTrack().WithTitle("Concerto").ClearArtists().WithArtist("Mozart", domain.RoleComposer).Build().Build(),
+			Reference:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:     false,
 			WantErrors:   2, // Composer + title
 			WantWarnings: 1, // Year
@@ -151,12 +151,4 @@ func TestGetComposer(t *testing.T) {
 			}
 		})
 	}
-}
-
-// buildBasicAlbum creates a simple album for testing
-func buildBasicAlbum(trackTitle string, year int, composerName string) *domain.Album {
-	composer := domain.Artist{Name: composerName, Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-	track := &domain.Track{Disc: 1, Track: 1, Title: trackTitle, Artists: []domain.Artist{composer, ensemble}}
-	return &domain.Album{Title: "Album", OriginalYear: year, Tracks: []*domain.Track{track}}
 }

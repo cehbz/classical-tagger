@@ -14,7 +14,7 @@ import (
 var composerNamePattern = regexp.MustCompile(`^[A-Z]\S*[\s\.]+\S+|^\S+\s+\S+`)
 
 // ComposerTagRequired checks that composer tag is present and uniquely identifiable (classical.composer)
-func (r *Rules) ComposerTagRequired(actual, reference *domain.Album) RuleResult {
+func (r *Rules) ComposerTagRequired(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.composer",
 		Name:   "Composer tag required with identifiable name",
@@ -24,38 +24,31 @@ func (r *Rules) ComposerTagRequired(actual, reference *domain.Album) RuleResult 
 
 	var issues []domain.ValidationIssue
 
-	for _, track := range actual.Tracks {
-		// Find the composer
-		var composer *domain.Artist
-		for _, artist := range track.Artists {
-			if artist.Role == domain.RoleComposer {
-				composer = &artist
-				break
-			}
-		}
+	// Find the composer
+	composers := actualTrack.Composers()
+	if len(composers) == 0 {
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelError,
+			Track:   actualTrack.Track,
+			Rule:    meta.ID,
+			Message: fmt.Sprintf("Track %s: Composer tag is missing", formatTrackNumber(actualTrack)),
+		})
+		return RuleResult{Meta: meta, Issues: issues}
+	}
 
-		if composer == nil {
-			issues = append(issues, domain.ValidationIssue{
-				Level:   domain.LevelError,
-				Track:   track.Track,
-				Rule:    meta.ID,
-				Message: fmt.Sprintf("Track %s: Composer tag is missing", formatTrackNumber(track)),
-			})
-			continue
-		}
-
+	for _, composer := range composers {
+		composerName := composer.Name
 		// Check that composer name is uniquely identifiable
 		// Must have at least first name or initial, not just last name
-		composerName := composer.Name
 
 		// Check for ambiguous single-word names
 		if !strings.Contains(composerName, " ") && !strings.Contains(composerName, ".") {
 			issues = append(issues, domain.ValidationIssue{
 				Level: domain.LevelError,
-				Track: track.Track,
+				Track: actualTrack.Track,
 				Rule:  meta.ID,
 				Message: fmt.Sprintf("Track %s: Composer name '%s' is not uniquely identifiable (needs first name or initial)",
-					formatTrackNumber(track), composerName),
+					formatTrackNumber(actualTrack), composerName),
 			})
 			continue
 		}
@@ -64,10 +57,10 @@ func (r *Rules) ComposerTagRequired(actual, reference *domain.Album) RuleResult 
 		if !composerNamePattern.MatchString(composerName) {
 			issues = append(issues, domain.ValidationIssue{
 				Level: domain.LevelWarning,
-				Track: track.Track,
+				Track: actualTrack.Track,
 				Rule:  meta.ID,
 				Message: fmt.Sprintf("Track %s: Composer name '%s' may not be in standard format (e.g., 'Johann Sebastian Bach' or 'J.S. Bach')",
-					formatTrackNumber(track), composerName),
+					formatTrackNumber(actualTrack), composerName),
 			})
 		}
 	}

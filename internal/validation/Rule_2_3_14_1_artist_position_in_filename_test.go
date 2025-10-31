@@ -62,15 +62,15 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.ArtistPositionInFilename(tt.Actual, tt.Actual)
-
-			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+			issues := []domain.ValidationIssue{}
+			for _, track := range tt.Actual.Tracks {
+				result := rules.ArtistPositionInFilename(track, nil, tt.Actual, nil)
+				issues = append(issues, result.Issues...)
 			}
 
-			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
-				for _, issue := range result.Issues {
+			if len(issues) != tt.WantIssues {
+				t.Errorf("Issues = %d, want %d", len(issues), tt.WantIssues)
+				for _, issue := range issues {
 					t.Logf("  Issue: %s", issue.Message)
 				}
 			}
@@ -152,58 +152,5 @@ func TestContainsArtistName(t *testing.T) {
 				t.Errorf("containsArtistName(%q) = %v, want %v", tt.Filename, got, tt.Want)
 			}
 		})
-	}
-}
-
-// composerTrack represents a track with specific composer
-type composerTrack struct {
-	ComposerName string
-	TrackNum     int
-	Filename     string
-}
-
-// buildSingleComposerAlbumWithFilenames creates album with one composer
-func buildSingleComposerAlbumWithFilenames(composerName string, filenames ...string) *domain.Album {
-	tracks := make([]*domain.Track, len(filenames))
-
-	for i, _ := range filenames {
-		tracks[i] = &domain.Track{
-			Disc:  1,
-			Track: i + 1,
-			Title: "Work " + string(rune('A'+i)),
-			Artists: []domain.Artist{
-				domain.Artist{Name: composerName, Role: domain.RoleComposer},
-				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
-			},
-		}
-	}
-	return &domain.Album{
-		Title:        "Album",
-		OriginalYear: 1963,
-		Tracks:       tracks,
-	}
-}
-
-// buildMultiComposerAlbumWithFilenames creates album with multiple composers
-func buildMultiComposerAlbumWithFilenames(composerTracks ...[]composerTrack) *domain.Album {
-	tracks := make([]*domain.Track, 0)
-	for _, ctList := range composerTracks {
-		for _, ct := range ctList {
-			tracks = append(tracks, &domain.Track{
-				Disc:  1,
-				Track: ct.TrackNum,
-				Title: "Work " + string(rune('A'+ct.TrackNum)),
-				Name:  ct.Filename,
-				Artists: []domain.Artist{
-					domain.Artist{Name: ct.ComposerName, Role: domain.RoleComposer},
-					domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
-				},
-			})
-		}
-	}
-	return &domain.Album{
-		Title:        "Various Composers",
-		OriginalYear: 1963,
-		Tracks:       tracks,
 	}
 }

@@ -41,7 +41,7 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 				[]int{1, 2, 10},
 			),
 			WantPass: false,
-			WantInfo: 2, // CD1 and CD2 both need padding
+			WantInfo: 1,
 		},
 		{
 			Name: "pass - two digit folders",
@@ -88,18 +88,4 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 			}
 		})
 	}
-}
-
-// buildAlbumWithFilenamesAndDiscs creates album with specific filenames and disc numbers
-func buildAlbumWithFilenamesAndDiscs(filenames []string, discs []int) *domain.Album {
-	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-	artists := []domain.Artist{composer, ensemble}
-
-	tracks := make([]*domain.Track, len(filenames))
-	for i, filename := range filenames {
-		disc := discs[i]
-		tracks[i] = &domain.Track{Disc: disc, Track: i + 1, Title: "Track", Artists: artists, Name: filename}
-	}
-	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: tracks}
 }

@@ -18,85 +18,82 @@ func TestRules_ArtistFieldFormat(t *testing.T) {
 		WantInfo     int
 	}{
 		{
-			Name: "valid - has performers",
-			Actual: buildAlbumWithArtists(
-				"Beethoven", domain.RoleComposer,
-				"Pollini", domain.RoleSoloist,
-				"Berlin Phil", domain.RoleEnsemble,
-			),
+			Name:     "valid - has performers",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
-			Name: "warning - only composer",
-			Actual: buildAlbumWithArtists(
-				"Beethoven", domain.RoleComposer,
-			),
+			Name:         "warning - only composer",
+			Actual:       NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
-			Name: "valid - just performers (no composer)",
-			Actual: buildAlbumWithArtists(
-				"Pollini", domain.RoleSoloist,
-				"Berlin Phil", domain.RoleEnsemble,
-			),
+			Name:     "valid - just performers (no composer)",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
-			Name: "valid - ensemble only",
-			Actual: buildAlbumWithArtists(
-				"Beethoven", domain.RoleComposer,
-				"Emerson Quartet", domain.RoleEnsemble,
-			),
+			Name:     "valid - ensemble only",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Emerson Quartet", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
-			Name: "info - performer count differs from reference",
-			Actual: buildAlbumWithArtists(
-				"Bach", domain.RoleComposer,
-				"Pollini", domain.RoleSoloist,
-			),
-			Reference: buildAlbumWithArtists(
-				"Bach", domain.RoleComposer,
-				"Pollini", domain.RoleSoloist,
-				"Orchestra", domain.RoleEnsemble,
-			),
-			WantPass: false,
-			WantInfo: 1,
+			Name:      "info - performer count differs from reference",
+			Actual:    NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}).Build().Build(),
+			Reference: NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			WantPass:  false,
+			WantInfo:  1,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.ArtistFieldFormat(tt.Actual, tt.Reference)
+		for i, track := range tt.Actual.Tracks {
+			t.Run(tt.Name, func(t *testing.T) {
+				var refTrack *domain.Track
+				if tt.Reference != nil && i < len(tt.Reference.Tracks) {
+					refTrack = tt.Reference.Tracks[i]
+				}
+				result := rules.ArtistFieldFormat(track, refTrack, tt.Actual, tt.Reference)
+				if result.Passed() != tt.WantPass {
+					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+				}
 
-			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
-			}
-
-			if !tt.WantPass {
+				errorCount := 0
 				warningCount := 0
 				infoCount := 0
 				for _, issue := range result.Issues {
-					if issue.Level == domain.LevelWarning {
+					switch issue.Level {
+					case domain.LevelError:
+						errorCount++
+					case domain.LevelWarning:
 						warningCount++
-					} else if issue.Level == domain.LevelInfo {
+					case domain.LevelInfo:
 						infoCount++
 					}
 				}
 
-				if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
+				dumpIssues := false
+				if tt.WantPass && errorCount > 0 {
+					t.Errorf("Errors = %d, want 0", errorCount)
+					dumpIssues = true
 				}
-				if tt.WantInfo > 0 && infoCount != tt.WantInfo {
+				if tt.WantWarnings != warningCount {
+					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
+					dumpIssues = true
+				}
+				if tt.WantInfo != infoCount {
 					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
+					dumpIssues = true
 				}
 
-				for _, issue := range result.Issues {
-					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
+				if dumpIssues {
+					for _, issue := range result.Issues {
+						t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
+					}
 				}
-			}
-		})
+			})
+		}
 	}
 }
 

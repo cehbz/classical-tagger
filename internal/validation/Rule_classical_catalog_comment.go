@@ -8,7 +8,7 @@ import (
 
 // CatalogInfoInComments checks for catalog information (classical.catalog_comment)
 // INFO level - suggests including label and catalog number in comment field
-func (r *Rules) CatalogInfoInComments(actual, reference *domain.Album) RuleResult {
+func (r *Rules) CatalogInfoInComments(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.catalog_comment",
 		Name:   "Catalog information recommended in comment field",

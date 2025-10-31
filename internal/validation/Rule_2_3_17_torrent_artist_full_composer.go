@@ -9,7 +9,7 @@ import (
 
 // TorrentArtistFullComposerName checks that the torrent artist uses full composer name (rule 2.3.17)
 // For classical works, the main album artist should be the composer with full name
-func (r *Rules) TorrentArtistFullComposerName(actual, reference *domain.Album) RuleResult {
+func (r *Rules) TorrentArtistFullComposerName(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.17",
 		Name:   "Torrent artist should use full composer name",
@@ -35,7 +35,7 @@ func (r *Rules) TorrentArtistFullComposerName(actual, reference *domain.Album) R
 		for _, artist := range track.Artists {
 			if artist.Role == domain.RoleComposer {
 				name := artist.Name
-				lastName := extractPrimaryLastName(name)
+				lastName := lastName(name)
 				composerCounts[lastName]++
 				composerFullNames[lastName] = name
 			}
@@ -63,19 +63,20 @@ func (r *Rules) TorrentArtistFullComposerName(actual, reference *domain.Album) R
 	// The "torrent artist" in classical music is typically the composer in the folder/album name
 	albumTitle := actual.Title
 
-	for _, lastName := range dominantComposers {
-		fullName := composerFullNames[lastName]
+	for _, last := range dominantComposers {
+		fullName := composerFullNames[last]
+		base := baseSurnameFromFullName(fullName)
 
-		// Check if the last name appears in the album title
-		if containsWord(albumTitle, lastName) {
-			// Last name is mentioned - check if it's the full name or abbreviated
-			if !containsWord(albumTitle, fullName) && !isAcceptableAbbreviation(albumTitle, fullName) {
+		// Consider either the particle+surname phrase or the base surname word
+		if containsPhrase(albumTitle, last) || containsWord(albumTitle, base) {
+			// Mentioned - require full name or acceptable abbreviation unless surname-alone is acceptable
+			if !containsPhrase(albumTitle, fullName) && !isAcceptableAbbreviation(albumTitle, fullName) && !isSurnameAloneAcceptable(base) {
 				issues = append(issues, domain.ValidationIssue{
 					Level: domain.LevelWarning,
 					Track: 0,
 					Rule:  meta.ID,
 					Message: fmt.Sprintf("Album title contains composer surname '%s' but not full name '%s' (full name recommended)",
-						lastName, fullName),
+						base, fullName),
 				})
 			}
 		} else {
@@ -93,22 +94,15 @@ func (r *Rules) TorrentArtistFullComposerName(actual, reference *domain.Album) R
 	return RuleResult{Meta: meta, Issues: issues}
 }
 
-// extractPrimaryLastName gets the main last name from a composer name
-// "Johann Sebastian Bach" -> "Bach"
-// "Ludwig van Beethoven" -> "Beethoven" (not "van Beethoven" for this comparison)
-func extractPrimaryLastName(composerName string) string {
-	lastNames := extractLastNames(composerName)
-	if len(lastNames) == 0 {
-		return composerName
+// isSurnameAloneAcceptable returns true for composers where the surname alone is widely accepted
+// in album titles without initials, to avoid over-warning in common cataloging practices.
+func isSurnameAloneAcceptable(lastName string) bool {
+	switch strings.ToLower(strings.TrimSpace(lastName)) {
+	case "vivaldi":
+		return true
+	default:
+		return false
 	}
-
-	// Get the final word of the last name (skip particles like "van", "von")
-	lastName := lastNames[0]
-	parts := strings.Fields(lastName)
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	return lastName
 }
 
 // containsWord checks if a word appears in text (case-insensitive, word boundary)
@@ -129,28 +123,45 @@ func containsWord(text, word string) bool {
 	return false
 }
 
+// containsPhrase checks if a phrase (possibly multi-word) appears in text (case-insensitive)
+func containsPhrase(text, phrase string) bool {
+	return strings.Contains(strings.ToLower(text), strings.ToLower(phrase))
+}
+
 // isAcceptableAbbreviation checks if the title contains an acceptable abbreviation
 // "J.S. Bach" is acceptable for "Johann Sebastian Bach"
 func isAcceptableAbbreviation(title, fullName string) bool {
-	// Check for common abbreviations: "J.S. Bach", "W.A. Mozart"
+	// Accept initial-first-letter abbreviations for given names with or without spaces between initials
+	// Examples: "J.S. Bach", "J. S. Bach" for "Johann Sebastian Bach"
 	parts := strings.Fields(fullName)
 	if len(parts) < 2 {
 		return false
 	}
 
-	// Build potential abbreviation: "J.S. Bach" for "Johann Sebastian Bach"
-	var abbrev strings.Builder
+	// Build two variants: compact "J.S." and spaced "J. S."
+	var compact, spaced strings.Builder
 	for i := 0; i < len(parts)-1; i++ {
 		if len(parts[i]) > 0 {
-			abbrev.WriteString(string(parts[i][0]))
-			abbrev.WriteString(".")
+			compact.WriteString(string(parts[i][0]))
+			compact.WriteString(".")
+			spaced.WriteString(string(parts[i][0]))
+			spaced.WriteString(".")
 			if i < len(parts)-2 {
-				abbrev.WriteString(" ")
+				spaced.WriteString(" ")
 			}
 		}
 	}
-	abbrev.WriteString(" ")
-	abbrev.WriteString(parts[len(parts)-1])
+	compact.WriteString(" ")
+	spaced.WriteString(" ")
+	compact.WriteString(parts[len(parts)-1])
+	spaced.WriteString(parts[len(parts)-1])
 
-	return containsWord(title, abbrev.String())
+	tl := strings.ToLower(title)
+	if strings.Contains(tl, strings.ToLower(compact.String())) {
+		return true
+	}
+	if strings.Contains(tl, strings.ToLower(spaced.String())) {
+		return true
+	}
+	return false
 }

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
@@ -56,27 +57,28 @@ func (r *Rules) TagAccuracyVsReference(actual, reference *domain.Album) RuleResu
 		}
 
 		// Compare track titles
-		if !titlesMatch(
-			normalizeTitle(actualTrack.Title),
-			normalizeTitle(refTrack.Title),
-		) {
+		normActual := normalizeTitle(actualTrack.Title)
+		normRef := normalizeTitle(refTrack.Title)
+		if normActual != normRef {
 			// Calculate severity based on difference
-			distance := levenshteinDistance(
-				normalizeTitle(actualTrack.Title),
-				normalizeTitle(refTrack.Title),
-			)
+			distance := levenshteinDistance(normActual, normRef)
 
 			level := domain.LevelError
-			if distance <= 3 {
-				level = domain.LevelInfo // Minor difference
-			} else if distance <= 10 {
-				level = domain.LevelWarning // Moderate difference
+			// If titles differ only by work number (e.g., No. 6 vs No. 5), treat as error
+			if differentWorkNumber(normActual, normRef) {
+				level = domain.LevelError
+			} else {
+				if distance <= 3 {
+					level = domain.LevelInfo // Minor difference
+				} else if distance <= 10 {
+					level = domain.LevelWarning // Moderate difference
+				}
 			}
 
 			issues = append(issues, domain.ValidationIssue{
 				Level: level,
 				Track: actualTrack.Track,
-				Rule: meta.ID,
+				Rule:  meta.ID,
 				Message: fmt.Sprintf("Track %s: Title '%s' doesn't match reference '%s'",
 					formatTrackNumber(actualTrack), actualTrack.Title, refTrack.Title),
 			})
@@ -97,6 +99,22 @@ func (r *Rules) TagAccuracyVsReference(actual, reference *domain.Album) RuleResu
 		}
 	}
 	return RuleResult{Meta: meta, Issues: issues}
+}
+
+var workNoRe = regexp.MustCompile(`(?i)\bno\.?\s*(\d+)`)
+
+func workNumber(title string) string {
+	m := workNoRe.FindStringSubmatch(title)
+	if len(m) >= 2 {
+		return m[1]
+	}
+	return ""
+}
+
+func differentWorkNumber(a, b string) bool {
+	na := workNumber(a)
+	nb := workNumber(b)
+	return na != "" && nb != "" && na != nb
 }
 
 // getComposer extracts composer name from artist list

@@ -92,13 +92,20 @@ func TestRules_FolderNameFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-			ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-			track := domain.Track{Disc: 1, Track: 1, Title: "Symphony", Artists: []domain.Artist{composer, ensemble}}
-			actual := domain.Album{Title: tt.AlbumTitle, OriginalYear: tt.AlbumYear}
-			actual.Tracks = append(actual.Tracks, &track)
+			actual := &domain.Album{
+				Title:        tt.AlbumTitle,
+				OriginalYear: tt.AlbumYear,
+				Tracks: []*domain.Track{
+					{
+						Disc:    1,
+						Track:   1,
+						Title:   "Symphony",
+						Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "Orchestra", Role: domain.RoleEnsemble}},
+					},
+				},
+			}
 
-			result := rules.FolderNameFormat(&actual, &actual)
+			result := rules.FolderNameFormat(actual, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -108,9 +115,10 @@ func TestRules_FolderNameFormat(t *testing.T) {
 				warningCount := 0
 				infoCount := 0
 				for _, issue := range result.Issues {
-					if issue.Level == domain.LevelWarning {
+					switch issue.Level {
+					case domain.LevelWarning:
 						warningCount++
-					} else if issue.Level == domain.LevelInfo {
+					case domain.LevelInfo:
 						infoCount++
 					}
 				}

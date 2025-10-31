@@ -6,7 +6,7 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-func TestRules_CharacterEncoding(t *testing.T) {
+func TestRules_AlbumCharacterEncoding(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
@@ -17,46 +17,140 @@ func TestRules_CharacterEncoding(t *testing.T) {
 	}{
 		{
 			Name:     "valid - proper UTF-8",
-			Actual:   buildAlbumWithTitle("Beethoven - Symphony No. 5", "1963"),
+			Actual:   NewAlbum().WithTitle("Beethoven - Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - proper accented characters",
-			Actual:   buildAlbumWithTitle("Dvořák - String Quartet", "1963"),
+			Actual:   NewAlbum().WithTitle("Dvořák - String Quartet").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - proper German umlauts",
-			Actual:   buildAlbumWithTitle("Bruckner - Symphonies", "1963"),
+			Actual:   NewAlbum().WithTitle("Arnold Schönberg - Symphonies").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:       "error - mojibake pattern Ã©",
-			Actual:     buildAlbumWithTitle("ConcertÃ© in D", "1963"),
+			Actual:     NewAlbum().WithTitle("ConcertÃ© in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - mojibake pattern â€™",
-			Actual:     buildAlbumWithTitle("Donâ€™t Stop Believin", "1963"),
+			Actual:     NewAlbum().WithTitle("Donâ€™t Stop Believin").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - replacement character",
-			Actual:     buildAlbumWithTitle("Concert\uFFFD in D", "1963"),
+			Actual:     NewAlbum().WithTitle("Concert\uFFFD in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - null byte",
-			Actual:     buildAlbumWithTitle("Concert\x00 in D", "1963"),
+			Actual:     NewAlbum().WithTitle("Concert\x00 in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:     "valid - proper Russian characters",
-			Actual:   buildAlbumWithTitle("Tchaikovsky - Лебединое озеро", "1963"),
+			Actual:   NewAlbum().WithTitle("Tchaikovsky - Лебединое озеро").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			WantPass: true,
+		},
+		{
+			Name:       "error - encoding issue in artist name",
+			Actual:     NewAlbum().WithTitle("DvÃ¶rÃ¡k").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			WantPass:   false,
+			WantErrors: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Logf("debug album title: %q", tt.Actual.Title)
+			result := rules.AlbumCharacterEncoding(tt.Actual, nil)
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+			}
+			if !tt.WantPass {
+				errorCount := 0
+				for _, issue := range result.Issues {
+					if issue.Level == domain.LevelError {
+						errorCount++
+					}
+				}
+				if errorCount != tt.WantErrors {
+					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
+				}
+				for _, issue := range result.Issues {
+					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
+				}
+			}
+		})
+	}
+}
+
+func TestRules_TrackCharacterEncoding(t *testing.T) {
+	rules := NewRules()
+
+	// builder sanity check
+	t.Run("builder_sanity_for_track_title", func(t *testing.T) {
+		album := NewAlbum().ClearTracks().AddTrack().WithTitle("ZZZ").Build().Build()
+		if len(album.Tracks) != 1 || album.Tracks[0].Title != "ZZZ" {
+			t.Fatalf("builder produced title=%q (tracks=%d), want ZZZ,1", album.Tracks[0].Title, len(album.Tracks))
+		}
+	})
+
+	tests := []struct {
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantErrors int
+	}{
+		{
+			Name:     "valid - proper UTF-8",
+			Actual:   NewAlbum().WithTitle("Beethoven - Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			WantPass: true,
+		},
+		{
+			Name:     "valid - proper accented characters",
+			Actual:   NewAlbum().WithTitle("Dvořák - String Quartet").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			WantPass: true,
+		},
+		{
+			Name:     "valid - proper German umlauts",
+			Actual:   NewAlbum().WithTitle("Arnold Schönberg - Symphonies").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			WantPass: true,
+		},
+		{
+			Name:       "error - mojibake pattern Ã©",
+			Actual:     buildAlbumWithTrackTitle("ConcertÃ© in D"),
+			WantPass:   false,
+			WantErrors: 1,
+		},
+		{
+			Name:       "error - mojibake pattern â€™",
+			Actual:     buildAlbumWithTrackTitle("Donâ€™t Stop Believin"),
+			WantPass:   false,
+			WantErrors: 1,
+		},
+		{
+			Name:       "error - replacement character",
+			Actual:     buildAlbumWithTrackTitle("Concert\uFFFD in D"),
+			WantPass:   false,
+			WantErrors: 1,
+		},
+		{
+			Name:       "error - null byte",
+			Actual:     buildAlbumWithTrackTitle("Concert\x00 in D"),
+			WantPass:   false,
+			WantErrors: 1,
+		},
+		{
+			Name:     "valid - proper Russian characters",
+			Actual:   NewAlbum().WithTitle("Tchaikovsky - Лебединое озеро").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
@@ -68,30 +162,33 @@ func TestRules_CharacterEncoding(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.CharacterEncoding(tt.Actual, tt.Actual)
+		for _, track := range tt.Actual.Tracks {
+			t.Run(tt.Name, func(t *testing.T) {
+				t.Logf("debug tracks=%d firstTitle=%q trackTitle=%q filename=%q", len(tt.Actual.Tracks), tt.Actual.Tracks[0].Title, track.Title, track.Name)
+				result := rules.TrackCharacterEncoding(track, nil, nil, nil)
 
-			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
-			}
+				if result.Passed() != tt.WantPass {
+					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+				}
 
-			if !tt.WantPass {
-				errorCount := 0
-				for _, issue := range result.Issues {
-					if issue.Level == domain.LevelError {
-						errorCount++
+				if !tt.WantPass {
+					errorCount := 0
+					for _, issue := range result.Issues {
+						if issue.Level == domain.LevelError {
+							errorCount++
+						}
+					}
+
+					if errorCount != tt.WantErrors {
+						t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
+					}
+
+					for _, issue := range result.Issues {
+						t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 					}
 				}
-
-				if errorCount != tt.WantErrors {
-					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
-				}
-
-				for _, issue := range result.Issues {
-					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
-				}
-			}
-		})
+			})
+		}
 	}
 }
 
@@ -124,12 +221,4 @@ func TestHasEncodingIssues(t *testing.T) {
 			}
 		})
 	}
-}
-
-// buildAlbumWithArtistName creates album with specific artist name
-func buildAlbumWithArtistName(artistName string) *domain.Album {
-	composer := domain.Artist{Name: artistName, Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony", Artists: []domain.Artist{composer, ensemble}}
-	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: []*domain.Track{&track}}
 }

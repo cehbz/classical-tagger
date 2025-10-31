@@ -45,8 +45,7 @@ func main() {
 	// Validate metadata unless --force
 	if !*force {
 		fmt.Println("Validating metadata...")
-		validator := validation.NewAlbumValidator()
-		issues := validator.ValidateMetadata(album)
+		issues := validation.Check(album, nil)
 
 		hasErrors := false
 		for _, issue := range issues {

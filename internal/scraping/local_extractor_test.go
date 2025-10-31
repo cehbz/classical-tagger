@@ -10,46 +10,56 @@ func TestLocalExtractor_ParseDirectoryName(t *testing.T) {
 	extractor := NewLocalExtractor()
 
 	tests := []struct {
-		Name      string
-		DirPath   string
-		WantTitle string
-		WantYear  int
+		Name           string
+		DirPath        string
+		WantFolderName string
+		WantTitle      string
+		WantYear       int
 	}{
 		{
-			Name:      "standard format with brackets",
-			DirPath:   "/music/Beethoven - Symphony No. 5 [1963] [FLAC]",
-			WantTitle: "Beethoven - Symphony No. 5",
-			WantYear:  1963,
+			Name:           "standard format with brackets",
+			DirPath:        "/music/Beethoven - Symphony No. 5 [1963] [FLAC]",
+			WantFolderName: "Beethoven - Symphony No. 5 [1963] [FLAC]",
+			WantTitle:      "Beethoven - Symphony No. 5",
+			WantYear:       1963,
 		},
 		{
-			Name:      "parentheses for year",
-			DirPath:   "/music/Bach - Goldberg Variations (1741)",
-			WantTitle: "Bach - Goldberg Variations",
-			WantYear:  1741,
+			Name:           "parentheses for year",
+			DirPath:        "music/Bach - Goldberg Variations (1741)",
+			WantFolderName: "Bach - Goldberg Variations (1741)",
+			WantTitle:      "Bach - Goldberg Variations",
+			WantYear:       1741,
 		},
 		{
-			Name:      "no year",
-			DirPath:   "/music/Mozart - Piano Concertos [FLAC]",
-			WantTitle: "Mozart - Piano Concertos",
-			WantYear:  0,
+			Name:           "no year",
+			DirPath:        "files/classical/music/Mozart - Piano Concertos [FLAC]",
+			WantFolderName: "Mozart - Piano Concertos [FLAC]",
+			WantTitle:      "Mozart - Piano Concertos",
+			WantYear:       0,
 		},
 		{
-			Name:      "no format indicator",
-			DirPath:   "/music/Vivaldi - Four Seasons [1989]",
-			WantTitle: "Vivaldi - Four Seasons",
-			WantYear:  1989,
+			Name:           "no format indicator",
+			DirPath:        "./Vivaldi - Four Seasons [1989]",
+			WantFolderName: "Vivaldi - Four Seasons [1989]",
+			WantTitle:      "Vivaldi - Four Seasons",
+			WantYear:       1989,
 		},
 		{
-			Name:      "complex format with bit depth",
-			DirPath:   "/music/J.S. Bach - Brandenburg Concertos [1982] [FLAC] [24-96]",
-			WantTitle: "J.S. Bach - Brandenburg Concertos",
-			WantYear:  1982,
+			Name:           "complex format with bit depth",
+			DirPath:        "J.S. Bach - Brandenburg Concertos [1982] [FLAC] [24-96]",
+			WantFolderName: "J.S. Bach - Brandenburg Concertos [1982] [FLAC] [24-96]",
+			WantTitle:      "J.S. Bach - Brandenburg Concertos",
+			WantYear:       1982,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			gotTitle, gotYear := extractor.parseDirectoryName(tt.DirPath)
+			gotFolder, gotTitle, gotYear := extractor.parseDirectoryName(tt.DirPath)
+
+			if gotFolder != tt.WantFolderName {
+				t.Errorf("parseDirectoryName() folder = %v, want %v", gotFolder, tt.WantFolderName)
+			}
 
 			if gotTitle != tt.WantTitle {
 				t.Errorf("parseDirectoryName() title = %v, want %v", gotTitle, tt.WantTitle)

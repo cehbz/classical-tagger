@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -14,7 +15,7 @@ var artistBeforeTrackPattern = regexp.MustCompile(`^[^0-9]+\s*-\s*(\d+)`)
 
 // ArtistPositionInFilename checks that artist names (if present) come AFTER track numbers (rule 2.3.14.1)
 // For multi-artist/composer albums, this ensures proper sorting
-func (r *Rules) ArtistPositionInFilename(actual, reference *domain.Album) RuleResult {
+func (r *Rules) ArtistPositionInFilename(actualTrack, _ *domain.Track, actualAlbum, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.14.1",
 		Name:   "Artist name must come after track number in filename",
@@ -25,7 +26,7 @@ func (r *Rules) ArtistPositionInFilename(actual, reference *domain.Album) RuleRe
 	var issues []domain.ValidationIssue
 
 	// First, determine if this is a multi-artist/multi-composer album
-	isMultiArtist := isMultiComposerAlbum(actual)
+	isMultiArtist := isMultiComposerAlbum(actualAlbum)
 
 	if !isMultiArtist {
 		// For single-artist albums, artist in filename is optional and position doesn't matter
@@ -33,28 +34,25 @@ func (r *Rules) ArtistPositionInFilename(actual, reference *domain.Album) RuleRe
 	}
 
 	// For multi-artist albums, check each track
-	for _, track := range actual.Tracks {
-		fileName := track.Name
-		if fileName == "" {
-			continue
-		}
+	fileName := actualTrack.Name
+	if fileName == "" {
+		return RuleResult{Meta: meta, Issues: nil}
+	}
 
-		// Extract just the filename (not path)
-		parts := strings.Split(fileName, "/")
-		justFileName := parts[len(parts)-1]
+	// Extract just the filename (not path)
+	justFileName := filepath.Base(fileName)
 
-		// Check if an artist name appears before the track number
-		if artistBeforeTrackPattern.MatchString(justFileName) {
-			// Check if this is actually an artist name by comparing with track artists
-			if containsArtistName(justFileName, track.Artists) {
-				issues = append(issues, domain.ValidationIssue{
-					Level: domain.LevelError,
-					Track: track.Track,
-					Rule:  meta.ID,
-					Message: fmt.Sprintf("Track %s: Artist name appears before track number in filename '%s' (should be: '01 - Artist - Title.flac')",
-						formatTrackNumber(track), justFileName),
-				})
-			}
+	// Check if an artist name appears before the track number
+	if artistBeforeTrackPattern.MatchString(justFileName) {
+		// Check if this is actually an artist name by comparing with track artists
+		if containsArtistName(justFileName, actualTrack.Artists) {
+			issues = append(issues, domain.ValidationIssue{
+				Level: domain.LevelError,
+				Track: actualTrack.Track,
+				Rule:  meta.ID,
+				Message: fmt.Sprintf("Track %s: Artist name appears before track number in filename '%s' (should be: '01 - Artist - Title.flac')",
+					formatTrackNumber(actualTrack), justFileName),
+			})
 		}
 	}
 	return RuleResult{Meta: meta, Issues: issues}

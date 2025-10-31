@@ -1,4 +1,4 @@
-package filesystem
+package validation
 
 import (
 	"fmt"
@@ -177,11 +177,3 @@ func isDiscDirectory(name string) bool {
 	return false
 }
 
-// lastName extracts the last name from a full name.
-func lastName(fullName string) string {
-	parts := strings.Fields(fullName)
-	if len(parts) == 0 {
-		return ""
-	}
-	return parts[len(parts)-1]
-}

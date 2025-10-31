@@ -18,48 +18,48 @@ func TestRules_RecordingDateVsYear(t *testing.T) {
 	}{
 		{
 			Name:     "pass - no edition year",
-			Actual:   buildAlbumWithTitle("Symphony", "No. 9"),
+			Actual:   NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "pass - same year",
-			Actual:   buildAlbumWithEditionYear(1963, 1963),
+			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1963).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "pass - small difference (1-2 years)",
-			Actual:   buildAlbumWithEditionYear(1963, 1965),
+			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1965).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "info - moderate gap (3-10 years)",
-			Actual:   buildAlbumWithEditionYear(1963, 1968),
+			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1968).Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "info - large gap (>10 years)",
-			Actual:   buildAlbumWithEditionYear(1963, 1990),
+			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1990).Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "info - edition before recording",
-			Actual:   buildAlbumWithEditionYear(1990, 1985),
+			Actual:   NewAlbum().WithOriginalYear(1990).WithEdition("Label", "CAT123", 1985).Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:      "info - differs from reference",
-			Actual:    buildAlbumWithTitle("Symphony", "No. 9"),
-			Reference: buildAlbumWithTitle("Symphony", "Number nine"),
+			Actual:    NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1963).Build(),
+			Reference: NewAlbum().WithOriginalYear(1990).WithEdition("Label", "CAT123", 1990).Build(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
 		{
 			Name:      "pass - close to reference",
-			Actual:    buildAlbumWithTitle("Symphony", "No. 9"),
-			Reference: buildAlbumWithTitle("Symphony", "No 9"),
+			Actual:    NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference: NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:  true,
 		},
 	}

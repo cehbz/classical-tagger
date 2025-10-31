@@ -80,8 +80,20 @@ func TestRules_TorrentArtistFullComposerName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			actual := buildAlbumWithTitleAndComposers(tt.AlbumTitle, tt.Composers...)
-			result := rules.TorrentArtistFullComposerName(actual, actual)
+			builder := NewAlbum().WithTitle(tt.AlbumTitle).ClearTracks()
+			for i, composerName := range tt.Composers {
+				builder.AddTrack().
+					WithTrack(i+1).
+					WithTitle("Work "+string(rune('A'+i))).
+					ClearArtists().
+					WithArtists(
+						domain.Artist{Name: composerName, Role: domain.RoleComposer},
+						domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
+						domain.Artist{Name: "Conductor", Role: domain.RoleConductor}).
+					Build()
+			}
+			actual := builder.Build()
+			result := rules.TorrentArtistFullComposerName(actual, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -91,9 +103,10 @@ func TestRules_TorrentArtistFullComposerName(t *testing.T) {
 				warningCount := 0
 				infoCount := 0
 				for _, issue := range result.Issues {
-					if issue.Level == domain.LevelWarning {
+					switch issue.Level {
+					case domain.LevelWarning:
 						warningCount++
-					} else if issue.Level == domain.LevelInfo {
+					case domain.LevelInfo:
 						infoCount++
 					}
 				}
@@ -108,31 +121,6 @@ func TestRules_TorrentArtistFullComposerName(t *testing.T) {
 				for _, issue := range result.Issues {
 					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 				}
-			}
-		})
-	}
-}
-
-func TestExtractPrimaryLastName(t *testing.T) {
-	tests := []struct {
-		Name         string
-		ComposerName string
-		Want         string
-	}{
-		{"simple", "Johann Bach", "Bach"},
-		{"full name", "Johann Sebastian Bach", "Bach"},
-		{"with particle", "Ludwig van Beethoven", "Beethoven"},
-		{"with von", "Richard von Strauss", "Strauss"},
-		{"initials", "J.S. Bach", "Bach"},
-		{"reversed", "Beethoven, Ludwig van", "Beethoven"},
-		{"single word", "Bach", "Bach"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got := extractPrimaryLastName(tt.ComposerName)
-			if got != tt.Want {
-				t.Errorf("extractPrimaryLastName(%q) = %q, want %q", tt.ComposerName, got, tt.Want)
 			}
 		})
 	}
@@ -212,22 +200,4 @@ func TestIsAcceptableAbbreviation(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper to build album with specific title and composers
-func buildAlbumWithTitleAndComposers(albumTitle string, composerNames ...string) *domain.Album {
-	// Create tracks with the specified composers
-
-	album := &domain.Album{Title: albumTitle, OriginalYear: 1963}
-	for i, composerName := range composerNames {
-		composer := domain.Artist{Name: composerName, Role: domain.RoleComposer}
-		ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-		conductor := domain.Artist{Name: "Conductor", Role: domain.RoleConductor}
-
-		artists := []domain.Artist{composer, ensemble, conductor}
-		track := &domain.Track{Disc: 1, Track: i + 1, Title: "Work " + string(rune('A'+i)), Artists: artists}
-		album.Tracks = append(album.Tracks, track)
-	}
-
-	return album
 }

@@ -6,8 +6,31 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// TagCapitalization checks that tags use proper Title Case (rule 2.3.18.2)
-func (r *Rules) TagCapitalization(actual, reference *domain.Album) RuleResult {
+// AlbumTagCapitalization checks that album tags use proper Title Case (album: 2.3.18.2-album)
+func (r *Rules) AlbumTagCapitalization(actualAlbum, _ *domain.Album) RuleResult {
+	meta := RuleMetadata{
+		ID:     "2.3.18.2-album",
+		Name:   "Tags must use proper Title Case capitalization",
+		Level:  domain.LevelError,
+		Weight: 1.0,
+	}
+
+	var issues []domain.ValidationIssue
+
+	// Check album title
+	if capIssue := checkCapitalization(actualAlbum.Title); capIssue != "" {
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelError,
+			Track:   0,
+			Rule:    meta.ID,
+			Message: fmt.Sprintf("Album title: %s", capIssue),
+		})
+	}
+	return RuleResult{Meta: meta, Issues: issues}
+}
+
+// TrackTagCapitalization checks that track tags use proper Title Case (track: 2.3.18.2)
+func (r *Rules) TrackTagCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.2",
 		Name:   "Tags must use proper Title Case capitalization",
@@ -17,39 +40,26 @@ func (r *Rules) TagCapitalization(actual, reference *domain.Album) RuleResult {
 
 	var issues []domain.ValidationIssue
 
-	// Check album title
-	if capIssue := checkCapitalization(actual.Title); capIssue != "" {
+	// Check track title
+	if capIssue := checkCapitalization(actualTrack.Title); capIssue != "" {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
-			Track:   0,
+			Track:   actualTrack.Track,
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album title: %s", capIssue),
+			Message: fmt.Sprintf("Track %s title: %s", formatTrackNumber(actualTrack), capIssue),
 		})
 	}
 
-	// Check each track
-	for _, track := range actual.Tracks {
-		// Check track title
-		if capIssue := checkCapitalization(track.Title); capIssue != "" {
+	// Check artist names
+	for _, artist := range actualTrack.Artists {
+		if capIssue := checkCapitalization(artist.Name); capIssue != "" {
 			issues = append(issues, domain.ValidationIssue{
-				Level:   domain.LevelError,
-				Track:   track.Track,
-				Rule:    meta.ID,
-				Message: fmt.Sprintf("Track %s title: %s", formatTrackNumber(track), capIssue),
+				Level: domain.LevelError,
+				Track: actualTrack.Track,
+				Rule:  meta.ID,
+				Message: fmt.Sprintf("Track %s artist '%s': %s",
+					formatTrackNumber(actualTrack), artist.Name, capIssue),
 			})
-		}
-
-		// Check artist names
-		for _, artist := range track.Artists {
-			if capIssue := checkCapitalization(artist.Name); capIssue != "" {
-				issues = append(issues, domain.ValidationIssue{
-					Level: domain.LevelError,
-					Track: track.Track,
-					Rule:  meta.ID,
-					Message: fmt.Sprintf("Track %s artist '%s': %s",
-						formatTrackNumber(track), artist.Name, capIssue),
-				})
-			}
 		}
 	}
 	return RuleResult{Meta: meta, Issues: issues}

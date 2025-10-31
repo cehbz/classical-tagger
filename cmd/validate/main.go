@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
-	"github.com/cehbz/classical-tagger/internal/filesystem"
 	"github.com/cehbz/classical-tagger/internal/tagging"
 	"github.com/cehbz/classical-tagger/internal/validation"
 )
@@ -26,13 +25,13 @@ type DirectoryStructure struct {
 
 // DirectoryScanner scans album directories
 type DirectoryScanner struct {
-	dirValidator *filesystem.DirectoryValidator
+	dirValidator *validation.DirectoryValidator
 }
 
 // NewDirectoryScanner creates a new scanner
 func NewDirectoryScanner() *DirectoryScanner {
 	return &DirectoryScanner{
-		dirValidator: filesystem.NewDirectoryValidator(),
+		dirValidator: validation.NewDirectoryValidator(),
 	}
 }
 
@@ -299,8 +298,12 @@ func ValidateDirectory(path string) (*ValidationReport, error) {
 
 	// Validate metadata if we successfully built an album
 	if album != nil {
-		validator := validation.NewAlbumValidator()
-		report.MetadataIssues = validator.ValidateMetadata(album)
+		report.MetadataIssues = validation.Check(album, nil)
+
+		// Validate folder name against album metadata
+		// (requires album metadata to check composer name, etc.)
+		folderIssues := scanner.dirValidator.ValidateFolderName(structure.FolderName, album)
+		report.StructureIssues = append(report.StructureIssues, folderIssues...)
 	}
 
 	return report, nil

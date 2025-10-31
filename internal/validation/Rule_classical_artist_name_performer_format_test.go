@@ -6,6 +6,11 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
+type artistSpec struct {
+	Name string
+	Role domain.Role
+}
+
 func TestRules_PerformerFormat(t *testing.T) {
 	rules := NewRules()
 
@@ -17,116 +22,105 @@ func TestRules_PerformerFormat(t *testing.T) {
 		WantInfo   int
 	}{
 		{
-			Name: "valid - soloist, ensemble, conductor",
-			Actual: buildAlbumWithArtists(
-				"Ludwig van Beethoven", domain.RoleComposer,
-				"Maurizio Pollini", domain.RoleSoloist,
-				"Berlin Philharmonic", domain.RoleEnsemble,
-				"Claudio Abbado", domain.RoleConductor,
-			),
+			Name:     "valid - soloist, ensemble, conductor",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Ludwig van Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Maurizio Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Claudio Abbado", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true, // Info messages don't fail
 			WantInfo: 1,
 		},
 		{
-			Name: "valid - just ensemble and conductor",
-			Actual: buildAlbumWithArtists(
-				"Bach", domain.RoleComposer,
-				"Vienna Philharmonic", domain.RoleEnsemble,
-				"Herbert von Karajan", domain.RoleConductor,
-			),
+			Name:     "valid - just ensemble and conductor",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
 			WantInfo: 1,
 		},
 		{
-			Name: "valid - just ensemble (no conductor)",
-			Actual: buildAlbumWithArtists(
-				"Bach", domain.RoleComposer,
-				"Emerson String Quartet", domain.RoleEnsemble,
-			),
+			Name:     "valid - just ensemble (no conductor)",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Emerson String Quartet", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 			WantInfo: 1,
 		},
 		{
-			Name: "valid - multiple soloists",
-			Actual: buildAlbumWithArtists(
-				"Mozart", domain.RoleComposer,
-				"Anne-Sophie Mutter", domain.RoleSoloist,
-				"Yo-Yo Ma", domain.RoleSoloist,
-				"Chamber Orchestra of Europe", domain.RoleEnsemble,
-				"Daniel Barenboim", domain.RoleConductor,
-			),
+			Name:     "valid - multiple soloists",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Mozart", Role: domain.RoleComposer}, domain.Artist{Name: "Anne-Sophie Mutter", Role: domain.RoleSoloist}, domain.Artist{Name: "Yo-Yo Ma", Role: domain.RoleSoloist}, domain.Artist{Name: "Chamber Orchestra of Europe", Role: domain.RoleEnsemble}, domain.Artist{Name: "Daniel Barenboim", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
 			WantInfo: 1,
 		},
 		{
-			Name: "invalid - only composer (no performers)",
-			Actual: buildAlbumWithArtists(
-				"Beethoven", domain.RoleComposer,
-			),
+			Name:       "invalid - only composer (no performers)",
+			Actual:     NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}).Build().Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
-			Name: "invalid - only composer and arranger",
-			Actual: buildAlbumWithArtists(
-				"Bach", domain.RoleComposer,
-				"Busoni", domain.RoleArranger,
-			),
+			Name:       "invalid - only composer and arranger",
+			Actual:     NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Busoni", Role: domain.RoleArranger}).Build().Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
-			Name: "valid - soloist only (solo piano)",
-			Actual: buildAlbumWithArtists(
-				"Chopin", domain.RoleComposer,
-				"Martha Argerich", domain.RoleSoloist,
-			),
+			Name:     "valid - soloist only (solo piano)",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Chopin", Role: domain.RoleComposer}, domain.Artist{Name: "Martha Argerich", Role: domain.RoleSoloist}).Build().Build(),
 			WantPass: true,
 			WantInfo: 1,
 		},
 		{
-			Name: "valid - opera with multiple soloists and ensemble",
-			Actual: buildAlbumWithArtists(
-				"Verdi", domain.RoleComposer,
-				"Renée Fleming", domain.RoleSoloist,
-				"Plácido Domingo", domain.RoleSoloist,
-				"Bryn Terfel", domain.RoleSoloist,
-				"Metropolitan Opera Orchestra", domain.RoleEnsemble,
-				"James Levine", domain.RoleConductor,
-			),
+			Name:     "valid - opera with multiple soloists and ensemble",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Verdi", Role: domain.RoleComposer}, domain.Artist{Name: "Renée Fleming", Role: domain.RoleSoloist}, domain.Artist{Name: "Plácido Domingo", Role: domain.RoleSoloist}, domain.Artist{Name: "Bryn Terfel", Role: domain.RoleSoloist}, domain.Artist{Name: "Metropolitan Opera Orchestra", Role: domain.RoleEnsemble}, domain.Artist{Name: "James Levine", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
 			WantInfo: 1,
+		},
+		{
+			Name: "valid - no info",
+			Actual: &domain.Album{
+				Title:        "Classical Album",
+				OriginalYear: 1963,
+				Tracks: []*domain.Track{{
+					Disc:  1,
+					Track: 1,
+					Title: "Symphony No. 5: Itzhak Perlman, Berlin Philharmonic, Claudio Abbado",
+					Artists: []domain.Artist{
+						{Name: "Beethoven", Role: domain.RoleComposer},
+						{Name: "Itzhak Perlman", Role: domain.RoleSoloist},
+						{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+						{Name: "Claudio Abbado", Role: domain.RoleConductor},
+					},
+				}},
+			},
+			WantPass: true,
+			WantInfo: 0,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.PerformerFormat(tt.Actual, tt.Actual)
+		for _, track := range tt.Actual.Tracks {
+			t.Run(tt.Name, func(t *testing.T) {
+				result := rules.PerformerFormat(track, nil, nil, nil)
 
-			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
-			}
+				if result.Passed() != tt.WantPass {
+					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+				}
 
-			if !tt.WantPass {
-				errorCount := 0
-				infoCount := 0
-				for _, issue := range result.Issues {
-					if issue.Level == domain.LevelError {
-						errorCount++
-					} else if issue.Level == domain.LevelInfo {
-						infoCount++
+				if !tt.WantPass {
+					errorCount := 0
+					infoCount := 0
+					for _, issue := range result.Issues {
+						if issue.Level == domain.LevelError {
+							errorCount++
+						} else if issue.Level == domain.LevelInfo {
+							infoCount++
+						}
+					}
+
+					if errorCount != tt.WantErrors {
+						t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
+					}
+
+					for _, issue := range result.Issues {
+						t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 					}
 				}
-
-				if errorCount != tt.WantErrors {
-					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
-				}
-
-				for _, issue := range result.Issues {
-					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
-				}
-			}
-		})
+			})
+		}
 	}
 }
 
@@ -141,44 +135,44 @@ func TestFormatArtistsByRole(t *testing.T) {
 		{
 			Name: "all roles present",
 			Soloists: []domain.Artist{
-				mustCreateArtist("Maurizio Pollini", domain.RoleSoloist),
+				domain.Artist{Name: "Maurizio Pollini", Role: domain.RoleSoloist},
 			},
 			Ensembles: []domain.Artist{
-				mustCreateArtist("Berlin Philharmonic", domain.RoleEnsemble),
+				domain.Artist{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
 			},
 			Conductors: []domain.Artist{
-				mustCreateArtist("Claudio Abbado", domain.RoleConductor),
+				domain.Artist{Name: "Claudio Abbado", Role: domain.RoleConductor},
 			},
 			Want: "Maurizio Pollini, Berlin Philharmonic, Claudio Abbado",
 		},
 		{
 			Name: "multiple soloists",
 			Soloists: []domain.Artist{
-				mustCreateArtist("Anne-Sophie Mutter", domain.RoleSoloist),
-				mustCreateArtist("Yo-Yo Ma", domain.RoleSoloist),
+				domain.Artist{Name: "Anne-Sophie Mutter", Role: domain.RoleSoloist},
+				domain.Artist{Name: "Yo-Yo Ma", Role: domain.RoleSoloist},
 			},
 			Ensembles: []domain.Artist{
-				mustCreateArtist("Chamber Orchestra", domain.RoleEnsemble),
+				domain.Artist{Name: "Chamber Orchestra", Role: domain.RoleEnsemble},
 			},
 			Conductors: []domain.Artist{
-				mustCreateArtist("Daniel Barenboim", domain.RoleConductor),
+				domain.Artist{Name: "Daniel Barenboim", Role: domain.RoleConductor},
 			},
 			Want: "Anne-Sophie Mutter, Yo-Yo Ma, Chamber Orchestra, Daniel Barenboim",
 		},
 		{
 			Name: "just ensemble and conductor",
 			Ensembles: []domain.Artist{
-				mustCreateArtist("Vienna Philharmonic", domain.RoleEnsemble),
+				domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},
 			},
 			Conductors: []domain.Artist{
-				mustCreateArtist("Herbert von Karajan", domain.RoleConductor),
+				domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor},
 			},
 			Want: "Vienna Philharmonic, Herbert von Karajan",
 		},
 		{
 			Name: "just ensemble",
 			Ensembles: []domain.Artist{
-				mustCreateArtist("Emerson String Quartet", domain.RoleEnsemble),
+				domain.Artist{Name: "Emerson String Quartet", Role: domain.RoleEnsemble},
 			},
 			Want: "Emerson String Quartet",
 		},
@@ -192,27 +186,4 @@ func TestFormatArtistsByRole(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper to build album with specific artists
-func buildAlbumWithArtists(artistSpecs ...interface{}) *domain.Album {
-	if len(artistSpecs)%2 != 0 {
-		panic("artistSpecs must be pairs of (name, role)")
-	}
-
-	var artists []domain.Artist
-	for i := 0; i < len(artistSpecs); i += 2 {
-		name := artistSpecs[i].(string)
-		role := artistSpecs[i+1].(domain.Role)
-		artist := domain.Artist{Name: name, Role: role}
-		artists = append(artists, artist)
-	}
-
-	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony No. 5", Artists: artists}
-	return &domain.Album{Title: "Classical Album", OriginalYear: 1963, Tracks: []*domain.Track{&track}}
-}
-
-// Helper to create artist without error handling
-func mustCreateArtist(name string, role domain.Role) domain.Artist {
-	return domain.Artist{Name: name, Role: role}
 }

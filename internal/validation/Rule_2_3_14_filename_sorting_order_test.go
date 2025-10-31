@@ -80,7 +80,7 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.FilenameSortingOrder(tt.Actual, tt.Actual)
+			result := rules.FilenameSortingOrder(tt.Actual, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -96,64 +96,3 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 	}
 }
 
-// trackFile pairs track number with filename
-type trackFile struct {
-	TrackNum int
-	Filename string
-}
-
-// buildAlbumWithTrackFilenames creates an album with specific track/filename pairs
-func buildAlbumWithTrackFilenames(trackFiles ...trackFile) *domain.Album {
-	tracks := make([]*domain.Track, len(trackFiles))
-	for i, tf := range trackFiles {
-		tracks[i] = &domain.Track{
-			Disc:  1,
-			Track: tf.TrackNum,
-			Artists: []domain.Artist{
-				domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
-				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
-			},
-			Title: "Work " + string(rune('A'+tf.TrackNum)),
-			Name:  tf.Filename,
-		}
-	}
-	return &domain.Album{
-		Title:        "Test Album",
-		OriginalYear: 1963,
-		Tracks:       tracks,
-	}
-}
-
-// buildMultiDiscAlbumWithFilenames creates multi-disc album
-func buildMultiDiscAlbumWithFilenames(disc1, disc2 []trackFile) *domain.Album {
-	tracks := make([]*domain.Track, len(disc1)+len(disc2))
-	for i, tf := range disc1 {
-		tracks[i] = &domain.Track{
-			Disc:  1,
-			Track: tf.TrackNum,
-			Title: "Work " + string(rune('A'+tf.TrackNum)),
-			Artists: []domain.Artist{
-				domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
-				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
-			},
-			Name: tf.Filename,
-		}
-	}
-	for i, tf := range disc2 {
-		tracks[len(disc1)+i] = &domain.Track{
-			Disc:  2,
-			Track: tf.TrackNum,
-			Title: "Work " + string(rune('A'+tf.TrackNum)),
-			Artists: []domain.Artist{
-				domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
-				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
-			},
-			Name: tf.Filename,
-		}
-	}
-	return &domain.Album{
-		Title:        "Multi-Disc Album",
-		OriginalYear: 1963,
-		Tracks:       tracks,
-	}
-}

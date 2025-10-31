@@ -12,6 +12,7 @@ import (
 
 	"github.com/cehbz/classical-tagger/internal/domain"
 	"github.com/cehbz/classical-tagger/internal/scraping"
+	"github.com/cehbz/classical-tagger/internal/validation"
 )
 
 var (
@@ -262,7 +263,7 @@ func processResult(result *scraping.ExtractionResult) {
 	}
 
 	// Convert to domain model and validate
-	validationErrors := data.Validate()
+	validationErrors := validation.Check(data, nil)
 	hasRequiredErrors := false
 	for _, validationError := range validationErrors {
 		switch validationError.Level {

@@ -17,96 +17,95 @@ func TestRules_NoCombinedTags(t *testing.T) {
 		WantInfo     int
 	}{
 		{
-			Name: "valid - separate artist entries",
-			Actual: buildAlbumWithArtists(
-				"Beethoven", domain.RoleComposer,
-				"Maurizio Pollini", domain.RoleSoloist,
-				"Berlin Philharmonic", domain.RoleEnsemble,
-			),
+			Name:     "valid - separate artist entries",
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Maurizio Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:         "warning - combined artist names with semicolon",
-			Actual:       buildAlbumWithSingleArtist("Pollini; Arrau", domain.RoleSoloist),
+			Actual:       NewAlbum().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Pollini; Arrau", domain.RoleSoloist).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - combined artist names with slash",
-			Actual:       buildAlbumWithSingleArtist("Martha Argerich / Nelson Freire", domain.RoleSoloist),
+			Actual:       NewAlbum().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Martha Argerich / Nelson Freire", domain.RoleSoloist).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - combined artist names with ampersand",
-			Actual:       buildAlbumWithSingleArtist("Perlman & Ashkenazy", domain.RoleSoloist),
+			Actual:       NewAlbum().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Perlman & Ashkenazy", domain.RoleSoloist).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:     "valid - ensemble name with 'and'",
-			Actual:   buildAlbumWithSingleArtist("London Symphony Orchestra and Chorus", domain.RoleEnsemble),
+			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("London Symphony Orchestra and Chorus", domain.RoleEnsemble).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - orchestra name with 'of'",
-			Actual:   buildAlbumWithSingleArtist("Orchestra of the Age of Enlightenment", domain.RoleEnsemble),
+			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Orchestra of the Age of Enlightenment", domain.RoleEnsemble).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - quartet name",
-			Actual:   buildAlbumWithSingleArtist("Emerson String Quartet", domain.RoleEnsemble),
+			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Emerson String Quartet", domain.RoleEnsemble).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - compound last name",
-			Actual:   buildAlbumWithSingleArtist("Mendelssohn-Bartholdy", domain.RoleComposer),
+			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Mendelssohn-Bartholdy", domain.RoleComposer).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "info - combined works in title",
-			Actual:   buildAlbumWithTrackTitle("Symphony No. 1 / Symphony No. 2"),
+			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 1 / Symphony No. 2").Build().Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "valid - movement subtitle with slash",
-			Actual:   buildAlbumWithTrackTitle("Allegro / Fast"),
+			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Allegro / Fast").Build().Build(),
 			WantPass: true, // Short parts, not multiple works
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.NoCombinedTags(tt.Actual, tt.Actual)
+		for _, track := range tt.Actual.Tracks {
+			t.Run(tt.Name, func(t *testing.T) {
+				result := rules.NoCombinedTags(track, nil, nil, nil)
 
-			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
-			}
+				if result.Passed() != tt.WantPass {
+					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+				}
 
-			if !tt.WantPass {
-				warningCount := 0
-				infoCount := 0
-				for _, issue := range result.Issues {
-					if issue.Level == domain.LevelWarning {
-						warningCount++
-					} else if issue.Level == domain.LevelInfo {
-						infoCount++
+				if !tt.WantPass {
+					warningCount := 0
+					infoCount := 0
+					for _, issue := range result.Issues {
+						switch issue.Level {
+						case domain.LevelWarning:
+							warningCount++
+						case domain.LevelInfo:
+							infoCount++
+						}
+					}
+
+					if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
+						t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
+					}
+					if tt.WantInfo > 0 && infoCount != tt.WantInfo {
+						t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
+					}
+
+					for _, issue := range result.Issues {
+						t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
 					}
 				}
-
-				if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
-				}
-				if tt.WantInfo > 0 && infoCount != tt.WantInfo {
-					t.Errorf("Info = %d, want %d", infoCount, tt.WantInfo)
-				}
-
-				for _, issue := range result.Issues {
-					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
-				}
-			}
-		})
+			})
+		}
 	}
 }
 
@@ -136,19 +135,4 @@ func TestIsMultipleArtists(t *testing.T) {
 			}
 		})
 	}
-}
-
-// buildAlbumWithSingleArtist creates album with one artist having a specific name
-func buildAlbumWithSingleArtist(artistName string, role domain.Role) *domain.Album {
-	artist := domain.Artist{Name: artistName, Role: role}
-	track := domain.Track{Disc: 1, Track: 1, Title: "Work", Artists: []domain.Artist{artist}}
-	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: []*domain.Track{&track}}
-}
-
-// buildAlbumWithTrackTitle creates album with specific track title
-func buildAlbumWithTrackTitle(title string) *domain.Album {
-	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-	track := &domain.Track{Disc: 1, Track: 1, Title: title, Artists: []domain.Artist{composer, ensemble}}
-	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: []*domain.Track{track}}
 }

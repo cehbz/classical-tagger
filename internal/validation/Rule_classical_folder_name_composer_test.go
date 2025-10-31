@@ -72,8 +72,8 @@ func TestRules_ComposerInFolderName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			actual := buildSingleComposerAlbumWithTitle(tt.ComposerName, tt.AlbumTitle)
-			result := rules.ComposerInFolderName(actual, actual)
+			actual := NewAlbum().WithTitle(tt.AlbumTitle).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: tt.ComposerName, Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build()
+			result := rules.ComposerInFolderName(actual, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -103,15 +103,4 @@ func TestRules_ComposerInFolderName(t *testing.T) {
 			}
 		})
 	}
-}
-
-// buildSingleComposerAlbumWithTitle creates an album with specific title and composer
-func buildSingleComposerAlbumWithTitle(composerName, albumTitle string) *domain.Album {
-	composer := domain.Artist{Name: composerName, Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}
-	conductor := domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}
-
-	artists := []domain.Artist{composer, ensemble, conductor}
-	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony No. 5", Artists: artists}
-	return &domain.Album{Title: albumTitle, OriginalYear: 1963, Tracks: []*domain.Track{&track}}
 }

@@ -9,11 +9,11 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// CharacterEncoding checks for proper UTF-8 encoding (rule 2.3.18.1)
-// Ensures no mojibake or encoding issues
-func (r *Rules) CharacterEncoding(actual, reference *domain.Album) RuleResult {
+// CharacterEncoding checks for proper UTF-8 encoding (album: 2.3.18.1-album, track: 2.3.18.1)
+// Ensures no mojibake or encoding issues across album title/folder and track tags
+func (r *Rules) AlbumCharacterEncoding(actualAlbum, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		ID:     "2.3.18.1",
+		ID:     "2.3.18.1-album",
 		Name:   "Character encoding must be correct (UTF-8)",
 		Level:  domain.LevelError,
 		Weight: 1.0,
@@ -22,51 +22,70 @@ func (r *Rules) CharacterEncoding(actual, reference *domain.Album) RuleResult {
 	var issues []domain.ValidationIssue
 
 	// Check album title
-	if hasEncodingIssues(actual.Title) {
+	if hasEncodingIssues(actualAlbum.Title) {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
 			Track:   0,
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album title has character encoding issues: '%s'", actual.Title),
+			Message: fmt.Sprintf("Album title has character encoding issues: '%s'", actualAlbum.Title),
 		})
 	}
 
-	// Check each track
-	for _, track := range actual.Tracks {
-		// Check track title
-		if hasEncodingIssues(track.Title) {
+	// Check album folder name
+	if hasEncodingIssues(actualAlbum.FolderName) {
+		issues = append(issues, domain.ValidationIssue{
+			Level:   domain.LevelError,
+			Track:   0,
+			Rule:    meta.ID,
+			Message: fmt.Sprintf("Album folder name has character encoding issues: '%s'", actualAlbum.FolderName),
+		})
+	}
+
+	return RuleResult{Meta: meta, Issues: issues}
+}
+
+func (r *Rules) TrackCharacterEncoding(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+	meta := RuleMetadata{
+		ID:     "2.3.18.1",
+		Name:   "Character encoding must be correct (UTF-8)",
+		Level:  domain.LevelError,
+		Weight: 1.0,
+	}
+
+	var issues []domain.ValidationIssue
+	// Check track title
+	if hasEncodingIssues(actualTrack.Title) {
+		issues = append(issues, domain.ValidationIssue{
+			Level: domain.LevelError,
+			Track: actualTrack.Track,
+			Rule:  meta.ID,
+			Message: fmt.Sprintf("Track %s: Title has character encoding issues: '%s'",
+				formatTrackNumber(actualTrack), actualTrack.Title),
+		})
+	}
+
+	// Check artist names
+	for _, artist := range actualTrack.Artists {
+		if hasEncodingIssues(artist.Name) {
 			issues = append(issues, domain.ValidationIssue{
 				Level: domain.LevelError,
-				Track: track.Track,
+				Track: actualTrack.Track,
 				Rule:  meta.ID,
-				Message: fmt.Sprintf("Track %s: Title has character encoding issues: '%s'",
-					formatTrackNumber(track), track.Title),
+				Message: fmt.Sprintf("Track %s: Artist name has character encoding issues: '%s'",
+					formatTrackNumber(actualTrack), artist.Name),
 			})
 		}
+	}
 
-		// Check artist names
-		for _, artist := range track.Artists {
-			if hasEncodingIssues(artist.Name) {
-				issues = append(issues, domain.ValidationIssue{
-					Level: domain.LevelError,
-					Track: track.Track,
-					Rule:  meta.ID,
-					Message: fmt.Sprintf("Track %s: Artist name has character encoding issues: '%s'",
-						formatTrackNumber(track), artist.Name),
-				})
-			}
-		}
-
-		// Check filename
-		if hasEncodingIssues(track.Name) {
-			issues = append(issues, domain.ValidationIssue{
-				Level: domain.LevelError,
-				Track: track.Track,
-				Rule:  meta.ID,
-				Message: fmt.Sprintf("Track %s: Filename has character encoding issues: '%s'",
-					formatTrackNumber(track), track.Name),
-			})
-		}
+	// Check filename
+	if hasEncodingIssues(actualTrack.Name) {
+		issues = append(issues, domain.ValidationIssue{
+			Level: domain.LevelError,
+			Track: actualTrack.Track,
+			Rule:  meta.ID,
+			Message: fmt.Sprintf("Track %s: Filename has character encoding issues: '%s'",
+				formatTrackNumber(actualTrack), actualTrack.Name),
+		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
 }

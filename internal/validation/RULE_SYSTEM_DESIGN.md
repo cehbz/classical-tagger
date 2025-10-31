@@ -98,7 +98,7 @@ This is the same mechanism `testing.T` uses to discover `Test*` functions.
 Every rule method follows this pattern:
 
 ```go
-func (r *Rules) RuleName(actual, reference *domain.AlbumMetadata) RuleResult {
+func (r *Rules) RuleName(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult {
     // 1. Define metadata
     meta := RuleMetadata{
         ID:     "section.number",

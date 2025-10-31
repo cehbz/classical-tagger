@@ -346,6 +346,55 @@ go test ./...
 
 ---
 
+## Validation Issues
+
+### NoArchiveFiles Rule (2.3.1) - Architectural Problem
+**Status:** Test disabled, needs architecture decision
+
+**Problem:** The `NoArchiveFiles` validation rule requires checking for archive files (zip, rar, etc.) in the torrent directory, but our metadata JSON only contains tracks (FLAC files). Archive files are not included in the metadata when extracting from directory.
+
+**Options:**
+- Option A: Convert to album-level rule that checks filesystem directly during validation (requires filesystem access)
+- Option B: Expand metadata structure to include all files in directory, not just tracks (requires changes to extractor, domain model, storage)
+- Option C: Skip this validation when working from metadata JSON, only validate during initial extraction
+
+**Files affected:**
+- `internal/validation/Rule_2_3_1_no_archive_files.go`
+- `internal/validation/Rule_2_3_1_no_archive_files_test.go` (currently disabled)
+
+**Priority:** Medium
+**Estimated effort:** 1-2 hours (depending on chosen option)
+
+---
+
 **Last Updated:** October 21, 2025
 **Status:** Ready for implementation
 **Next Milestone:** Complete 5 metadata source scrapers
+
+---
+## Missing consistency checks that should be added:
+
+- Disc number consistency: Compare disc number from tag against disc number extracted from directory path (CD1/, CD2/, etc.)
+- Album title vs directory name: No validation that album title tag matches the parsed directory name (currently only used as fallback, not validated)
+- Track title tag vs filename title mismatch severity: Currently treats all mismatches as errors, but minor differences (typos, abbreviations) could be warnings
+- File extension validation: No check that Track.Name ends with .flac
+- Track number format in tag vs filename: The tag might have track 3 while filename has 03 - this is acceptable, but not explicitly validated for consistency
+
+## inter-track consistency issues that the rules mandate but your current validation doesn't fully cover.
+
+- Rule_2_3_15_disc_numbering_scheme_consistency: Validate that multi-disc albums use ONE consistent approach (subdirs, successive, or prefix)
+- Rule_2_3_15_successive_numbering: If using single directory for multi-disc, validate track numbers are actually successive
+- Album-level file extension consistency: All tracks should use same format (.flac)
+- Disc tag vs directory structure consistency: If tracks have disc tags > 1, validate matching CD1/, CD2/ subdirectories exist (or vice versa)
+
+---
+
+currently the rule file names, file comments, and RuleMedata are not always consistent with the rules as laid out in the Rules and Guides folder.
+
+Please re-read the files in "Rules and Guides" and update the filenames, comments, and RuleMetadata so that they match the rules they're actually implementing.
+
+split TagAccuracyVsReference into AlbumTagAccuracy and TrackTagAccuracy rules
+
+---
+
+The album/track rule finder should not disallow duplicate names if the signatures are different. The requirement that the rule ID be unique is probably correct though.

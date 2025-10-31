@@ -58,16 +58,11 @@ func (r *Rules) RecordingDateVsYear(actual, reference *domain.Album) RuleResult 
 		}
 	}
 
-	// If we have reference, check consistency
+	// If we have reference, check consistency (informational only)
 	if reference != nil && reference.OriginalYear != 0 {
 		refYear := reference.OriginalYear
 		if year != 0 && year != refYear {
-			diff := year - refYear
-			if diff < 0 {
-				diff = -diff
-			}
-
-			if diff > 2 {
+			if year != refYear {
 				issues = append(issues, domain.ValidationIssue{
 					Level: domain.LevelInfo,
 					Track: 0,

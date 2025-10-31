@@ -8,7 +8,7 @@ import (
 
 // RecordLabelPresent checks that record label and catalog number are present (classical.record_label)
 // These should be in the Edition information
-func (r *Rules) RecordLabelPresent(actual, reference *domain.Album) RuleResult {
+func (r *Rules) RecordLabelPresent(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.record_label",
 		Name:   "Record label and catalog number present",
@@ -31,24 +31,33 @@ func (r *Rules) RecordLabelPresent(actual, reference *domain.Album) RuleResult {
 		return RuleResult{Meta: meta, Issues: issues}
 	}
 
-	// Check for record label
-	if edition.Label == "" {
+	// Check for record label and catalog number
+	missingLabel := edition.Label == ""
+	missingCatalog := edition.CatalogNumber == ""
+	if missingLabel && missingCatalog {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelWarning,
 			Track:   0,
 			Rule:    meta.ID,
-			Message: "Record label is missing from edition information",
+			Message: "Record label and catalog number are missing from edition information",
 		})
-	}
-
-	// Check for catalog number
-	if edition.CatalogNumber == "" {
-		issues = append(issues, domain.ValidationIssue{
-			Level:   domain.LevelWarning,
-			Track:   0,
-			Rule:    meta.ID,
-			Message: "Catalog number is missing from edition information",
-		})
+	} else {
+		if missingLabel {
+			issues = append(issues, domain.ValidationIssue{
+				Level:   domain.LevelWarning,
+				Track:   0,
+				Rule:    meta.ID,
+				Message: "Record label is missing from edition information",
+			})
+		}
+		if missingCatalog {
+			issues = append(issues, domain.ValidationIssue{
+				Level:   domain.LevelWarning,
+				Track:   0,
+				Rule:    meta.ID,
+				Message: "Catalog number is missing from edition information",
+			})
+		}
 	}
 	return RuleResult{Meta: meta, Issues: issues}
 }
@@ -63,10 +72,10 @@ func (r *Rules) RecordLabelAccuracy(actual, reference *domain.Album) RuleResult 
 	}
 
 	// Only validate if reference has edition information
-	refEdition := reference.Edition
-	if refEdition == nil {
+	if reference == nil || reference.Edition == nil {
 		return RuleResult{Meta: meta, Issues: nil} // No reference data to compare against
 	}
+	refEdition := reference.Edition
 
 	actualEdition := actual.Edition
 	if actualEdition == nil {
@@ -92,7 +101,7 @@ func (r *Rules) RecordLabelAccuracy(actual, reference *domain.Album) RuleResult 
 		issues = append(issues, domain.ValidationIssue{
 			Level: domain.LevelError,
 			Track: 0,
-			Rule: meta.ID,
+			Rule:  meta.ID,
 			Message: fmt.Sprintf("Catalog number mismatch: got '%s', expected '%s'",
 				actualEdition.CatalogNumber, refEdition.CatalogNumber),
 		})

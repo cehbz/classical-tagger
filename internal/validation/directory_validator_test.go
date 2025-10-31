@@ -1,4 +1,4 @@
-package filesystem
+package validation
 
 import (
 	"testing"
@@ -193,3 +193,4 @@ func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 		})
 	}
 }
+

@@ -15,37 +15,44 @@ func TestRules_ComposerTagRequired(t *testing.T) {
 		WantPass     bool
 		WantErrors   int
 		WantWarnings int
+		Expect       CaseExpectation
 	}{
 		{
 			Name:     "valid - full composer name",
-			Actual:   buildAlbumWithComposer("Ludwig van Beethoven"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Ludwig van Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
+			Expect:   CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}},
 		},
 		{
 			Name:     "valid - composer with initials",
-			Actual:   buildAlbumWithComposer("J.S. Bach"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "J.S. Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
+			Expect:   CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}},
 		},
 		{
 			Name:     "valid - composer with spaced initials",
-			Actual:   buildAlbumWithComposer("J. S. Bach"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "J. S. Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
+			Expect:   CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}},
 		},
 		{
 			Name:     "valid - two-word name",
-			Actual:   buildAlbumWithComposer("Johann Bach"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Johann Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
+			Expect:   CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}},
 		},
 		{
 			Name:     "valid - composer with surname prefix",
-			Actual:   buildAlbumWithComposer("Wolfgang Amadeus Mozart"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Wolfgang Amadeus Mozart", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
+			Expect:   CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}},
 		},
 		{
 			Name:       "invalid - last name only (ambiguous)",
-			Actual:     buildAlbumWithComposer("Bach"),
+			Actual:     NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass:   false,
 			WantErrors: 1,
+			Expect:     CaseExpectation{{Errors: 1, Warnings: 0, Info: 0}},
 		},
 		{
 			Name: "invalid - missing composer",
@@ -56,6 +63,7 @@ func TestRules_ComposerTagRequired(t *testing.T) {
 			}(),
 			WantPass:   false,
 			WantErrors: 1,
+			Expect:     CaseExpectation{{Errors: 1, Warnings: 0, Info: 0}},
 		},
 		{
 			Name: "multiple tracks, one missing composer",
@@ -71,6 +79,7 @@ func TestRules_ComposerTagRequired(t *testing.T) {
 			}(),
 			WantPass:   false,
 			WantErrors: 1,
+			Expect:     CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}, {Errors: 1, Warnings: 0, Info: 0}, {Errors: 0, Warnings: 0, Info: 0}},
 		},
 		{
 			Name: "multiple tracks, some ambiguous names",
@@ -86,55 +95,55 @@ func TestRules_ComposerTagRequired(t *testing.T) {
 			}(),
 			WantPass:   false,
 			WantErrors: 1,
+			Expect:     CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}, {Errors: 1, Warnings: 0, Info: 0}},
 		},
 		{
 			Name:     "edge case - Beethoven, Ludwig van (reversed format)",
-			Actual:   buildAlbumWithComposer("Beethoven, Ludwig van"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven, Ludwig van", Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build(),
 			WantPass: true,
+			Expect:   CaseExpectation{{Errors: 0, Warnings: 0, Info: 0}},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.ComposerTagRequired(tt.Actual, tt.Actual)
-
-			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+		if tt.Expect != nil {
+			if len(tt.Expect) != len(tt.Actual.Tracks) {
+				t.Fatalf("Expect length %d does not match tracks %d for case %s", len(tt.Expect), len(tt.Actual.Tracks), tt.Name)
 			}
+		}
+		for i, track := range tt.Actual.Tracks {
+			name := tt.Name
+			if len(tt.Actual.Tracks) > 1 {
+				name = name + "/track#" + string(rune('1'+i))
+			}
+			t.Run(name, func(t *testing.T) {
+				result := rules.ComposerTagRequired(track, nil, nil, nil)
 
-			if !tt.WantPass {
-				errorCount := 0
-				warningCount := 0
+				errors, warnings, info := 0, 0, 0
 				for _, issue := range result.Issues {
-					if issue.Level == domain.LevelError {
-						errorCount++
-					} else if issue.Level == domain.LevelWarning {
-						warningCount++
+					switch issue.Level {
+					case domain.LevelError:
+						errors++
+					case domain.LevelWarning:
+						warnings++
+					case domain.LevelInfo:
+						info++
 					}
 				}
 
-				if errorCount != tt.WantErrors {
-					t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
+				if tt.Expect != nil {
+					exp := tt.Expect[i]
+					if errors != exp.Errors {
+						t.Errorf("Errors = %d, want %d", errors, exp.Errors)
+					}
+					if warnings != exp.Warnings {
+						t.Errorf("Warnings = %d, want %d", warnings, exp.Warnings)
+					}
+					if info != exp.Info {
+						t.Errorf("Info = %d, want %d", info, exp.Info)
+					}
 				}
-				if tt.WantWarnings > 0 && warningCount != tt.WantWarnings {
-					t.Errorf("Warnings = %d, want %d", warningCount, tt.WantWarnings)
-				}
-
-				for _, issue := range result.Issues {
-					t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
-				}
-			}
-		})
+			})
+		}
 	}
-}
-
-// Helper function to build an album with a specific composer name
-func buildAlbumWithComposer(composerName string) *domain.Album {
-	composer := domain.Artist{Name: composerName, Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}
-	conductor := domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}
-
-	artists := []domain.Artist{composer, ensemble, conductor}
-	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony No. 5", Artists: artists}
-	return &domain.Album{Title: "Beethoven Symphonies", OriginalYear: 1963, Tracks: []*domain.Track{&track}}
 }

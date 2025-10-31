@@ -9,7 +9,7 @@ import (
 
 // PerformerFormat checks that artist tags follow classical format (classical.artist_name)
 // Format: "Soloist(s), Orchestra(s)/Ensemble(s), Conductor"
-func (r *Rules) PerformerFormat(actual, reference *domain.Album) RuleResult {
+func (r *Rules) PerformerFormat(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.artist_name",
 		Name:   "Performer format: Soloist, Ensemble, Conductor",
@@ -19,66 +19,50 @@ func (r *Rules) PerformerFormat(actual, reference *domain.Album) RuleResult {
 
 	var issues []domain.ValidationIssue
 
-	for _, track := range actual.Tracks {
-		artists := track.Artists
-		if len(artists) == 0 {
-			continue // Will be caught by RequiredTags rule
-		}
+	artists := actualTrack.Artists
+	if len(artists) == 0 {
+		return RuleResult{Meta: meta, Issues: nil}
+	}
 
-		// Extract artists by role
-		var soloists []domain.Artist
-		var ensembles []domain.Artist
-		var conductors []domain.Artist
-		var others []domain.Artist
+	// Extract artists by role
+	var soloists []domain.Artist
+	var ensembles []domain.Artist
+	var conductors []domain.Artist
+	var others []domain.Artist
 
-		for _, artist := range artists {
-			switch artist.Role {
-			case domain.RoleComposer:
-				// Skip composer - should not be in Artist tag
-				continue
-			case domain.RoleSoloist:
-				soloists = append(soloists, artist)
-			case domain.RoleEnsemble:
-				ensembles = append(ensembles, artist)
-			case domain.RoleConductor:
-				conductors = append(conductors, artist)
-			case domain.RoleArranger:
-				// Arranger typically credited in title, not artist tag
-				continue
-			default:
-				others = append(others, artist)
-			}
-		}
-
-		// Check if there are performers at all
-		totalPerformers := len(soloists) + len(ensembles) + len(conductors)
-		if totalPerformers == 0 {
-			issues = append(issues, domain.ValidationIssue{
-				Level: domain.LevelError,
-				Track: track.Track,
-				Rule:  meta.ID,
-				Message: fmt.Sprintf("Track %s: No performers in artist tag (found only composer/arranger)",
-					formatTrackNumber(track)),
-			})
+	for _, artist := range artists {
+		switch artist.Role {
+		case domain.RoleComposer:
+			// Composer presence is allowed; do not count as a performer
 			continue
-		}
-
-		// Build expected format
-		expectedFormat := formatArtistsByRole(soloists, ensembles, conductors)
-
-		// This is informational - we just want to ensure performers are present
-		// The exact order is recommended but the rule states it's not strictly enforced
-		if expectedFormat != "" {
-			// INFO Level: suggest proper format
-			issues = append(issues, domain.ValidationIssue{
-				Level: domain.LevelInfo,
-				Track: track.Track,
-				Rule:  meta.ID,
-				Message: fmt.Sprintf("Track %s: Recommended artist format is: %s",
-					formatTrackNumber(track), expectedFormat),
-			})
+		case domain.RoleSoloist:
+			soloists = append(soloists, artist)
+		case domain.RoleEnsemble:
+			ensembles = append(ensembles, artist)
+		case domain.RoleConductor:
+			conductors = append(conductors, artist)
+		case domain.RoleArranger:
+			// Arranger typically credited in title, not artist tag
+			continue
+		default:
+			others = append(others, artist)
 		}
 	}
+
+	// Check if there are performers at all
+	totalPerformers := len(soloists) + len(ensembles) + len(conductors)
+	if totalPerformers == 0 {
+		issues = append(issues, domain.ValidationIssue{
+			Level: domain.LevelError,
+			Track: actualTrack.Track,
+			Rule:  meta.ID,
+			Message: fmt.Sprintf("Track %s: No performers in artist tag",
+				formatTrackNumber(actualTrack)),
+		})
+		return RuleResult{Meta: meta, Issues: issues}
+	}
+
+	// Do not enforce title to contain artist string; only ensure performers exist
 	return RuleResult{Meta: meta, Issues: issues}
 }
 

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -10,7 +11,7 @@ import (
 )
 
 // FilenameCapitalization checks that filenames use proper Title Case (rule 2.3.11.1)
-func (r *Rules) FilenameCapitalization(actual, reference *domain.Album) RuleResult {
+func (r *Rules) FilenameCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.11.1",
 		Name:   "Filename capitalization must be Title Case",
@@ -20,41 +21,49 @@ func (r *Rules) FilenameCapitalization(actual, reference *domain.Album) RuleResu
 
 	var issues []domain.ValidationIssue
 
-	for _, track := range actual.Tracks {
-		fileName := track.Name
-		if fileName == "" {
-			continue
-		}
+	fileName := actualTrack.Name
+	if fileName == "" {
+		return RuleResult{Meta: meta, Issues: nil}
+	}
 
-		// Extract just the filename (not path)
-		parts := strings.Split(fileName, "/")
-		justFileName := parts[len(parts)-1]
+	// Extract just the filename (not path)
+	parts := strings.Split(fileName, "/")
+	justFileName := parts[len(parts)-1]
 
-		// Extract the title portion from filename (after track number)
-		matches := filenameTrackPattern.FindStringSubmatch(justFileName)
-		if len(matches) < 2 {
-			continue // Can't parse filename structure
-		}
-
-		fileTitle := matches[1]
-
-		// Check capitalization
-		capIssue := checkCapitalization(fileTitle)
-		if capIssue != "" {
-			issues = append(issues, domain.ValidationIssue{
+	// Extract the title portion from filename (after track number)
+	matches := filenameTrackPattern.FindStringSubmatch(justFileName)
+	if len(matches) < 2 {
+		return RuleResult{Meta: meta, Issues: []domain.ValidationIssue{
+			{
 				Level: domain.LevelError,
-				Track: track.Track,
+				Track: actualTrack.Track,
 				Rule:  meta.ID,
-				Message: fmt.Sprintf("Track %s: %s in fileName: '%s'",
-					formatTrackNumber(track), capIssue, justFileName),
-			})
-		}
+				Message: fmt.Sprintf("Track %s: can't extract title from filename: '%s'",
+					formatTrackNumber(actualTrack), fileName),
+			},
+		}}
+	}
+
+	fileTitle := matches[1]
+
+	// Check capitalization
+	capIssue := checkCapitalization(fileTitle)
+	if capIssue != "" {
+		issues = append(issues, domain.ValidationIssue{
+			Level: domain.LevelError,
+			Track: actualTrack.Track,
+			Rule:  meta.ID,
+			Message: fmt.Sprintf("Track %s: %s in fileName: '%s'",
+				formatTrackNumber(actualTrack), capIssue, justFileName),
+		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
 }
 
 // checkCapitalization returns an error message if capitalization is wrong, empty string if OK
 func checkCapitalization(title string) string {
+	// Ignore bracketed segments like [1963], [FLAC]
+	title = regexp.MustCompile(`\[[^\]]*\]`).ReplaceAllString(title, "")
 
 	// Accept if it matches strict Title Case or Casual Title Case
 	if validTitleCase(title) || validCasualTitleCase(title) {

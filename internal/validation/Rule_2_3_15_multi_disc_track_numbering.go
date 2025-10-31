@@ -8,7 +8,7 @@ import (
 
 // MultiDiscTrackNumbering checks that multi-disc releases number tracks correctly (rule 2.3.15)
 // Each disc should start at track 1
-func (r *Rules) MultiDiscTrackNumbering(actual, reference *domain.Album) RuleResult {
+func (r *Rules) MultiDiscTrackNumbering(actualAlbum, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.15",
 		Name:   "Multi-disc track numbering starts at 1 for each disc",
@@ -22,7 +22,7 @@ func (r *Rules) MultiDiscTrackNumbering(actual, reference *domain.Album) RuleRes
 	discTracks := make(map[int][]*domain.Track)
 	maxDisc := 1
 
-	for _, track := range actual.Tracks {
+	for _, track := range actualAlbum.Tracks {
 		disc := track.Disc
 		if disc > maxDisc {
 			maxDisc = disc
@@ -30,47 +30,54 @@ func (r *Rules) MultiDiscTrackNumbering(actual, reference *domain.Album) RuleRes
 		discTracks[disc] = append(discTracks[disc], track)
 	}
 
-	// Single disc - no special numbering rules
-	if maxDisc == 1 {
-		return RuleResult{Meta: meta, Issues: nil}
+	// Multi-disc specific checks: each disc should start at track 1
+	isMultiDisc := actualAlbum.IsMultiDisc()
+	if isMultiDisc {
+		// Multi-disc: check each disc starts at 1 and no missing discs
+		for disc := 1; disc <= maxDisc; disc++ {
+			tracks := discTracks[disc]
+			if len(tracks) == 0 {
+				// Missing disc in sequence
+				issues = append(issues, domain.ValidationIssue{
+					Level:   domain.LevelError,
+					Track:   0,
+					Rule:    meta.ID,
+					Message: fmt.Sprintf("Multi-disc release missing disc %d", disc),
+				})
+				continue
+			}
+
+			// Check if tracks start at 1
+			hasTrackOne := false
+			lowestTrack := 999999
+
+			for _, track := range tracks {
+				trackNum := track.Track
+				if trackNum == 1 {
+					hasTrackOne = true
+				}
+				if trackNum < lowestTrack {
+					lowestTrack = trackNum
+				}
+			}
+
+			if !hasTrackOne {
+				issues = append(issues, domain.ValidationIssue{
+					Level: domain.LevelError,
+					Track: 0,
+					Rule:  meta.ID,
+					Message: fmt.Sprintf("Disc %d: Track numbering must start at 1 (lowest track is %d)",
+						disc, lowestTrack),
+				})
+			}
+		}
 	}
 
-	// Multi-disc: check each disc
+	// Gap checking: applies to both single-disc and multi-disc albums
 	for disc := 1; disc <= maxDisc; disc++ {
 		tracks := discTracks[disc]
 		if len(tracks) == 0 {
-			// Missing disc in sequence
-			issues = append(issues, domain.ValidationIssue{
-				Level:   domain.LevelError,
-				Track:   0,
-				Rule:    meta.ID,
-				Message: fmt.Sprintf("Multi-disc release missing disc %d", disc),
-			})
 			continue
-		}
-
-		// Check if tracks start at 1
-		hasTrackOne := false
-		lowestTrack := 999999
-
-		for _, track := range tracks {
-			trackNum := track.Track
-			if trackNum == 1 {
-				hasTrackOne = true
-			}
-			if trackNum < lowestTrack {
-				lowestTrack = trackNum
-			}
-		}
-
-		if !hasTrackOne {
-			issues = append(issues, domain.ValidationIssue{
-				Level: domain.LevelError,
-				Track: 0,
-				Rule:  meta.ID,
-				Message: fmt.Sprintf("Disc %d: Track numbering must start at 1 (lowest track is %d)",
-					disc, lowestTrack),
-			})
 		}
 
 		// Check for sequential numbering (no gaps)

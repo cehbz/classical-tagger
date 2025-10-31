@@ -8,7 +8,7 @@ import (
 )
 
 // FilenameSortingOrder checks that filenames sort alphabetically into playback order (rule 2.3.14)
-func (r *Rules) FilenameSortingOrder(actual, reference *domain.Album) RuleResult {
+func (r *Rules) FilenameSortingOrder(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.14",
 		Name:   "Filenames sort alphabetically into playback order",

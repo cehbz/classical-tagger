@@ -79,7 +79,7 @@ func (r *Rules) CapitalizationTrump(actual, reference *domain.Album) RuleResult 
 func (r *Rules) countCapitalizationIssues(album *domain.Album) int {
 	count := 0
 
-	// Check album title
+	// Count album title capitalization
 	if checkCapitalization(album.Title) != "" {
 		count++
 	}
@@ -89,13 +89,6 @@ func (r *Rules) countCapitalizationIssues(album *domain.Album) int {
 		// Track title
 		if checkCapitalization(track.Title) != "" {
 			count++
-		}
-
-		// Artist names
-		for _, artist := range track.Artists {
-			if checkCapitalization(artist.Name) != "" {
-				count++
-			}
 		}
 	}
 

@@ -8,7 +8,7 @@ import (
 
 // TrackNumberFormat checks track number format consistency (rule 2.3.10)
 // INFO level - suggests using consistent track numbering format
-func (r *Rules) TrackNumberFormat(actual, reference *domain.Album) RuleResult {
+func (r *Rules) TrackNumberFormat(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.10",
 		Name:   "Track numbers should use consistent format",

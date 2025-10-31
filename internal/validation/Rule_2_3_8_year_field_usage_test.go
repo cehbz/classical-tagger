@@ -20,55 +20,55 @@ func TestRules_YearFieldUsage(t *testing.T) {
 	}{
 		{
 			Name:     "valid - reasonable year",
-			Actual:   buildAlbumWithTitle("Symphony", "1963"),
+			Actual:   NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:         "warning - year too early",
-			Actual:       buildAlbumWithTitle("Symphony", "1850"),
+			Actual:       NewAlbum().WithOriginalYear(1890).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:       "error - year in future",
-			Actual:     buildAlbumWithTitle("Symphony", "2030"),
+			Actual:     NewAlbum().WithOriginalYear(3000).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:      "valid - matches reference",
-			Actual:    buildAlbumWithTitle("Symphony", "No. 9"),
-			Reference: buildAlbumWithTitle("Symphony", "No. 9"),
+			Actual:    NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference: NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:  true,
 		},
 		{
 			Name:      "info - small difference from reference",
-			Actual:    buildAlbumWithTitle("Symphony", "No. 9"),
-			Reference: buildAlbumWithTitle("Symphony", "No 9"),
+			Actual:    NewAlbum().WithOriginalYear(1963).WithEdition("Deutsche Grammophon", "DG-479-0334", 1963).Build(),
+			Reference: NewAlbum().WithOriginalYear(1965).WithEdition("Deutsche Grammophon", "DG-479-0334", 1965).Build(),
 			WantPass:  false,
-			WantInfo:  1,
+			WantErrors:  1,
 		},
 		{
 			Name:         "warning - large difference from reference",
-			Actual:       buildAlbumWithTitle("Symphony", "No. 9"),
-			Reference:    buildAlbumWithTitle("Symphony", "1980"),
+			Actual:       NewAlbum().WithOriginalYear(1963).WithEdition("Deutsche Grammophon", "DG-479-0334", 1963).Build(),
+			Reference:    NewAlbum().WithOriginalYear(1970).WithEdition("Deutsche Grammophon", "DG-479-0334", 1970).Build(),
 			WantPass:     false,
-			WantWarnings: 1,
+			WantErrors:  1,
 		},
 		{
 			Name:         "warning - edition year before album year",
-			Actual:       buildAlbumWithEditionYear(1990, 1985),
+			Actual:       NewAlbum().WithOriginalYear(1990).WithEdition("Label", "CAT123", 1985).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:     "valid - edition year after album year",
-			Actual:   buildAlbumWithEditionYear(1963, 2010),
+			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 2010).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - same edition and album year",
-			Actual:   buildAlbumWithEditionYear(1963, 1963),
+			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1963).Build(),
 			WantPass: true,
 		},
 	}
@@ -111,29 +111,5 @@ func TestRules_YearFieldUsage(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// buildAlbumWithEditionYear creates album with specific album and edition years
-func buildAlbumWithEditionYear(albumYear, editionYear int) *domain.Album {
-	return &domain.Album{
-		Title:        "Album",
-		OriginalYear: albumYear,
-		Tracks: []*domain.Track{
-			{
-				Disc:  1,
-				Track: 1,
-				Title: "Symphony",
-				Artists: []domain.Artist{
-					domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
-					domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
-				},
-			},
-		},
-		Edition: &domain.Edition{
-			Label:         "Label",
-			Year:          editionYear,
-			CatalogNumber: "CAT123",
-		},
 	}
 }

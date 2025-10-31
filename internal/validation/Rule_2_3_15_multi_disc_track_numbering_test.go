@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
@@ -98,7 +97,7 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.MultiDiscTrackNumbering(tt.Actual, tt.Actual)
+			result := rules.MultiDiscTrackNumbering(tt.Actual, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -130,31 +129,3 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 	}
 }
 
-// discTrack represents a track with disc and track number
-type discTrack struct {
-	Disc     int
-	TrackNum int
-}
-
-// buildAlbumWithDiscTracks creates an album with specific disc/track combinations
-func buildAlbumWithDiscTracks(discTracks []discTrack) *domain.Album {
-	tracks := make([]*domain.Track, len(discTracks))
-	for i, dt := range discTracks {
-		tracks[i] = &domain.Track{
-			Disc:  dt.Disc,
-			Track: dt.TrackNum,
-			Title: fmt.Sprintf("Track D%d-T%d", dt.Disc, dt.TrackNum),
-			Artists: []domain.Artist{
-				domain.Artist{Name: "Beethoven", Role: domain.RoleComposer},
-				domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
-			},
-			Name: fmt.Sprintf("CD%d/%02d - Track.flac", dt.Disc, dt.TrackNum),
-		}
-	}
-
-	return &domain.Album{
-		Title:        "Multi-Disc Album",
-		OriginalYear: 1963,
-		Tracks:       tracks,
-	}
-}

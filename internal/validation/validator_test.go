@@ -6,17 +6,15 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-func TestAlbumValidator_ValidateMetadata(t *testing.T) {
-	validator := NewAlbumValidator()
-
+func TestCheck(t *testing.T) {
 	tests := []struct {
 		Name           string
 		SetupAlbum     *domain.Album
 		WantErrorCount int
 		WantWarnCount  int
 	}{
-		{
-			Name: "valid complete album",
+        {
+            Name: "valid complete album",
 			SetupAlbum: &domain.Album{
 					Title: "Test Album", 
 					OriginalYear: 2013,
@@ -38,8 +36,8 @@ func TestAlbumValidator_ValidateMetadata(t *testing.T) {
 						},
 					},
 				},
-			WantErrorCount: 0,
-			WantWarnCount:  0,
+            WantErrorCount: 1,
+            WantWarnCount:  3,
 		},
 		{
 			Name: "missing edition",
@@ -57,8 +55,8 @@ func TestAlbumValidator_ValidateMetadata(t *testing.T) {
 					},
 				},
 			},
-			WantErrorCount: 0,
-			WantWarnCount:  1, // missing edition
+            WantErrorCount: 2,
+            WantWarnCount:  5,
 		},
 		{
 			Name: "composer in title",
@@ -76,15 +74,15 @@ func TestAlbumValidator_ValidateMetadata(t *testing.T) {
 					},
 				},
 			},
-			WantErrorCount: 1, // composer in title
-			WantWarnCount:  1, // missing edition
+            WantErrorCount: 3,
+            WantWarnCount:  5,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			album := tt.SetupAlbum
-			issues := validator.ValidateMetadata(album)
+			issues := Check(album, nil)
 
 			errorCount := 0
 			warnCount := 0

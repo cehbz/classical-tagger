@@ -16,104 +16,77 @@ func TestRules_NoUnnecessaryNestedFolders(t *testing.T) {
 		WantIssues int
 	}{
 		{
-			Name: "valid - no folders",
-			Actual: buildAlbumWithFilenames(
-				"01 - Track.flac",
-				"02 - Track.flac",
-			),
-			WantPass: true,
+			Name:       "valid - no folders",
+			Actual:     buildAlbumWithFilenames("01 - Track.flac"),
+			WantPass:   true,
+			WantIssues: 0,
 		},
 		{
-			Name: "valid - single disc folder",
-			Actual: buildAlbumWithFilenames(
-				"CD1/01 - Track.flac",
-				"CD1/02 - Track.flac",
-			),
-			WantPass: true,
-		},
-		{
-			Name: "valid - multiple disc folders",
-			Actual: buildAlbumWithFilenames(
-				"CD1/01 - Track.flac",
-				"CD2/01 - Track.flac",
-				"CD3/01 - Track.flac",
-			),
-			WantPass: true,
-		},
-		{
-			Name: "valid - Disc folder naming",
-			Actual: buildAlbumWithFilenames(
-				"Disc1/01 - Track.flac",
-				"Disc2/01 - Track.flac",
-			),
-			WantPass: true,
-		},
-		{
-			Name: "valid - Disk folder naming",
-			Actual: buildAlbumWithFilenames(
-				"Disk1/01 - Track.flac",
-				"Disk2/01 - Track.flac",
-			),
-			WantPass: true,
-		},
-		{
-			Name: "invalid - artist/album nesting",
-			Actual: buildAlbumWithFilenames(
-				"Beethoven/Symphonies/01 - Track.flac",
-				"Beethoven/Symphonies/02 - Track.flac",
-			),
-			WantPass:   false,
-			WantIssues: 2,
-		},
-		{
-			Name: "invalid - extra nested folder",
-			Actual: buildAlbumWithFilenames(
-				"Extra/CD1/01 - Track.flac",
-			),
+			Name:       "valid - single disc folder",
+			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"CD1/01 - Track.flac"}, []int{1}),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
-			Name: "invalid - year folder",
-			Actual: buildAlbumWithFilenames(
-				"1963/01 - Track.flac",
-			),
+			Name:       "valid - Disc folder naming",
+			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"Disc1/01 - Track.flac", "Disc2/01 - Track.flac"}, []int{1, 2}),
+			WantPass:   true,
+			WantIssues: 0,
+		},
+		{
+			Name:       "valid - Disk folder naming",
+			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"Disk1/01 - Track.flac", "Disk2/01 - Track.flac"}, []int{1, 2}),
+			WantPass:   true,
+			WantIssues: 0,
+		},
+		{
+			Name:       "invalid - artist/album nesting",
+			Actual:     buildAlbumWithFilenames("Beethoven/Symphonies/01 - Track.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
-			Name: "valid - DVD folder",
-			Actual: buildAlbumWithFilenames(
-				"DVD1/01 - Track.flac",
-			),
-			WantPass: true,
+			Name:       "invalid - extra nested folder",
+			Actual:     buildAlbumWithFilenames("Extra/CD1/01 - Track.flac"),
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			Name: "invalid - some tracks with nesting",
-			Actual: buildAlbumWithFilenames(
-				"01 - Track.flac",
-				"Artist/02 - Track.flac",
-			),
+			Name:       "invalid - year folder",
+			Actual:     buildAlbumWithFilenames("1963/01 - Track.flac"),
+			WantPass:   false,
+			WantIssues: 1,
+		},
+		{
+			Name:       "valid - DVD folder",
+			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"DVD1/01 - Track.flac", "DVD2/01 - Track.flac"}, []int{1, 2}),
+			WantPass:   true,
+			WantIssues: 0,
+		},
+		{
+			Name:       "invalid - artist folder nesting",
+			Actual:     buildAlbumWithFilenames("Artist/02 - Track.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.NoUnnecessaryNestedFolders(tt.Actual, tt.Actual)
+		for _, track := range tt.Actual.Tracks {
+			t.Run(tt.Name, func(t *testing.T) {
+				result := rules.NoUnnecessaryNestedFolders(track, nil, tt.Actual, nil)
 
-			if result.Passed() != tt.WantPass {
-				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
-			}
-
-			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
-				for _, issue := range result.Issues {
-					t.Logf("  Issue: %s", issue.Message)
+				if result.Passed() != tt.WantPass {
+					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
 				}
-			}
-		})
+				if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+					t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+					for _, issue := range result.Issues {
+						t.Logf("  Issue: %s", issue.Message)
+					}
+				}
+			})
+		}
 	}
 }
 

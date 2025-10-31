@@ -9,7 +9,7 @@ import (
 
 // ComposerInFolderName checks that folder name contains composer (classical.folder_name)
 // The album title should include the primary composer's name
-func (r *Rules) ComposerInFolderName(actual, reference *domain.Album) RuleResult {
+func (r *Rules) ComposerInFolderName(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.folder_name",
 		Name:   "Folder name should contain composer name",
@@ -37,7 +37,7 @@ func (r *Rules) ComposerInFolderName(actual, reference *domain.Album) RuleResult
 		for _, artist := range track.Artists {
 			if artist.Role == domain.RoleComposer {
 				name := artist.Name
-				lastName := extractPrimaryLastName(name)
+				lastName := lastName(name)
 				composerCounts[lastName]++
 				composerFullNames[lastName] = name
 			}
@@ -66,10 +66,12 @@ func (r *Rules) ComposerInFolderName(actual, reference *domain.Album) RuleResult
 
 	albumTitleLower := strings.ToLower(albumTitle)
 	composerLower := strings.ToLower(primaryComposer)
-	fullNameLower := strings.ToLower(composerFullNames[primaryComposer])
+	fullNameStr := composerFullNames[primaryComposer]
+	fullNameLower := strings.ToLower(fullNameStr)
+	base := strings.ToLower(composerBaseSurname(fullNameStr))
 
 	// Check for composer mention
-	if !strings.Contains(albumTitleLower, composerLower) && !strings.Contains(albumTitleLower, fullNameLower) {
+	if !strings.Contains(albumTitleLower, composerLower) && !strings.Contains(albumTitleLower, fullNameLower) && !strings.Contains(albumTitleLower, base) {
 		// Check if this is a "Various Artists" compilation
 		if strings.Contains(albumTitleLower, "various") {
 			return RuleResult{Meta: meta, Issues: nil} // Various artist compilations don't need composer in name
@@ -85,7 +87,7 @@ func (r *Rules) ComposerInFolderName(actual, reference *domain.Album) RuleResult
 	}
 
 	// Additional check: if composer is mentioned, prefer full name or proper abbreviation
-	if strings.Contains(albumTitleLower, composerLower) && !strings.Contains(albumTitleLower, fullNameLower) {
+	if (strings.Contains(albumTitleLower, composerLower) || strings.Contains(albumTitleLower, base)) && !strings.Contains(albumTitleLower, fullNameLower) {
 		// Check if it's an acceptable abbreviation
 		fullName := composerFullNames[primaryComposer]
 		if !isAcceptableAbbreviation(albumTitle, fullName) {
@@ -99,4 +101,16 @@ func (r *Rules) ComposerInFolderName(actual, reference *domain.Album) RuleResult
 		}
 	}
 	return RuleResult{Meta: meta, Issues: issues}
+}
+
+func composerBaseSurname(fullName string) string {
+	if strings.Contains(fullName, ",") {
+		parts := strings.Split(fullName, ",")
+		return strings.TrimSpace(parts[0])
+	}
+	parts := strings.Fields(fullName)
+	if len(parts) == 0 {
+		return fullName
+	}
+	return parts[len(parts)-1]
 }

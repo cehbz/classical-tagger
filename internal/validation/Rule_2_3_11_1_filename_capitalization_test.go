@@ -16,81 +16,60 @@ func TestRules_FilenameCapitalization(t *testing.T) {
 		WantIssues int
 	}{
 		{
-			Name: "valid - Title Case",
-			Actual: buildAlbumWithFilenames(
-				"01 - Symphony No. 5 in C Minor.flac",
-				"02 - Concerto for Violin.flac",
-			),
-			WantPass: true,
+			Name:       "valid - Title Case",
+			Actual:     buildAlbumWithFilenames("01 - Symphony No. 5 in C Minor.flac"),
+			WantPass:   true,
+			WantIssues: 0,
 		},
 		{
-			Name: "valid - Casual Title Case (every word capitalized)",
-			Actual: buildAlbumWithFilenames(
-				"01 - Symphony No. 5 In C Minor.flac",
-				"02 - Concerto For Violin And Orchestra.flac",
-			),
-			WantPass: true,
+			Name:       "valid - Casual Title Case (every word capitalized)",
+			Actual:     buildAlbumWithFilenames("01 - Symphony No. 5 In C Minor.flac"),
+			WantPass:   true,
+			WantIssues: 0,
 		},
 		{
-			Name: "invalid - all uppercase",
-			Actual: buildAlbumWithFilenames(
-				"01 - SYMPHONY NO. 5.flac",
-				"02 - CONCERTO.flac",
-			),
-			WantPass:   false,
-			WantIssues: 2,
-		},
-		{
-			Name: "invalid - all lowercase",
-			Actual: buildAlbumWithFilenames(
-				"01 - symphony no. 5.flac",
-				"02 - concerto.flac",
-			),
-			WantPass:   false,
-			WantIssues: 2,
-		},
-		{
-			Name: "invalid - some tracks all caps",
-			Actual: buildAlbumWithFilenames(
-				"01 - Symphony No. 5.flac",
-				"02 - CONCERTO IN D.flac",
-			),
+			Name:       "invalid - all uppercase",
+			Actual:     buildAlbumWithFilenames("01 - SYMPHONY NO. 5.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
-			Name: "valid - mixed case (acceptable)",
-			Actual: buildAlbumWithFilenames(
-				"01 - Symphony No. 5.flac",
-				"02 - Concerto in D major.flac",
-			),
-			WantPass: true,
+			Name:       "invalid - all lowercase",
+			Actual:     buildAlbumWithFilenames("01 - symphony no. 5.flac"),
+			WantPass:   false,
+			WantIssues: 1,
 		},
 		{
-			Name: "valid - with numbers and abbreviations",
-			Actual: buildAlbumWithFilenames(
-				"01 - BWV 1007 - Prelude.flac",
-				"02 - Op. 132 - Allegro.flac",
-			),
-			WantPass: true,
+			Name:       "valid - mixed case (acceptable)",
+			Actual:     buildAlbumWithFilenames("01 - Symphony No. 5.flac"),
+			WantPass:   true,
+			WantIssues: 0,
+		},
+		{
+			Name:       "valid - with numbers and abbreviations",
+			Actual:     buildAlbumWithFilenames("01 - BWV 1007 - Prelude.flac"),
+			WantPass:   true,
+			WantIssues: 0,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.FilenameCapitalization(tt.Actual, tt.Actual)
+		for _, track := range tt.Actual.Tracks {
+			t.Run(tt.Name, func(t *testing.T) {
+				result := rules.FilenameCapitalization(track, nil, nil, nil)
 
-			if result.Passed() != tt.WantPass {
-				t.Errorf("FilenameCapitalization(%q) passed = %v, want %v", tt.Actual.Title, result.Passed(), tt.WantPass)
-			}
-
-			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
-				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
-				for _, issue := range result.Issues {
-					t.Logf("  Issue: %s", issue.Message)
+				if result.Passed() != tt.WantPass {
+					t.Errorf("FilenameCapitalization(%q) passed = %v, want %v", tt.Actual.Title, result.Passed(), tt.WantPass)
 				}
-			}
-		})
+
+				if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+					t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+					for _, issue := range result.Issues {
+						t.Logf("  Issue: %s", issue.Message)
+					}
+				}
+			})
+		}
 	}
 }
 

@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
@@ -19,7 +18,7 @@ func TestRules_CapitalizationTrump(t *testing.T) {
 	}{
 		{
 			Name:     "pass - no reference",
-			Actual:   buildAlbumWithTitle("Symphony No. 5", "1963"),
+			Actual:   NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
@@ -101,49 +100,5 @@ func TestCountCapitalizationIssues(t *testing.T) {
 				t.Errorf("countCapitalizationIssues() = %d, want %d", count, tt.WantCount)
 			}
 		})
-	}
-}
-
-// buildAlbumWithGoodCaps creates album with proper capitalization
-func buildAlbumWithGoodCaps() *domain.Album {
-	composer := domain.Artist{Name: "Ludwig van Beethoven", Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}
-
-	tracks := make([]*domain.Track, 3)
-	for i := 0; i < 3; i++ {
-		tracks[i] = &domain.Track{
-			Disc:    1,
-			Track:   i + 1,
-			Title:   fmt.Sprintf("Symphony No. %d", i+1),
-			Artists: []domain.Artist{composer, ensemble},
-		}
-	}
-
-	return &domain.Album{
-		Title:        "Beethoven - Symphonies [1963] [FLAC]",
-		OriginalYear: 1963,
-		Tracks:       tracks,
-	}
-}
-
-// buildAlbumWithBadCaps creates album with poor capitalization
-func buildAlbumWithBadCaps() *domain.Album {
-	composer := domain.Artist{Name: "BEETHOVEN", Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "berlin philharmonic", Role: domain.RoleEnsemble}
-
-	tracks := make([]*domain.Track, 3)
-	for i := 0; i < 3; i++ {
-		tracks[i] = &domain.Track{
-			Disc:    1,
-			Track:   i + 1,
-			Title:   fmt.Sprintf("SYMPHONY NO. %d", i+1),
-			Artists: []domain.Artist{composer, ensemble},
-		}
-	}
-
-	return &domain.Album{
-		Title:        "BEETHOVEN - SYMPHONIES",
-		OriginalYear: 1963,
-		Tracks:       tracks,
 	}
 }

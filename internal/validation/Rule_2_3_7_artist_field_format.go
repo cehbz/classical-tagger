@@ -13,71 +13,70 @@ var artistFieldSeparator = "; "
 // ArtistFieldFormat checks artist field formatting (rule 2.3.7)
 // For classical: performers listed, not composer
 // Format should be consistent with semicolon separation if multiple
-func (r *Rules) ArtistFieldFormat(actual, reference *domain.Album) RuleResult {
+func (r *Rules) ArtistFieldFormat(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult {
 	meta := RuleMetadata{
-		ID:     "2.3.7",
+		ID:     "2.3.7-format",
 		Name:   "Artist field format must follow conventions",
 		Level:  domain.LevelWarning,
 		Weight: 0.5,
 	}
+	if actualTrack == nil || len(actualTrack.Artists) == 0 {
+		return RuleResult{Meta: meta, Issues: nil}
+	}
 
 	var issues []domain.ValidationIssue
 
-	for _, track := range actual.Tracks {
-		artists := track.Artists
-		if len(artists) == 0 {
-			continue
+	artists := actualTrack.Artists
+	// Check that composer is not the only artist
+	// (will be caught by other rules but good to check)
+	hasPerformer := false
+	var composer *domain.Artist
+
+	for _, artist := range artists {
+		if artist.Role == domain.RoleComposer {
+			composer = &artist
+		} else if artist.Role != domain.RoleArranger {
+			hasPerformer = true
 		}
+	}
 
-		// Check that composer is not the only artist
-		// (will be caught by other rules but good to check)
-		hasPerformer := false
-		var composer *domain.Artist
+	if !hasPerformer && composer != nil {
+		issues = append(issues, domain.ValidationIssue{
+			Level: domain.LevelWarning,
+			Track: actualTrack.Track,
+			Rule:  meta.ID,
+			Message: fmt.Sprintf("Track %s: Artist field should contain performers, not just composer '%s'",
+				formatTrackNumber(actualTrack), composer.Name),
+		})
+	}
 
-		for _, artist := range artists {
-			if artist.Role == domain.RoleComposer {
-				composer = &artist
-			} else if artist.Role != domain.RoleArranger {
-				hasPerformer = true
-			}
-		}
+	if refTrack == nil {
+		return RuleResult{Meta: meta, Issues: issues}
+	}
 
-		if !hasPerformer && composer != nil {
-			issues = append(issues, domain.ValidationIssue{
-				Level: domain.LevelWarning,
-				Track: track.Track,
-				Rule:  meta.ID,
-				Message: fmt.Sprintf("Track %s: Artist field should contain performers, not just composer '%s'",
-					formatTrackNumber(track), composer.Name),
-			})
-		}
+	// compare disc and track numbers
+	if refTrack.Disc != actualTrack.Disc || refTrack.Track != actualTrack.Track {
+		issues = append(issues, domain.ValidationIssue{
+			Level: domain.LevelError,
+			Track: actualTrack.Track,
+			Rule:  meta.ID,
+			Message: fmt.Sprintf("Track %s: Reference track does not match actual track (disc %d, track %d)",
+				formatTrackNumber(actualTrack), refTrack.Disc, refTrack.Track),
+		})
+	}
 
-		// Check for proper formatting if reference is provided
-		if reference != nil {
-			refTracks := reference.Tracks
-			refTrackMap := make(map[string]*domain.Track)
-			for _, rt := range refTracks {
-				key := fmt.Sprintf("%d-%d", rt.Disc, rt.Track)
-				refTrackMap[key] = rt
-			}
+	// Compare performer lists
+	actualPerformers := getPerformers(actualTrack.Artists)
+	refPerformers := getPerformers(refTrack.Artists)
 
-			key := fmt.Sprintf("%d-%d", track.Disc, track.Track)
-			if refTrack, exists := refTrackMap[key]; exists {
-				// Compare performer lists
-				actualPerformers := getPerformers(track.Artists)
-				refPerformers := getPerformers(refTrack.Artists)
-
-				if len(actualPerformers) != len(refPerformers) {
-					issues = append(issues, domain.ValidationIssue{
-						Level: domain.LevelInfo,
-						Track: track.Track,
-						Rule:  meta.ID,
-						Message: fmt.Sprintf("Track %s: Number of performers (%d) differs from reference (%d)",
-							formatTrackNumber(track), len(actualPerformers), len(refPerformers)),
-					})
-				}
-			}
-		}
+	if len(actualPerformers) != len(refPerformers) {
+		issues = append(issues, domain.ValidationIssue{
+			Level: domain.LevelInfo,
+			Track: actualTrack.Track,
+			Rule:  meta.ID,
+			Message: fmt.Sprintf("Track %s: Number of performers (%d) differs from reference (%d)",
+				formatTrackNumber(actualTrack), len(actualPerformers), len(refPerformers)),
+		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
 }

@@ -14,7 +14,7 @@ var discNumberPattern = regexp.MustCompile(`(?i)(disc|cd|disk|volume|vol\.?)\s*\
 
 // NoDiscNumbersInAlbumTag checks that disc numbers aren't in album title (rule 2.3.18.3.3)
 // Disc numbers should be in the DISC tag, not the album title
-func (r *Rules) NoDiscNumbersInAlbumTag(actual, reference *domain.Album) RuleResult {
+func (r *Rules) NoDiscNumbersInAlbumTag(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.3.3",
 		Name:   "Disc numbers should not be in album title",
@@ -52,12 +52,9 @@ func (r *Rules) NoDiscNumbersInAlbumTag(actual, reference *domain.Album) RuleRes
 func isLegitimateVolumeTitle(title string) bool {
 	lowerTitle := strings.ToLower(title)
 
-	// These patterns indicate legitimate volume series:
-	// - "Complete Works, Volume 1-5"
-	// - "Collected Recordings, Vol. 1"
-	// - "The Decca Recordings, Volume 2"
-
-	legitimatePatterns := []string{
+	// These patterns indicate legitimate volume series context
+	// (must appear near volume/disc keywords)
+	seriesContext := []string{
 		"complete works",
 		"collected",
 		"recordings",
@@ -67,21 +64,16 @@ func isLegitimateVolumeTitle(title string) bool {
 		"series",
 	}
 
-	for _, pattern := range legitimatePatterns {
-		if strings.Contains(lowerTitle, pattern) {
+	for _, ctx := range seriesContext {
+		if strings.Contains(lowerTitle, ctx) && regexp.MustCompile(`(?i)(volume|vol\.?|disc|cd)s?\s*\d+`).MatchString(lowerTitle) {
 			return true
 		}
 	}
 
-	// Check if it's a range: "Volume 1-5" or "Discs 1-3"
-	if strings.Contains(lowerTitle, "-") {
-		parts := strings.Split(lowerTitle, "-")
-		for _, part := range parts {
-			// If there's a digit before and after the dash near volume/disc, it's a range
-			if regexp.MustCompile(`\d+\s*$`).MatchString(strings.TrimSpace(part)) {
-				return true
-			}
-		}
+	// Allow explicit numeric ranges only when tied to volume/disc keywords, e.g. "Volume 1-5"
+	rangeRe := regexp.MustCompile(`(?i)(volume|vol\.?|disc|cd)s?\s*\d+\s*-\s*\d+`)
+	if rangeRe.MatchString(lowerTitle) {
+		return true
 	}
 
 	return false

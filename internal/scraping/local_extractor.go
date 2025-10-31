@@ -82,6 +82,7 @@ func (e *LocalExtractor) findFLACFiles(dirPath string) ([]string, error) {
 func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*ExtractionResult, error) {
 	// Create initial album data with sentinel values
 	data := &domain.Album{
+		FolderName:   filepath.Base(dirPath),
 		Title:        MissingTitle,
 		OriginalYear: MissingYear,
 		Tracks:       make([]*domain.Track, 0, len(files)),
@@ -89,7 +90,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 
 	// Start with empty result
 	result := &ExtractionResult{
-		Album: data,
+		Album:  data,
 		Source: "local_directory",
 	}
 	parsingNotes := make(map[string]interface{})
@@ -128,7 +129,8 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 
 	// Try to extract folder name metadata if album title missing
 	if data.Title == MissingTitle {
-		if title, year := e.parseDirectoryName(dirPath); title != "" {
+		if folderName, title, year := e.parseDirectoryName(dirPath); folderName != "" && title != "" {
+			data.FolderName = folderName
 			data.Title = title
 			if year > 0 && data.OriginalYear == MissingYear {
 				data.OriginalYear = year
@@ -239,10 +241,10 @@ func (e *LocalExtractor) extractTrackMetadata(filePath string, baseDir string) (
 	}
 
 	track := &domain.Track{
-		Disc:     1, // Default
-		Track:    0,
-		Title:    "",
-		Artists:  make([]domain.Artist, 0),
+		Disc:    1, // Default
+		Track:   0,
+		Title:   "",
+		Artists: make([]domain.Artist, 0),
 	}
 
 	// Extract track number
@@ -423,7 +425,7 @@ func (e *LocalExtractor) inferRoleFromName(name string) domain.Role {
 
 // parseDirectoryName attempts to extract album title and year from directory name.
 // Handles formats like "Beethoven - Symphony No. 5 [1963]" or "Bach - Goldberg Variations (1741)"
-func (e *LocalExtractor) parseDirectoryName(dirPath string) (title string, year int) {
+func (e *LocalExtractor) parseDirectoryName(dirPath string) (folderName string, title string, year int) {
 	dirName := filepath.Base(dirPath)
 
 	// Extract year from brackets or parentheses
@@ -442,5 +444,5 @@ func (e *LocalExtractor) parseDirectoryName(dirPath string) (title string, year 
 	// Clean up whitespace
 	title = strings.TrimSpace(title)
 
-	return title, year
+	return dirName, title, year
 }

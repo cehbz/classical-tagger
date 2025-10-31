@@ -6,7 +6,7 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-func TestRules_TagCapitalization(t *testing.T) {
+func TestRules_AlbumTagCapitalization(t *testing.T) {
 	rules := NewRules()
 
 	tests := []struct {
@@ -17,53 +17,36 @@ func TestRules_TagCapitalization(t *testing.T) {
 	}{
 		{
 			Name:     "valid - Title Case",
-			Actual:   buildAlbumWithTitle("Symphony No. 5 in C Minor", "1963"),
+			Actual:   NewAlbum().WithTitle("Symphony No. 5 in C Minor").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - Casual Title Case",
-			Actual:   buildAlbumWithTitle("Symphony No. 5 In C Minor", "1963"),
+			Actual:   NewAlbum().WithTitle("Symphony No. 5 In C Minor").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:       "error - all uppercase",
-			Actual:     buildAlbumWithTitle("SYMPHONY NO. 5", "1963"),
+			Actual:     NewAlbum().WithTitle("SYMPHONY NO. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - all lowercase",
-			Actual:     buildAlbumWithTitle("symphony no. 5", "1963"),
+			Actual:     NewAlbum().WithTitle("symphony no. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:     "valid - mixed case acceptable",
-			Actual:   buildAlbumWithTitle("Symphony No. 5", "1963"),
-			WantPass: true,
-		},
-		{
-			Name:       "error - artist name all caps",
-			Actual:     buildAlbumWithArtistName("BEETHOVEN"),
-			WantPass:   false,
-			WantErrors: 1,
-		},
-		{
-			Name:       "error - artist name all lowercase",
-			Actual:     buildAlbumWithArtistName("beethoven"),
-			WantPass:   false,
-			WantErrors: 1,
-		},
-		{
-			Name:     "valid - proper artist name",
-			Actual:   buildAlbumWithArtistName("Ludwig van Beethoven"),
+			Actual:   NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.TagCapitalization(tt.Actual, tt.Actual)
+			result := rules.AlbumTagCapitalization(tt.Actual, tt.Actual)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -89,6 +72,64 @@ func TestRules_TagCapitalization(t *testing.T) {
 	}
 }
 
+func TestRules_TrackTagCapitalization(t *testing.T) {
+	rules := NewRules()
+
+	tests := []struct {
+		Name       string
+		Actual     *domain.Album
+		WantPass   bool
+		WantErrors int
+	}{
+		{
+			Name:       "error - artist name all caps",
+			Actual:     NewAlbum().WithComposer("BEETHOVEN").Build(),
+			WantPass:   false,
+			WantErrors: 1,
+		},
+		{
+			Name:       "error - artist name all lowercase",
+			Actual:     NewAlbum().WithComposer("beethoven").Build(),
+			WantPass:   false,
+			WantErrors: 1,
+		},
+		{
+			Name:     "valid - proper artist name",
+			Actual:   NewAlbum().WithComposer("Ludwig van Beethoven").Build(),
+			WantPass: true,
+		},
+	}
+
+	for _, tt := range tests {
+		for _, track := range tt.Actual.Tracks {
+			t.Run(tt.Name, func(t *testing.T) {
+				result := rules.TrackTagCapitalization(track, nil, nil, nil)
+
+				if result.Passed() != tt.WantPass {
+					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+				}
+
+				if !tt.WantPass {
+					errorCount := 0
+					for _, issue := range result.Issues {
+						if issue.Level == domain.LevelError {
+							errorCount++
+						}
+					}
+
+					if errorCount != tt.WantErrors {
+						t.Errorf("Errors = %d, want %d", errorCount, tt.WantErrors)
+					}
+
+					for _, issue := range result.Issues {
+						t.Logf("  Issue [%s]: %s", issue.Level, issue.Message)
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestRules_TagCapitalizationVsReference(t *testing.T) {
 	rules := NewRules()
 
@@ -101,27 +142,27 @@ func TestRules_TagCapitalizationVsReference(t *testing.T) {
 	}{
 		{
 			Name:      "valid - exact match",
-			Actual:    buildAlbumWithTitle("Symphony No. 5", "1963"),
-			Reference: buildAlbumWithTitle("Symphony No. 5", "1963"),
+			Actual:    NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference: NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:  true,
 		},
 		{
 			Name:         "warning - case mismatch",
-			Actual:       buildAlbumWithTitle("Symphony No. 5", "1963"),
-			Reference:    buildAlbumWithTitle("Symphony no. 5", "1963"),
+			Actual:       NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference:    NewAlbum().WithTitle("Symphony no. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - all caps vs proper",
-			Actual:       buildAlbumWithTitle("SYMPHONY NO. 5", "1963"),
-			Reference:    buildAlbumWithTitle("Symphony No. 5", "1963"),
+			Actual:       NewAlbum().WithTitle("SYMPHONY NO. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference:    NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:      "pass - no reference",
-			Actual:    buildAlbumWithTitle("Symphony No. 5", "1963"),
+			Actual:    NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			Reference: nil,
 			WantPass:  true,
 		},

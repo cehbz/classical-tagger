@@ -14,7 +14,7 @@ var trackNumberPattern = regexp.MustCompile(`^(\d+)[\s\-_\.]+`)
 
 // TrackNumbersInFilenames checks that all filenames contain track numbers (rule 2.3.13)
 // Exception: Single-track torrents don't require track numbers
-func (r *Rules) TrackNumbersInFilenames(actual, reference *domain.Album) RuleResult {
+func (r *Rules) TrackNumbersInFilenames(actual, _ *domain.Album) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.13",
 		Name:   "Track numbers required in file names",

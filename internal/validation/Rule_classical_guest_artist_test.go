@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
@@ -18,7 +17,7 @@ func TestRules_GuestArtistIdentification(t *testing.T) {
 	}{
 		{
 			Name:     "pass - single track",
-			Actual:   buildAlbumWithArtists("Beethoven", domain.RoleComposer, "Pollini", domain.RoleSoloist),
+			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}).Build().Build(),
 			WantPass: true,
 		},
 		{
@@ -70,73 +69,4 @@ func TestRules_GuestArtistIdentification(t *testing.T) {
 			}
 		})
 	}
-}
-
-// buildAlbumWithConsistentSoloist creates album with same soloist on all tracks
-func buildAlbumWithConsistentSoloist(soloistName string, trackCount int) *domain.Album {
-	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-	soloist := domain.Artist{Name: soloistName, Role: domain.RoleSoloist}
-	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-
-	tracks := make([]*domain.Track, trackCount)
-	for i := 0; i < trackCount; i++ {
-		tracks[i] = &domain.Track{
-			Disc:    1,
-			Track:   i + 1,
-			Title:   fmt.Sprintf("Concerto No. %d", i+1),
-			Artists: []domain.Artist{composer, soloist, ensemble},
-		}
-	}
-
-	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: tracks}
-}
-
-// buildAlbumWithGuestSoloist creates album where one soloist appears infrequently
-func buildAlbumWithGuestSoloist(mainSoloist, guestSoloist string, trackCount int) *domain.Album {
-	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-	main := domain.Artist{Name: mainSoloist, Role: domain.RoleSoloist}
-	guest := domain.Artist{Name: guestSoloist, Role: domain.RoleSoloist}
-	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-
-	tracks := make([]*domain.Track, trackCount)
-	for i := 0; i < trackCount; i++ {
-		var artists []domain.Artist
-		// Guest appears only on first track
-		if i == 0 {
-			artists = []domain.Artist{composer, guest, ensemble}
-		} else {
-			artists = []domain.Artist{composer, main, ensemble}
-		}
-
-		tracks[i] = &domain.Track{Disc: 1, Track: i + 1, Title: fmt.Sprintf("Concerto No. %d", i+1), Artists: artists}
-	}
-
-	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: tracks}
-}
-
-// buildAlbumWithGuestInTitle creates album with guest indicated in title
-func buildAlbumWithGuestInTitle(mainSoloist, guestSoloist string, trackCount int) *domain.Album {
-	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-	main := domain.Artist{Name: mainSoloist, Role: domain.RoleSoloist}
-	guest := domain.Artist{Name: guestSoloist, Role: domain.RoleSoloist}
-	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
-
-	tracks := make([]*domain.Track, trackCount)
-	for i := 0; i < trackCount; i++ {
-		var artists []domain.Artist
-		var title string
-
-		// Guest appears only on first track, indicated in title
-		if i == 0 {
-			artists = []domain.Artist{composer, guest, ensemble}
-			title = fmt.Sprintf("Concerto No. %d (feat. %s)", i+1, guestSoloist)
-		} else {
-			artists = []domain.Artist{composer, main, ensemble}
-			title = fmt.Sprintf("Concerto No. %d", i+1)
-		}
-
-		tracks[i] = &domain.Track{Disc: 1, Track: i + 1, Title: title, Artists: artists}
-	}
-
-	return &domain.Album{Title: "Album", OriginalYear: 1963, Tracks: tracks}
 }

@@ -105,7 +105,7 @@ func TestRules_RequiredTags(t *testing.T) {
 						Disc:    1,
 						Track:   1,
 						Title:   "Symphony",
-						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+						Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}},
 					},
 				},
 			},
@@ -119,22 +119,31 @@ func TestRules_RequiredTags(t *testing.T) {
 				OriginalYear: 1963,
 				Tracks: []*domain.Track{
 					{
-						Disc:    1,
-						Track:   1,
-						Title:   "Symphony No. 1",
-						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony No. 1",
+						Artists: []domain.Artist{
+							{Name: "Beethoven", Role: domain.RoleComposer},
+							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
+						},
 					},
 					{
-						Disc:    1,
-						Track:   2,
-						Title:   "",
-						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+						Disc:  1,
+						Track: 2,
+						Title: "",
+						Artists: []domain.Artist{
+							{Name: "Beethoven", Role: domain.RoleComposer},
+							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
+						},
 					},
 					{
-						Disc:    1,
-						Track:   3,
-						Title:   "Symphony No. 3",
-						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+						Disc:  1,
+						Track: 3,
+						Title: "Symphony No. 3",
+						Artists: []domain.Artist{
+							{Name: "Beethoven", Role: domain.RoleComposer},
+							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
+						},
 					},
 				},
 			},
@@ -145,13 +154,13 @@ func TestRules_RequiredTags(t *testing.T) {
 			Name: "multiple issues",
 			Actual: &domain.Album{
 				Title:        "Beethoven Symphonies",
-				OriginalYear: 1963,
+				OriginalYear: 0,
 				Tracks: []*domain.Track{
 					{
 						Disc:    1,
 						Track:   1,
 						Title:   "",
-						Artists: []domain.Artist{domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}},
+						Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}},
 					},
 					{
 						Disc:    1,
@@ -169,7 +178,11 @@ func TestRules_RequiredTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.RequiredTags(tt.Actual, tt.Actual)
+			result := rules.RequiredAlbumTags(tt.Actual, tt.Actual)
+			for _, track := range tt.Actual.Tracks {
+				trackResult := rules.RequiredTrackTags(track, nil, tt.Actual, nil)
+				result.Issues = append(result.Issues, trackResult.Issues...)
+			}
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)

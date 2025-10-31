@@ -4,10 +4,11 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// AlbumHasTracks checks that the album contains at least one track (rule 2.3.16.4)
-func (r *Rules) AlbumHasTracks(actual, reference *domain.Album) RuleResult {
-	meta := RuleMetadata{
-		ID:     "2.3.16.4",
+// AlbumHasTracks checks that the album contains at least one track (album: 2.3.16.4-album-tracks)
+// This is an ALBUM-LEVEL rule - signature: (actual, reference *Album)
+func (r *Rules) AlbumHasTracks(actual, _ *domain.Album) RuleResult {
+    meta := RuleMetadata{
+        ID:     "2.3.16.4",
 		Name:   "Album must have at least one track",
 		Level:  domain.LevelError,
 		Weight: 1.0,

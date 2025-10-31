@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
@@ -18,7 +19,20 @@ func (r *Rules) YearFieldUsage(actual, reference *domain.Album) RuleResult {
 
 	var issues []domain.ValidationIssue
 
+	// Compute effective year: prefer OriginalYear; if zero, fall back to Edition.Year if present
 	year := actual.OriginalYear
+	if year == 0 {
+		if actual.Edition != nil && actual.Edition.Year != 0 {
+			year = actual.Edition.Year
+		} else {
+			issues = append(issues, domain.ValidationIssue{
+				Level:   domain.LevelWarning,
+				Track:   0,
+				Rule:    meta.ID,
+				Message: "Year is missing (should include recording/original year)",
+			})
+		}
+	}
 
 	// Check year is reasonable (not in future, not too old)
 	if year != 0 {
@@ -33,7 +47,7 @@ func (r *Rules) YearFieldUsage(actual, reference *domain.Album) RuleResult {
 		}
 
 		// Check not in future (allow 1 year ahead for pre-releases)
-		if year > 2026 {
+		if year > time.Now().Year()+1 {
 			issues = append(issues, domain.ValidationIssue{
 				Level:   domain.LevelError,
 				Track:   0,
@@ -44,44 +58,35 @@ func (r *Rules) YearFieldUsage(actual, reference *domain.Album) RuleResult {
 	}
 
 	// Check against reference if provided
-	if reference != nil && reference.OriginalYear != 0 {
+	if reference != nil {
 		refYear := reference.OriginalYear
+		if refYear == 0 && reference.Edition != nil {
+			refYear = reference.Edition.Year
+		}
 
-		if year != 0 && year != refYear {
-			// Calculate difference
-			diff := year - refYear
-			if diff < 0 {
-				diff = -diff
-			}
-
-			// Small differences (1-2 years) might be reissue vs original
-			level := domain.LevelInfo
-			if diff > 5 {
-				level = domain.LevelWarning
-			}
-
+		if year != 0 && refYear != 0 && year != refYear {
 			issues = append(issues, domain.ValidationIssue{
-				Level: level,
+				Level: domain.LevelError,
 				Track: 0,
 				Rule:  meta.ID,
-				Message: fmt.Sprintf("Year %d differs from reference %d (difference: %d years)",
-					year, refYear, diff),
+				Message: fmt.Sprintf("Year %d differs from reference %d",
+					year, refYear),
 			})
 		}
 	}
 
-	// Check Edition year if present
-	if actual.Edition != nil {
+	// Check Edition year if present and we have an explicit album year
+	if actual.Edition != nil && actual.OriginalYear != 0 {
 		editionYear := actual.Edition.Year
-		if editionYear != 0 && year != 0 {
+		if editionYear != 0 {
 			// Edition year should typically be same or later than recording year
-			if editionYear < year {
+			if editionYear < actual.OriginalYear {
 				issues = append(issues, domain.ValidationIssue{
 					Level: domain.LevelWarning,
 					Track: 0,
 					Rule:  meta.ID,
 					Message: fmt.Sprintf("Edition year %d is earlier than album year %d (check if correct)",
-						editionYear, year),
+						editionYear, actual.OriginalYear),
 				})
 			}
 		}

@@ -17,48 +17,48 @@ func TestRules_RecordLabelPresent(t *testing.T) {
 	}{
 		{
 			Name:     "valid - both label and catalog present",
-			Actual:   buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
 			WantPass: true,
 		},
 		{
 			Name:         "warning - no edition at all",
-			Actual:       buildAlbumWithEdition("", ""),
+			Actual:       NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("", "", 2010).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - missing label",
-			Actual:       buildAlbumWithEdition("", "4776516"),
+			Actual:       NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("", "4776516", 2010).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - missing catalog",
-			Actual:       buildAlbumWithEdition("Deutsche Grammophon", ""),
+			Actual:       NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "", 2010).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - both missing",
-			Actual:       buildAlbumWithEdition("", ""),
+			Actual:       NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("", "", 2010).Build(),
 			WantPass:     false,
 			WantWarnings: 1, // One warning for missing edition info
 		},
 		{
 			Name:     "valid - Harmonia Mundi",
-			Actual:   buildAlbumWithEdition("harmonia mundi", "HMC902170"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("harmonia mundi", "HMC902170", 2010).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - Naxos",
-			Actual:   buildAlbumWithEdition("Naxos", "8.557308"),
+			Actual:   NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Naxos", "8.557308", 2010).Build(),
 			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.RecordLabelPresent(tt.Actual, tt.Actual)
+			result := rules.RecordLabelPresent(tt.Actual, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -96,47 +96,47 @@ func TestRules_RecordLabelAccuracy(t *testing.T) {
 	}{
 		{
 			Name:      "valid - exact match",
-			Actual:    buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
-			Reference: buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
+			Actual:    NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
+			Reference: NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
 			WantPass:  true,
 		},
 		{
 			Name:       "error - label mismatch",
-			Actual:     buildAlbumWithEdition("Sony Classical", "4776516"),
-			Reference:  buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
+			Actual:     NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Sony Classical", "4776516", 2010).Build(),
+			Reference:  NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - catalog mismatch",
-			Actual:     buildAlbumWithEdition("Deutsche Grammophon", "12345"),
-			Reference:  buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
+			Actual:     NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "12345", 2010).Build(),
+			Reference:  NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - both mismatch",
-			Actual:     buildAlbumWithEdition("Sony Classical", "12345"),
-			Reference:  buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
+			Actual:     NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Sony Classical", "12345", 2010).Build(),
+			Reference:  NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
 			WantPass:   false,
 			WantErrors: 2,
 		},
 		{
 			Name:      "pass - no reference edition",
-			Actual:    buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
-			Reference: buildAlbumWithoutEdition(),
+			Actual:    NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
+			Reference: NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithoutEdition().Build(),
 			WantPass:  true, // Can't validate without reference
 		},
 		{
 			Name:      "pass - no actual edition but no reference either",
-			Actual:    buildAlbumWithoutEdition(),
-			Reference: buildAlbumWithoutEdition(),
+			Actual:    NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithoutEdition().Build(),
+			Reference: NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithoutEdition().Build(),
 			WantPass:  true,
 		},
 		{
 			Name:      "pass - actual missing but no reference to check against",
-			Actual:    buildAlbumWithoutEdition(),
-			Reference: buildAlbumWithEdition("Deutsche Grammophon", "4776516"),
+			Actual:    NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithoutEdition().Build(),
+			Reference: NewAlbum().WithTitle("Beethoven Symphonies").ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().WithEdition("Deutsche Grammophon", "4776516", 2010).Build(),
 			WantPass:  true, // Presence checked by RecordLabelPresent, not accuracy
 		},
 	}
@@ -166,37 +166,5 @@ func TestRules_RecordLabelAccuracy(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// Helper to build album with edition information
-func buildAlbumWithEdition(label, catalogNumber string) *domain.Album {
-	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}
-	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony", Artists: []domain.Artist{composer, ensemble}}
-
-	var edition *domain.Edition
-	if label != "" || catalogNumber != "" {
-		edition = &domain.Edition{Label: label, Year: 2010, CatalogNumber: catalogNumber}
-	}
-
-	return &domain.Album{
-		Title:        "Beethoven Symphonies",
-		OriginalYear: 1963,
-		Edition:      edition,
-		Tracks:       []*domain.Track{&track},
-	}
-}
-
-// Helper to build album without edition
-func buildAlbumWithoutEdition() *domain.Album {
-	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
-	ensemble := domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}
-	track := domain.Track{Disc: 1, Track: 1, Title: "Symphony", Artists: []domain.Artist{composer, ensemble}}
-
-	return &domain.Album{
-		Title:        "Beethoven Symphonies",
-		OriginalYear: 1963,
-		Tracks:       []*domain.Track{&track},
 	}
 }
