@@ -115,7 +115,7 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 
 	// ARTIST tag (performers only, not composer)
 	if len(performers) > 0 {
-		tags["ARTIST"] = FormatArtists(performers)
+		tags["ARTIST"] = domain.FormatArtists(performers)
 
 		// Also add individual role-specific tags for classical music players
 		for _, artist := range performers {
@@ -156,94 +156,10 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 		}
 	}
 
-	// ALBUMARTIST tag (if there are universal performers)
-	albumArtist, _ := DetermineAlbumArtist(album)
-	if albumArtist != "" {
-		tags["ALBUMARTIST"] = albumArtist
+	// ALBUMARTIST tag (if set in album)
+	if len(album.AlbumArtist) > 0 {
+		tags["ALBUMARTIST"] = domain.FormatArtists(album.AlbumArtist)
 	}
 
 	return tags
-}
-
-// FormatArtists formats a list of artists according to classical music conventions.
-// Format: "Soloist(s), Orchestra/Ensemble, Conductor"
-// Composers are excluded from the ARTIST tag.
-func FormatArtists(artists []domain.Artist) string {
-	if len(artists) == 0 {
-		return ""
-	}
-
-	var soloists []string
-	var ensembles []string
-	var conductors []string
-
-	for _, artist := range artists {
-		switch artist.Role {
-		case domain.RoleSoloist:
-			soloists = append(soloists, artist.Name)
-		case domain.RoleEnsemble:
-			ensembles = append(ensembles, artist.Name)
-		case domain.RoleConductor:
-			conductors = append(conductors, artist.Name)
-		case domain.RoleComposer:
-			// Composers excluded from ARTIST tag
-			continue
-		}
-	}
-
-	// Build in order: soloists, ensembles, conductors
-	var parts []string
-	parts = append(parts, soloists...)
-	parts = append(parts, ensembles...)
-	parts = append(parts, conductors...)
-
-	return strings.Join(parts, ", ")
-}
-
-// DetermineAlbumArtist finds performers that appear in all tracks.
-// Returns the formatted album artist string and the list of universal artists.
-// Per classical music guide: "When the performer(s) do not remain the same throughout
-// all tracks, this tag is used to credit the one who does appear in all tracks."
-func DetermineAlbumArtist(album *domain.Album) (string, []domain.Artist) {
-	tracks := album.Tracks
-	if len(tracks) == 0 {
-		return "", nil
-	}
-
-	// Build set of all non-composer artists from first track
-	firstTrack := tracks[0]
-	var candidates []domain.Artist
-	for _, artist := range firstTrack.Artists {
-		if artist.Role != domain.RoleComposer {
-			candidates = append(candidates, artist)
-		}
-	}
-
-	// Filter to only those appearing in ALL tracks
-	var universal []domain.Artist
-	for _, candidate := range candidates {
-		appearsInAll := true
-		for _, track := range tracks[1:] {
-			found := false
-			for _, artist := range track.Artists {
-				if artist.Name == candidate.Name && artist.Role == candidate.Role {
-					found = true
-					break
-				}
-			}
-			if !found {
-				appearsInAll = false
-				break
-			}
-		}
-		if appearsInAll {
-			universal = append(universal, candidate)
-		}
-	}
-
-	if len(universal) == 0 {
-		return "", nil
-	}
-
-	return FormatArtists(universal), universal
 }

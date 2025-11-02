@@ -13,69 +13,69 @@ func TestCheck(t *testing.T) {
 		WantErrorCount int
 		WantWarnCount  int
 	}{
-        {
-            Name: "valid complete album",
+		{
+			Name: "valid complete album",
 			SetupAlbum: &domain.Album{
-					Title: "Test Album", 
-					OriginalYear: 2013,
-					Edition: &domain.Edition{
-						Label: "test label",
-						Year: 2013,
-						CatalogNumber: "HMC902170",
-					},
-					Tracks: []*domain.Track{
-						&domain.Track{
-							Disc: 1, 
-							Track: 1, 
-							Title: "Frohlocket, Op. 79/1", 
-							Artists: []domain.Artist{
-								{Name: "Felix Mendelssohn", Role: domain.RoleComposer}, 
-								{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
-							}, 
-							Name: "01 Frohlocket, Op. 79-1.flac",
+				Title:        "Test Album",
+				OriginalYear: 2013,
+				Edition: &domain.Edition{
+					Label:         "test label",
+					Year:          2013,
+					CatalogNumber: "HMC902170",
+				},
+				Tracks: []*domain.Track{
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Frohlocket, Op. 79/1",
+						Artists: []domain.Artist{
+							{Name: "Felix Mendelssohn", Role: domain.RoleComposer},
+							{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
 						},
+						Name: "01 Frohlocket, Op. 79-1.flac",
 					},
 				},
-            WantErrorCount: 1,
-            WantWarnCount:  3,
+			},
+			WantErrorCount: 0, // No errors - RIAS is now recognized as acronym
+			WantWarnCount:  3,
 		},
 		{
 			Name: "missing edition",
 			SetupAlbum: &domain.Album{
-				Title: "Test Album", 
-				OriginalYear: 2013, 
+				Title:        "Test Album",
+				OriginalYear: 2013,
 				Tracks: []*domain.Track{
-					&domain.Track{
-						Disc: 1, 
-						Track: 1, 
-						Title: "Symphony No. 1", 
+					{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony No. 1",
 						Artists: []domain.Artist{
 							{Name: "Johannes Brahms", Role: domain.RoleComposer},
 						},
 					},
 				},
 			},
-            WantErrorCount: 2,
-            WantWarnCount:  5,
+			WantErrorCount: 2,
+			WantWarnCount:  5,
 		},
 		{
 			Name: "composer in title",
 			SetupAlbum: &domain.Album{
-				Title: "Test Album", 
-				OriginalYear: 2013, 
+				Title:        "Test Album",
+				OriginalYear: 2013,
 				Tracks: []*domain.Track{
-					&domain.Track{
-						Disc: 1, 
-						Track: 1, 
-						Title: "Bach: Goldberg Variations", 
+						{
+						Disc:  1,
+						Track: 1,
+						Title: "Bach: Goldberg Variations",
 						Artists: []domain.Artist{
 							{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
 						},
 					},
 				},
 			},
-            WantErrorCount: 3,
-            WantWarnCount:  5,
+			WantErrorCount: 3,
+			WantWarnCount:  5,
 		},
 	}
 
@@ -87,9 +87,10 @@ func TestCheck(t *testing.T) {
 			errorCount := 0
 			warnCount := 0
 			for _, issue := range issues {
-				if issue.Level == domain.LevelError {
+				switch issue.Level {
+case domain.LevelError:
 					errorCount++
-				} else if issue.Level == domain.LevelWarning {
+				case domain.LevelWarning:
 					warnCount++
 				}
 			}

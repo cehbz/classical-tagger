@@ -72,8 +72,9 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 		result.Warnings = append(result.Warnings, "no tracks found in HTML")
 	}
 
-	// Parse album-level performers and merge into tracks
+	// Parse album-level performers and set as album artist
 	performers, dups, err := p.ParsePerformers(html)
+	albumLevelPerformers := performers
 	if err == nil && len(performers) > 0 {
 		parsingNotes["album_performers_found"] = len(performers)
 
@@ -86,22 +87,36 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 			}
 		}
 
-		// Merge performers into each track
-		for _, track := range data.Tracks {
-			// Build new artist list: composer + performers
-			mergedArtists := make([]domain.Artist, 0, len(track.Artists)+len(performers))
-
-			// Add existing artists (composers)
-			mergedArtists = append(mergedArtists, track.Artists...)
-
-			// Add album-level performers
-			mergedArtists = append(mergedArtists, performers...)
-
-			// Replace track's artist list
-			track.Artists = mergedArtists
-		}
+		// Format performers as album artist (don't merge into tracks)
+		data.AlbumArtist = performers
 	} else if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("album performers: %v", err))
+	}
+
+	// After parsing tracks and album-level performers, check for universal performers in tracks
+	// and merge with album-level performers if any exist
+	if len(data.Tracks) > 0 {
+		universalTrackArtists := domain.DetermineAlbumArtist(data)
+
+		// If we found universal performers in tracks
+		if len(universalTrackArtists) > 0 {
+			if len(albumLevelPerformers) > 0 {
+				// Merge album-level and track-derived performers (avoid duplicates)
+				combinedPerformers := mergePerformers(albumLevelPerformers, universalTrackArtists)
+				data.AlbumArtist = combinedPerformers
+				// Remove all combined performers from tracks
+				removeArtistsFromTracks(data.Tracks, combinedPerformers)
+			} else {
+				// No album-level performers, but found universal performers in tracks
+				data.AlbumArtist = universalTrackArtists
+				// Remove universal performers from tracks
+				removeArtistsFromTracks(data.Tracks, universalTrackArtists)
+			}
+		} else if len(albumLevelPerformers) > 0 {
+			// Only album-level performers, no universal performers in tracks
+			// Remove album-level performers from tracks
+			removeArtistsFromTracks(data.Tracks, albumLevelPerformers)
+		}
 	}
 
 	// Add disc detection notes

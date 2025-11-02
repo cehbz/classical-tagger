@@ -67,7 +67,7 @@ func TestFormatArtists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := FormatArtists(tt.Artists)
+			got := domain.FormatArtists(tt.Artists)
 			if got != tt.Want {
 				t.Errorf("FormatArtists() = %q, want %q", got, tt.Want)
 			}
@@ -141,8 +141,8 @@ func TestDetermineAlbumArtist(t *testing.T) {
 			WantUniversalCount: 0,
 		},
 		{
-			Name: "empty album",
-			Album: &domain.Album{Title: "Empty", OriginalYear: 2020},
+			Name:               "empty album",
+			Album:              &domain.Album{Title: "Empty", OriginalYear: 2020},
 			WantArtist:         "",
 			WantUniversalCount: 0,
 		},
@@ -150,7 +150,8 @@ func TestDetermineAlbumArtist(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			gotArtist, gotUniversal := DetermineAlbumArtist(tt.Album)
+			gotUniversal := domain.DetermineAlbumArtist(tt.Album)
+			gotArtist := domain.FormatArtists(gotUniversal)
 			if gotArtist != tt.WantArtist {
 				t.Errorf("DetermineAlbumArtist() artist = %q, want %q", gotArtist, tt.WantArtist)
 			}

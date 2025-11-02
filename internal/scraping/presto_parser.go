@@ -83,6 +83,16 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 		})
 	}
 
+	// After parsing tracks, check for universal performers and synthesize AlbumArtist
+	if len(data.Tracks) > 0 {
+		universalArtists := domain.DetermineAlbumArtist(data)
+		if len(universalArtists) > 0 {
+			data.AlbumArtist = universalArtists
+			// Remove universal performers from tracks to maintain invariant
+			removeArtistsFromTracks(data.Tracks, universalArtists)
+		}
+	}
+
 	// Add disc detection notes
 	if len(data.Tracks) > 0 {
 		trackLines := make([]string, len(data.Tracks))
@@ -315,7 +325,7 @@ func (p *PrestoParser) ParseTracks(html string) ([]*domain.Track, error) {
 
 			if title != "" {
 				track := &domain.Track{
-					Disc: 1,
+					Disc:  1,
 					Track: trackNum,
 					Title: title,
 					Artists: []domain.Artist{

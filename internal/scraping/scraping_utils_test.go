@@ -2,6 +2,8 @@ package scraping
 
 import (
 	"testing"
+
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestDecodeHTMLEntities(t *testing.T) {
@@ -270,5 +272,372 @@ func TestCleanHTMLEntities_LegacyAlias(t *testing.T) {
 
 	if got != want {
 		t.Errorf("cleanHTMLEntities(%q) = %q, want %q", input, got, want)
+	}
+}
+
+func TestRemoveArtistsFromTracks(t *testing.T) {
+	tests := []struct {
+		Name            string
+		Tracks          []*domain.Track
+		ArtistsToRemove []domain.Artist
+		Want            []*domain.Track
+	}{
+		{
+			Name: "remove ensemble from all tracks",
+			Tracks: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+						{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+						{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+					},
+				},
+				{
+					Disc:  1,
+					Track: 2,
+					Title: "Track 2",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+						{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+						{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+					},
+				},
+			},
+			ArtistsToRemove: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+			},
+			Want: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+						{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+					},
+				},
+				{
+					Disc:  1,
+					Track: 2,
+					Title: "Track 2",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+						{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+					},
+				},
+			},
+		},
+		{
+			Name: "remove multiple artists",
+			Tracks: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+						{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+						{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+					},
+				},
+			},
+			ArtistsToRemove: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+			},
+			Want: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+					},
+				},
+			},
+		},
+		{
+			Name: "match by name AND role - same name different role not removed",
+			Tracks: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+						{Name: "Bach", Role: domain.RoleConductor}, // Same name, different role
+					},
+				},
+			},
+			ArtistsToRemove: []domain.Artist{
+				{Name: "Bach", Role: domain.RoleComposer},
+			},
+			Want: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleConductor}, // Should remain
+					},
+				},
+			},
+		},
+		{
+			Name: "no artists to remove",
+			Tracks: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+					},
+				},
+			},
+			ArtistsToRemove: []domain.Artist{},
+			Want: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+					},
+				},
+			},
+		},
+		{
+			Name: "artist not in tracks",
+			Tracks: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+					},
+				},
+			},
+			ArtistsToRemove: []domain.Artist{
+				{Name: "Mozart", Role: domain.RoleComposer}, // Not in tracks
+			},
+			Want: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Bach", Role: domain.RoleComposer},
+					},
+				},
+			},
+		},
+		{
+			Name: "remove all artists from track",
+			Tracks: []*domain.Track{
+				{
+					Disc:  1,
+					Track: 1,
+					Title: "Track 1",
+					Artists: []domain.Artist{
+						{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+						{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+					},
+				},
+			},
+			ArtistsToRemove: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+			},
+			Want: []*domain.Track{
+				{
+					Disc:    1,
+					Track:   1,
+					Title:   "Track 1",
+					Artists: []domain.Artist{}, // All removed
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			// Make a copy of tracks to avoid modifying the original test data
+			tracksCopy := make([]*domain.Track, len(tt.Tracks))
+			for i, track := range tt.Tracks {
+				artistsCopy := make([]domain.Artist, len(track.Artists))
+				copy(artistsCopy, track.Artists)
+				tracksCopy[i] = &domain.Track{
+					Disc:    track.Disc,
+					Track:   track.Track,
+					Title:   track.Title,
+					Artists: artistsCopy,
+				}
+			}
+
+			removeArtistsFromTracks(tracksCopy, tt.ArtistsToRemove)
+
+			// Verify results
+			if len(tracksCopy) != len(tt.Want) {
+				t.Fatalf("removeArtistsFromTracks() returned %d tracks, want %d", len(tracksCopy), len(tt.Want))
+			}
+
+			for i, gotTrack := range tracksCopy {
+				wantTrack := tt.Want[i]
+				if len(gotTrack.Artists) != len(wantTrack.Artists) {
+					t.Errorf("Track %d: got %d artists, want %d", i+1, len(gotTrack.Artists), len(wantTrack.Artists))
+					continue
+				}
+
+				for j, gotArtist := range gotTrack.Artists {
+					wantArtist := wantTrack.Artists[j]
+					if gotArtist.Name != wantArtist.Name || gotArtist.Role != wantArtist.Role {
+						t.Errorf("Track %d, Artist %d: got %+v, want %+v", i+1, j+1, gotArtist, wantArtist)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestMergePerformers(t *testing.T) {
+	tests := []struct {
+		Name       string
+		Existing   []domain.Artist
+		Additional []domain.Artist
+		Want       []domain.Artist
+	}{
+		{
+			Name: "no duplicates - simple merge",
+			Existing: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+			},
+			Additional: []domain.Artist{
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+			},
+			Want: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+			},
+		},
+		{
+			Name: "duplicate by name and role - should be removed",
+			Existing: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+			},
+			Additional: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}, // Duplicate
+				{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},
+			},
+			Want: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+				{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},
+			},
+		},
+		{
+			Name: "same name different role - should both be included",
+			Existing: []domain.Artist{
+				{Name: "Bach", Role: domain.RoleComposer},
+			},
+			Additional: []domain.Artist{
+				{Name: "Bach", Role: domain.RoleConductor}, // Same name, different role
+			},
+			Want: []domain.Artist{
+				{Name: "Bach", Role: domain.RoleComposer},
+				{Name: "Bach", Role: domain.RoleConductor},
+			},
+		},
+		{
+			Name:     "empty existing",
+			Existing: []domain.Artist{},
+			Additional: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+			},
+			Want: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+			},
+		},
+		{
+			Name: "empty additional",
+			Existing: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+			},
+			Additional: []domain.Artist{},
+			Want: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+			},
+		},
+		{
+			Name:       "both empty",
+			Existing:   []domain.Artist{},
+			Additional: []domain.Artist{},
+			Want:       []domain.Artist{},
+		},
+		{
+			Name: "complex merge with multiple duplicates",
+			Existing: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+				{Name: "Glenn Gould", Role: domain.RoleSoloist},
+			},
+			Additional: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},  // Duplicate
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor}, // Duplicate
+				{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},  // New
+			},
+			Want: []domain.Artist{
+				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+				{Name: "Glenn Gould", Role: domain.RoleSoloist},
+				{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := mergePerformers(tt.Existing, tt.Additional)
+
+			if len(got) != len(tt.Want) {
+				t.Fatalf("mergePerformers() returned %d artists, want %d", len(got), len(tt.Want))
+			}
+
+			// Create maps for comparison (order doesn't matter for correctness, but we'll check both)
+			gotMap := make(map[string]map[domain.Role]bool)
+			for _, artist := range got {
+				if gotMap[artist.Name] == nil {
+					gotMap[artist.Name] = make(map[domain.Role]bool)
+				}
+				gotMap[artist.Name][artist.Role] = true
+			}
+
+			wantMap := make(map[string]map[domain.Role]bool)
+			for _, artist := range tt.Want {
+				if wantMap[artist.Name] == nil {
+					wantMap[artist.Name] = make(map[domain.Role]bool)
+				}
+				wantMap[artist.Name][artist.Role] = true
+			}
+
+			// Verify all wanted artists are present
+			for _, wantArtist := range tt.Want {
+				if gotMap[wantArtist.Name] == nil || !gotMap[wantArtist.Name][wantArtist.Role] {
+					t.Errorf("mergePerformers() missing artist: %+v", wantArtist)
+				}
+			}
+
+			// Verify no extra artists
+			for _, gotArtist := range got {
+				if wantMap[gotArtist.Name] == nil || !wantMap[gotArtist.Name][gotArtist.Role] {
+					t.Errorf("mergePerformers() has extra artist: %+v", gotArtist)
+				}
+			}
+		})
 	}
 }

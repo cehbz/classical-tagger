@@ -4,6 +4,8 @@ import (
 	"html"
 	"regexp"
 	"strings"
+
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 // decodeHTMLEntities decodes HTML entities to their Unicode equivalents.
@@ -11,7 +13,7 @@ import (
 func decodeHTMLEntities(s string) string {
 	// First use html.UnescapeString for standard entities
 	s = html.UnescapeString(s)
-	
+
 	// Handle any remaining problematic UTF-8 encoding issues
 	// (e.g., "Ã«" -> "ë" - malformed UTF-8 that appears as double-encoded)
 	replacements := map[string]string{
@@ -34,11 +36,11 @@ func decodeHTMLEntities(s string) string {
 		// Common malformed sequences
 		"NoÃ«l": "Noël",
 	}
-	
+
 	for malformed, correct := range replacements {
 		s = strings.ReplaceAll(s, malformed, correct)
 	}
-	
+
 	return s
 }
 
@@ -58,7 +60,7 @@ func cleanWhitespace(s string) string {
 // toTitleCase converts ALL CAPS to Title Case while preserving some exceptions.
 func toTitleCase(s string) string {
 	words := strings.Fields(s)
-	
+
 	// Articles and prepositions that should stay lowercase (unless at start)
 	lowercase := map[string]bool{
 		"a": true, "an": true, "the": true,
@@ -67,20 +69,20 @@ func toTitleCase(s string) string {
 		"to": true, "for": true, "with": true,
 		"de": true, "la": true, "le": true, "von": true, "van": true,
 	}
-	
+
 	for i, word := range words {
 		if len(word) == 0 {
 			continue
 		}
-		
+
 		wordLower := strings.ToLower(word)
-		
+
 		// First word always capitalized
 		if i == 0 {
 			words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
 			continue
 		}
-		
+
 		// Check if it should be lowercase
 		if lowercase[wordLower] && len(word) <= 3 {
 			words[i] = wordLower
@@ -89,7 +91,7 @@ func toTitleCase(s string) string {
 			words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
 		}
 	}
-	
+
 	return strings.Join(words, " ")
 }
 
@@ -104,7 +106,7 @@ func normalizeWhitespace(s string) string {
 		'\u2009': ' ', // thin space
 		'\u200B': ' ', // zero-width space
 	}
-	
+
 	result := []rune{}
 	for _, r := range s {
 		if replacement, ok := replacements[r]; ok {
@@ -113,7 +115,7 @@ func normalizeWhitespace(s string) string {
 			result = append(result, r)
 		}
 	}
-	
+
 	// Clean up multiple spaces
 	return cleanWhitespace(string(result))
 }
@@ -123,13 +125,13 @@ func normalizeWhitespace(s string) string {
 func sanitizeText(s string) string {
 	// Remove HTML tags
 	s = stripHTMLTags(s)
-	
+
 	// Decode HTML entities
 	s = decodeHTMLEntities(s)
-	
+
 	// Normalize whitespace
 	s = normalizeWhitespace(s)
-	
+
 	return s
 }
 
@@ -137,4 +139,56 @@ func sanitizeText(s string) string {
 // Deprecated: Use decodeHTMLEntities instead.
 func cleanHTMLEntities(s string) string {
 	return decodeHTMLEntities(s)
+}
+
+// removeArtistsFromTracks removes specified artists from all tracks.
+// Artists are matched by name AND role to ensure correct removal.
+func removeArtistsFromTracks(tracks []*domain.Track, artistsToRemove []domain.Artist) {
+	for _, track := range tracks {
+		newArtists := make([]domain.Artist, 0, len(track.Artists))
+		for _, artist := range track.Artists {
+			shouldRemove := false
+			for _, toRemove := range artistsToRemove {
+				if artist.Name == toRemove.Name && artist.Role == toRemove.Role {
+					shouldRemove = true
+					break
+				}
+			}
+			if !shouldRemove {
+				newArtists = append(newArtists, artist)
+			}
+		}
+		track.Artists = newArtists
+	}
+}
+
+// mergePerformers combines two lists of performers, avoiding duplicates.
+// Artists are matched by name AND role. Returns combined list.
+func mergePerformers(existing []domain.Artist, additional []domain.Artist) []domain.Artist {
+	// Create a map to track seen artists (by name+role)
+	seen := make(map[string]map[domain.Role]bool)
+	var result []domain.Artist
+
+	// Helper to add artist if not seen
+	addIfNotSeen := func(artist domain.Artist) {
+		if seen[artist.Name] == nil {
+			seen[artist.Name] = make(map[domain.Role]bool)
+		}
+		if !seen[artist.Name][artist.Role] {
+			seen[artist.Name][artist.Role] = true
+			result = append(result, artist)
+		}
+	}
+
+	// Add existing artists first
+	for _, artist := range existing {
+		addIfNotSeen(artist)
+	}
+
+	// Add additional artists (will skip duplicates)
+	for _, artist := range additional {
+		addIfNotSeen(artist)
+	}
+
+	return result
 }

@@ -102,7 +102,7 @@ func isAllLowercase(s string) bool {
 
 // validCasualTitleCase checks if string follows Casual Title Case rules (first letter of each word capitalized)
 func validCasualTitleCase(s string) bool {
-	for _, tok := range strings.Fields(s) {
+	for tok := range strings.FieldsSeq(s) {
 		if tok == "" {
 			continue
 		}
@@ -141,7 +141,7 @@ func validTitleCase(title string) bool {
 		}
 		for i, tok := range tokens {
 			isBoundary := i == 0 || i == len(tokens)-1
-			for _, part := range strings.Split(tok, "-") {
+			for part := range strings.SplitSeq(tok, "-") {
 				if part == "" {
 					continue
 				}
@@ -230,6 +230,15 @@ func isAcronym(s string) bool {
 	dotted := strings.ReplaceAll(s, ".", "")
 	if dotted != s && strings.ToUpper(dotted) == dotted && len(dotted) > 1 {
 		return true
+	}
+	// Auto-detect: all caps, 2-6 letters (typical acronym length), no lowercase letters
+	// This catches acronyms like RIAS, HMC, etc. without hardcoding
+	// But excludes long words that happen to be all caps (like "SYMPHONY")
+	if len(s) >= 2 && len(s) <= 6 && isAllUppercase(s) && strings.ToUpper(s) == s {
+		// Check if it's not a roman numeral (which are already handled separately)
+		if !isRomanNumeral(s) {
+			return true
+		}
 	}
 	return false
 }

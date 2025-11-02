@@ -52,6 +52,7 @@ func (r *Rules) ComposerInFolderName(actual, _ *domain.Album) RuleResult {
 	// Find the most frequent composer
 	var primaryComposer string
 	maxCount := 0
+	totalTracks := len(tracks)
 	for lastName, count := range composerCounts {
 		if count > maxCount {
 			maxCount = count
@@ -59,8 +60,22 @@ func (r *Rules) ComposerInFolderName(actual, _ *domain.Album) RuleResult {
 		}
 	}
 
+	// Only consider a composer "primary" if they appear in >30% of tracks
+	// or if there are very few composers (2-3), require >40%
+	// For compilation albums with many composers, skip the warning
+	composerCount := len(composerCounts)
+	threshold := 0.30
+	if composerCount <= 3 {
+		threshold = 0.40
+	}
+
+	// Skip warning for compilation albums with many composers and no clear primary
+	if composerCount > 5 && float64(maxCount)/float64(totalTracks) < threshold {
+		return RuleResult{Meta: meta, Issues: nil}
+	}
+
 	// Check if composer name appears in album title
-	if primaryComposer == "" {
+	if primaryComposer == "" || float64(maxCount)/float64(totalTracks) < threshold {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 

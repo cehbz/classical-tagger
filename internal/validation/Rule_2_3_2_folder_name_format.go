@@ -68,7 +68,8 @@ func (r *Rules) FolderNameFormat(actual, _ *domain.Album) RuleResult {
 	}
 
 	// Check for format indicator (optional but recommended)
-	formatPattern := regexp.MustCompile(`\[(FLAC|MP3|AAC|ALAC|WAV|APE|WV)\]`)
+	// Allow formats like [FLAC], [FLAC 96-24], [MP3 V0], etc.
+	formatPattern := regexp.MustCompile(`\[(FLAC|MP3|AAC|ALAC|WAV|APE|WV)(\s+[^\]]+)?\]`)
 	if !formatPattern.MatchString(albumTitle) {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelInfo,

@@ -53,44 +53,47 @@ func TestDiscogsParser_Parse(t *testing.T) {
 		t.Error("No tracks extracted")
 	}
 
-	// NEW: Verify album-level performers are present on ALL tracks
+	// Test album artist extraction (album-level performers should be in AlbumArtist, not merged into tracks)
+	if len(data.AlbumArtist) == 0 {
+		t.Error("Album artist not extracted from album-level performers")
+	}
+	// Should contain RIAS Kammerchor and Hans-Christoph Rademann
+	albumArtistStr := domain.FormatArtists(data.AlbumArtist)
+	foundRIAS := false
+	foundRademann := false
+	for _, artist := range data.AlbumArtist {
+		if strings.Contains(artist.Name, "RIAS") || strings.Contains(artist.Name, "Kammerchor") {
+			foundRIAS = true
+		}
+		if strings.Contains(artist.Name, "Rademann") {
+			foundRademann = true
+		}
+	}
+	if !foundRIAS {
+		t.Errorf("Album artist should contain RIAS Kammerchor, got: %q", albumArtistStr)
+	}
+	if !foundRademann {
+		t.Errorf("Album artist should contain Rademann, got: %q", albumArtistStr)
+	}
+
+	// Verify tracks don't have album-level performers merged (they should only have composers)
 	for i, track := range data.Tracks {
 		if len(track.Composers()) == 0 {
 			t.Errorf("Track %d has no composer", i+1)
 		}
 
-		// Should have ensemble (RIAS Kammerchor)
-		hasEnsemble := false
-		ensembleCount := 0
+		// Tracks should NOT have ensemble/conductor (they're in AlbumArtist now)
 		for _, artist := range track.Artists {
 			if artist.Role == domain.RoleEnsemble {
-				hasEnsemble = true
-				ensembleCount++
-				if !strings.Contains(artist.Name, "RIAS") && !strings.Contains(artist.Name, "Kammerchor") {
-					t.Errorf("Track %d: Expected RIAS Kammerchor in ensemble, got %q", i+1, artist.Name)
+				if strings.Contains(artist.Name, "RIAS") || strings.Contains(artist.Name, "Kammerchor") {
+					t.Errorf("Track %d: Album-level ensemble should not be in track artists (it's in AlbumArtist)", i+1)
 				}
 			}
-		}
-		if !hasEnsemble {
-			t.Errorf("Track %d: Missing ensemble (RIAS Kammerchor)", i+1)
-		}
-		if ensembleCount > 1 {
-			t.Errorf("Track %d: Found %d ensembles, expected exactly 1 (duplicate detected)", i+1, ensembleCount)
-		}
-
-		// Should have conductor (Hans-Christoph Rademann)
-		hasConductor := false
-		for _, artist := range track.Artists {
 			if artist.Role == domain.RoleConductor {
-				hasConductor = true
-				if !strings.Contains(artist.Name, "Rademann") {
-					t.Errorf("Track %d: Expected Hans-Christoph Rademann as conductor, got %q", i+1, artist.Name)
+				if strings.Contains(artist.Name, "Rademann") {
+					t.Errorf("Track %d: Album-level conductor should not be in track artists (it's in AlbumArtist)", i+1)
 				}
-				break
 			}
-		}
-		if !hasConductor {
-			t.Errorf("Track %d: Missing conductor (Hans-Christoph Rademann)", i+1)
 		}
 
 		// Verify track number

@@ -120,6 +120,9 @@ func TestAdditionalCapitalizationCases(t *testing.T) {
 		{"R&B Anthology", true},
 		{"Messa da Requiem", true},
 		{"Concerto per pianoforte", true},
+		{"RIAS Kammerchor", true}, // RIAS should be detected as acronym
+		{"HMC 902170", true},      // HMC should be detected as acronym
+		{"SYMPHONY NO. 5", false}, // SYMPHONY is too long to be an acronym
 	}
 	for _, c := range cases {
 		got := checkCapitalization(c.Title)

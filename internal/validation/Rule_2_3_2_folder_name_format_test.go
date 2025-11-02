@@ -83,6 +83,18 @@ func TestRules_FolderNameFormat(t *testing.T) {
 			WantPass:   true,
 		},
 		{
+			Name:       "valid - FLAC with quality info",
+			AlbumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC 96-24]",
+			AlbumYear:  1963,
+			WantPass:   true,
+		},
+		{
+			Name:       "valid - MP3 with quality",
+			AlbumTitle: "Bach - Brandenburg Concertos [1982] [MP3 V0]",
+			AlbumYear:  1982,
+			WantPass:   true,
+		},
+		{
 			Name:       "valid - ALAC format",
 			AlbumTitle: "Debussy - Préludes [1985] [ALAC]",
 			AlbumYear:  1985,
