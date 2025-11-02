@@ -73,8 +73,18 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	}
 
 	// Parse album-level performers and merge into tracks
-	if performers, err := p.ParsePerformers(html); err == nil && len(performers) > 0 {
+	performers, dups, err := p.ParsePerformers(html)
+	if err == nil && len(performers) > 0 {
 		parsingNotes["album_performers_found"] = len(performers)
+
+		// Add deduplication notes for transparency
+		if len(dups) > 0 {
+			parsingNotes["dups"] = dups
+			// Also add to warnings so they're visible by default
+			for _, note := range dups {
+				result.Warnings = append(result.Warnings, fmt.Sprintf("⚠️ %s", note))
+			}
+		}
 
 		// Merge performers into each track
 		for _, track := range data.Tracks {
@@ -122,21 +132,22 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 // ParsePerformers extracts album-level performers from page GraphQL data.
 // Returns a list of performers (ensemble, conductor, soloists) that appear on the album level.
 // Prioritizes releaseCredits from GraphQL data which includes role information.
-func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, error) {
+// Also returns deduplication information for transparency.
+func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, []string, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
 	// Step 1: Get performer names from JSON-LD byArtist (authoritative list)
 	jsonLD := doc.Find("script#release_schema[type='application/ld+json']").First().Text()
 	if jsonLD == "" {
-		return nil, fmt.Errorf("no JSON-LD release_schema found")
+		return nil, nil, fmt.Errorf("no JSON-LD release_schema found")
 	}
 
 	var data map[string]interface{}
 	if err := json.Unmarshal([]byte(jsonLD), &data); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON-LD: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse JSON-LD: %w", err)
 	}
 
 	performerNames := make([]string, 0)
@@ -154,7 +165,7 @@ func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, error) {
 	}
 
 	if len(performerNames) == 0 {
-		return nil, fmt.Errorf("no performers found in JSON-LD byArtist")
+		return nil, nil, fmt.Errorf("no performers found in JSON-LD byArtist")
 	}
 
 	// Step 2: Extract role mappings from releaseCredits in Apollo state
@@ -163,18 +174,42 @@ func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, error) {
 
 	// Step 3: Build performer list by matching names with roles
 	performers := make([]domain.Artist, 0)
-	seen := make(map[string]bool)
+	seen := make(map[string]bool)                   // Exact name tracking
+	normalizedSeen := make(map[string]bool)         // Normalized name tracking for deduplication
+	normalizedToOriginal := make(map[string]string) // Track which original name we kept for each normalized form
+	dups := make([]string, 0)                       // Track deduplications for transparency
 
 	for _, name := range performerNames {
-		if seen[name] {
+		normalized := normalizeNameForDedup(name)
+		if normalizedSeen[normalized] {
+			// Deduplication occurred - record it
+			original := normalizedToOriginal[normalized]
+			if original != name {
+				dups = append(dups, fmt.Sprintf("duplication: '%s' merged with '%s' (normalized: '%s')", name, original, normalized))
+			}
 			continue
 		}
 		seen[name] = true
+		normalizedSeen[normalized] = true
+		normalizedToOriginal[normalized] = name // Keep track of which original name we're using
 
 		var role domain.Role
 
-		// Try to get role from releaseCredits
-		if roleStr, hasRole := roleMap[name]; hasRole {
+		// Try to get role from releaseCredits (check both exact name and normalized)
+		roleStr := ""
+		if r, hasRole := roleMap[name]; hasRole {
+			roleStr = r
+		} else {
+			// Try to find by normalized name
+			for k, v := range roleMap {
+				if normalizeNameForDedup(k) == normalized {
+					roleStr = v
+					break
+				}
+			}
+		}
+
+		if roleStr != "" {
 			// Try deterministic mapping
 			if mappedRole, ok := mapDiscogsRoleToDomainRole(roleStr); ok {
 				role = mappedRole
@@ -195,10 +230,18 @@ func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, error) {
 
 	// Step 4: Add any performers from releaseCredits that weren't in JSON-LD
 	for name, roleStr := range roleMap {
-		if seen[name] {
+		normalized := normalizeNameForDedup(name)
+		if normalizedSeen[normalized] {
+			// Deduplication occurred - record it
+			original := normalizedToOriginal[normalized]
+			if original != name {
+				dups = append(dups, fmt.Sprintf("duplicate: '%s' merged with '%s' (normalized: '%s')", name, original, normalized))
+			}
 			continue
 		}
 		seen[name] = true
+		normalizedSeen[normalized] = true
+		normalizedToOriginal[normalized] = name
 
 		var role domain.Role
 		if mappedRole, ok := mapDiscogsRoleToDomainRole(roleStr); ok {
@@ -214,10 +257,10 @@ func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, error) {
 	}
 
 	if len(performers) == 0 {
-		return nil, fmt.Errorf("no performers extracted")
+		return nil, nil, fmt.Errorf("no performers extracted")
 	}
 
-	return performers, nil
+	return performers, dups, nil
 }
 
 // extractReleaseCredits extracts the releaseCredits from Apollo GraphQL state.
@@ -302,6 +345,22 @@ func (p *DiscogsParser) extractReleaseCredits(html string) (map[string]string, e
 	}
 
 	return roleMap, nil
+}
+
+// normalizeNameForDedup normalizes artist names for deduplication purposes.
+// Aggressively normalizes by keeping only letters and numbers (removes all punctuation and spaces).
+// This handles variations like "RIAS-Kammerchor" vs "RIAS Kammerchor" vs "RIASKammerchor".
+// Numbers are kept to distinguish different ensembles (e.g., "Orchestra 1" vs "Orchestra 2").
+func normalizeNameForDedup(name string) string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	// Remove everything except letters and numbers
+	var result strings.Builder
+	for _, r := range normalized {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
 // mapDiscogsRoleToDomainRole maps Discogs role strings to domain.Role.

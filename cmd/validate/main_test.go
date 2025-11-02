@@ -1,233 +1,476 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
+
+	"github.com/cehbz/classical-tagger/internal/domain"
+	"github.com/cehbz/classical-tagger/internal/storage"
 )
 
-func TestParseLeadingTrackNumber(t *testing.T) {
-	tests := []struct {
-		Name string
-		In   string
-		Want int
-		Ok   bool
-	}{
-		{"two-digit with dash", "01 - Title.flac", 1, true},
-		{"multi-digit no dash", "123 Title.flac", 123, true},
-		{"single digit with dot", "7. Foo.flac", 7, true},
-		{"no number", "Foo.flac", 0, false},
-		{"starts with word then number", "Track 01 - Title.flac", 0, false}, // TODO: this maybe should pass if all tracks have same word prefix
-		{"starts with space then number", " 5 - Title.flac", 5, true},
-		{"number then dot no ext", "10. Title", 10, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got, err := parseLeadingTrackNumber(tt.In)
-			if tt.Ok && err != nil {
-				t.Fatalf("unexpected err: %v", err)
-			}
-			if !tt.Ok && err == nil {
-				t.Fatalf("expected error, got nil")
-			}
-			if tt.Ok && got != tt.Want {
-				t.Fatalf("got %d, want %d", got, tt.Want)
-			}
-		})
-	}
-}
-
-func TestParseYearFromFolderName(t *testing.T) {
-	tests := []struct {
-		Name string
-		In   string
-		Want int
-	}{
-		{"leading YYYY dash", "2019 - Album Title [FLAC]", 2019},
-		{"paren year", "Artist - Album (1974) [FLAC]", 1974},
-		{"multiple paren take latest", "Artist - X (1993 Remaster) (2013) [FLAC]", 2013},
-		{"latest year earlier in name", "2018 Remaster (1993) - Album (2013)", 2018},
-		{"any 4-digit fallback", "Band - Title - 2009 - FLAC", 2009},
-		{"no year", "Band - Title - FLAC", 0},
-		{"year in braces", "Album {5054197044984} (2019) [FLAC]", 2019},
-		{"weird unicode", "Noël. Christmas. Weinachten - RIAS Kammerchor - Rademann [96_24]", 0},
-		{"future year rejected", "Artist - Title (2999)", 0},
-		{"too early year rejected", "Artist - Title (1899)", 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got := parseYearFromFolderName(tt.In)
-			if got != tt.Want {
-				t.Fatalf("parseYearFromFolderName(%q)=%d, want %d", tt.In, got, tt.Want)
-			}
-		})
-	}
-
-	// Also verify that current year is accepted
-	current := time.Now().Year()
-	name := strings.Replace("ART - NAME (YYYY)", "YYYY", fmt.Sprintf("%d", current), 1)
-	got := parseYearFromFolderName(name)
-	if got != current {
-		t.Fatalf("expected current year %d, got %d", current, got)
-	}
-}
-
-// TestValidateCommand tests the main validation flow
-func TestValidateCommand(t *testing.T) {
-	// Create temporary directory structure for testing
+func TestValidateJSONFiles_ValidAlbum(t *testing.T) {
 	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "album.json")
 
-	// Create a simple single-disc structure
-	albumDir := filepath.Join(tmpDir, "Bach - Goldberg Variations (1981) - FLAC")
-	err := os.MkdirAll(albumDir, 0755)
+	// Create a valid album JSON
+	album := &domain.Album{
+		Title:        "Test Album",
+		OriginalYear: 2013,
+		Edition: &domain.Edition{
+			Label:         "Test Label",
+			CatalogNumber: "TL123",
+			Year:          2013,
+		},
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Track 1",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+					{Name: "Ensemble", Role: domain.RoleEnsemble},
+				},
+			},
+		},
+	}
+
+	// Save to JSON file
+	repo := storage.NewRepository()
+	if err := repo.SaveToFile(album, jsonFile); err != nil {
+		t.Fatalf("Failed to save test JSON: %v", err)
+	}
+
+	// Validate
+	report, err := ValidateJSONFiles(jsonFile, "")
 	if err != nil {
-		t.Fatalf("Failed to create test directory: %v", err)
+		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	// Create a test FLAC file (empty is fine for structure validation)
-	testFile := filepath.Join(albumDir, "01 Aria.flac")
-	f, err := os.Create(testFile)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-	f.Close()
-
-	// Test validation
-	scanner := NewDirectoryScanner()
-	structure, err := scanner.Scan(albumDir)
-	if err != nil {
-		t.Fatalf("Scan failed: %v", err)
+	if report.Album == nil {
+		t.Fatal("Album should be loaded")
 	}
 
-	if structure.BasePath != albumDir {
-		t.Errorf("BasePath = %q, want %q", structure.BasePath, albumDir)
+	if report.Album.Title != album.Title {
+		t.Errorf("Album title = %q, want %q", report.Album.Title, album.Title)
 	}
 
-	if len(structure.Files) != 1 {
-		t.Errorf("Files count = %d, want 1", len(structure.Files))
+	if len(report.LoadErrors) > 0 {
+		t.Errorf("Unexpected load errors: %v", report.LoadErrors)
 	}
 }
 
-func TestValidateMultiDisc(t *testing.T) {
+func TestValidateJSONFiles_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "invalid.json")
 
-	// Create multi-disc structure
-	albumDir := filepath.Join(tmpDir, "Album - Title (2020) - FLAC")
-	cd1Dir := filepath.Join(albumDir, "CD1")
-	cd2Dir := filepath.Join(albumDir, "CD2")
+	// Create invalid JSON file
+	if err := os.WriteFile(jsonFile, []byte("{ invalid json }"), 0644); err != nil {
+		t.Fatalf("Failed to create invalid JSON: %v", err)
+	}
 
-	err := os.MkdirAll(cd1Dir, 0755)
+	// Validate
+	report, err := ValidateJSONFiles(jsonFile, "")
 	if err != nil {
-		t.Fatalf("Failed to create CD1: %v", err)
-	}
-	err = os.MkdirAll(cd2Dir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create CD2: %v", err)
+		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	// Create test files
-	os.Create(filepath.Join(cd1Dir, "01 Track.flac"))
-	os.Create(filepath.Join(cd2Dir, "01 Track.flac"))
-
-	scanner := NewDirectoryScanner()
-	structure, err := scanner.Scan(albumDir)
-	if err != nil {
-		t.Fatalf("Scan failed: %v", err)
+	if len(report.LoadErrors) == 0 {
+		t.Error("Expected load error for invalid JSON")
 	}
 
-	if !structure.IsMultiDisc {
-		t.Error("Expected multi-disc structure")
-	}
-
-	if len(structure.Files) != 2 {
-		t.Errorf("Files count = %d, want 2", len(structure.Files))
+	if report.Album != nil {
+		t.Error("Album should not be loaded when JSON is invalid")
 	}
 }
 
-func TestValidatePathLength(t *testing.T) {
-	scanner := NewDirectoryScanner()
-
-	// Create a very long path
-	longPath := "/" + string(make([]byte, 190))
-	for i := range longPath {
-		if longPath[i] == 0 {
-			longPath = longPath[:i] + "a" + longPath[i+1:]
-		}
-	}
-
-	structure := &DirectoryStructure{
-		BasePath: longPath,
-		Files:    []string{longPath + "/file.flac"},
-	}
-
-	issues := scanner.ValidateStructure(structure)
-
-	// Should have at least one error about path length
-	hasPathError := false
-	for _, issue := range issues {
-		if issue.Track == -1 { // directory-level issue
-			hasPathError = true
-			break
-		}
-	}
-
-	if !hasPathError {
-		t.Error("Expected path length validation error")
-	}
-}
-
-func TestValidateDirectory_NoTrackNumberInFilename(t *testing.T) {
+func TestValidateJSONFiles_MissingFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	albumDir := filepath.Join(tmpDir, "Album - Title (2020) - FLAC")
-	if err := os.MkdirAll(albumDir, 0755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	// Create file without leading track number
-	f := filepath.Join(albumDir, "Track Title.flac")
-	if err := os.WriteFile(f, []byte{}, 0644); err != nil {
-		t.Fatalf("create: %v", err)
+	jsonFile := filepath.Join(tmpDir, "nonexistent.json")
+
+	// Validate non-existent file
+	report, err := ValidateJSONFiles(jsonFile, "")
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	report, err := ValidateDirectory(albumDir)
-	if err != nil {
-		t.Fatalf("ValidateDirectory error: %v", err)
+	if len(report.LoadErrors) == 0 {
+		t.Error("Expected load error for missing file")
 	}
-	if len(report.ReadErrors) == 0 {
-		t.Fatalf("expected read error for missing filename track number")
-	}
-	found := false
-	for _, e := range report.ReadErrors {
-		if strings.Contains(e.Error(), "2.3.13: filename must start with track number") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected 2.3.13 error, got: %v", report.ReadErrors[0])
+
+	if report.Album != nil {
+		t.Error("Album should not be loaded when file is missing")
 	}
 }
 
-func TestValidateDirectory_TrackNumberButNoTag(t *testing.T) {
+func TestValidateJSONFiles_WithReference(t *testing.T) {
 	tmpDir := t.TempDir()
-	albumDir := filepath.Join(tmpDir, "Album - Title (2020) - FLAC")
-	if err := os.MkdirAll(albumDir, 0755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	// File has leading track number but empty content (no tags)
-	f := filepath.Join(albumDir, "01 Track Title.flac")
-	if err := os.WriteFile(f, []byte{}, 0644); err != nil {
-		t.Fatalf("create: %v", err)
+	jsonFile := filepath.Join(tmpDir, "album.json")
+	refFile := filepath.Join(tmpDir, "reference.json")
+
+	// Create album JSON
+	album := &domain.Album{
+		Title:        "Test Album",
+		OriginalYear: 2013,
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Track 1",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+				},
+			},
+		},
 	}
 
-	report, err := ValidateDirectory(albumDir)
-	if err != nil {
-		t.Fatalf("ValidateDirectory error: %v", err)
+	// Create reference JSON
+	reference := &domain.Album{
+		Title:        "Test Album",
+		OriginalYear: 2013,
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Track 1",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+				},
+			},
+		},
 	}
-	if len(report.ReadErrors) == 0 {
-		t.Fatalf("expected read error due to missing tags")
+
+	repo := storage.NewRepository()
+	if err := repo.SaveToFile(album, jsonFile); err != nil {
+		t.Fatalf("Failed to save album JSON: %v", err)
+	}
+	if err := repo.SaveToFile(reference, refFile); err != nil {
+		t.Fatalf("Failed to save reference JSON: %v", err)
+	}
+
+	// Validate with reference
+	report, err := ValidateJSONFiles(jsonFile, refFile)
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
+	}
+
+	if report.Album == nil {
+		t.Fatal("Album should be loaded")
+	}
+
+	if len(report.LoadErrors) > 0 {
+		t.Errorf("Unexpected load errors: %v", report.LoadErrors)
+	}
+}
+
+func TestValidateJSONFiles_InvalidReference(t *testing.T) {
+	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "album.json")
+	refFile := filepath.Join(tmpDir, "invalid_ref.json")
+
+	// Create valid album JSON
+	album := &domain.Album{
+		Title:        "Test Album",
+		OriginalYear: 2013,
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Track 1",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+				},
+			},
+		},
+	}
+
+	// Create invalid reference JSON
+	if err := os.WriteFile(refFile, []byte("{ invalid }"), 0644); err != nil {
+		t.Fatalf("Failed to create invalid reference: %v", err)
+	}
+
+	repo := storage.NewRepository()
+	if err := repo.SaveToFile(album, jsonFile); err != nil {
+		t.Fatalf("Failed to save album JSON: %v", err)
+	}
+
+	// Validate with invalid reference
+	report, err := ValidateJSONFiles(jsonFile, refFile)
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
+	}
+
+	if report.Album == nil {
+		t.Fatal("Album should be loaded")
+	}
+
+	// Should have load error for reference but continue validation
+	if len(report.LoadErrors) == 0 {
+		t.Error("Expected load error for invalid reference file")
+	}
+}
+
+func TestValidationReport_HasErrors(t *testing.T) {
+	report := &ValidationReport{
+		Issues: []domain.ValidationIssue{
+			{Level: domain.LevelWarning, Track: 1, Rule: "2.3.1", Message: "warning"},
+			{Level: domain.LevelInfo, Track: 1, Rule: "2.3.1", Message: "info"},
+		},
+	}
+
+	if report.HasErrors() {
+		t.Error("Report should not have errors")
+	}
+
+	report.Issues = append(report.Issues, domain.ValidationIssue{
+		Level: domain.LevelError, Track: 1, Rule: "2.3.1", Message: "error",
+	})
+
+	if !report.HasErrors() {
+		t.Error("Report should have errors")
+	}
+
+	// Test with load errors
+	report = &ValidationReport{
+		LoadErrors: []error{os.ErrNotExist},
+	}
+
+	if !report.HasErrors() {
+		t.Error("Report should have errors due to load errors")
+	}
+}
+
+func TestValidationReport_HasWarnings(t *testing.T) {
+	report := &ValidationReport{
+		Issues: []domain.ValidationIssue{
+			{Level: domain.LevelInfo, Track: 1, Rule: "2.3.1", Message: "info"},
+		},
+	}
+
+	if report.HasWarnings() {
+		t.Error("Report should not have warnings")
+	}
+
+	report.Issues = append(report.Issues, domain.ValidationIssue{
+		Level: domain.LevelWarning, Track: 1, Rule: "2.3.1", Message: "warning",
+	})
+
+	if !report.HasWarnings() {
+		t.Error("Report should have warnings")
+	}
+}
+
+func TestValidateJSONFiles_ValidationIssues(t *testing.T) {
+	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "album.json")
+
+	// Create album with validation issues (missing composer, all caps title)
+	album := &domain.Album{
+		Title:        "ALL CAPS TITLE",
+		OriginalYear: 2013,
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "ALL CAPS TRACK",
+				Artists: []domain.Artist{
+					{Name: "Ensemble", Role: domain.RoleEnsemble},
+				},
+			},
+		},
+	}
+
+	repo := storage.NewRepository()
+	if err := repo.SaveToFile(album, jsonFile); err != nil {
+		t.Fatalf("Failed to save test JSON: %v", err)
+	}
+
+	// Validate
+	report, err := ValidateJSONFiles(jsonFile, "")
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
+	}
+
+	// Should have validation issues
+	if len(report.Issues) == 0 {
+		t.Error("Expected validation issues")
+	}
+
+	// Should have errors (missing composer, capitalization issues)
+	if !report.HasErrors() {
+		t.Error("Report should have errors")
+	}
+}
+
+func TestValidateJSONFiles_EmptyJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "empty.json")
+
+	// Create empty JSON object
+	if err := os.WriteFile(jsonFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("Failed to create empty JSON: %v", err)
+	}
+
+	// Validate
+	report, err := ValidateJSONFiles(jsonFile, "")
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
+	}
+
+	// Should load successfully (empty album is valid JSON)
+	if report.Album == nil {
+		t.Fatal("Album should be loaded even if empty")
+	}
+
+	// Should have validation issues for missing required fields
+	if len(report.Issues) == 0 {
+		t.Error("Expected validation issues for empty album")
+	}
+}
+
+func TestValidateJSONFiles_MalformedJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "malformed.json")
+
+	// Create malformed JSON
+	malformedJSON := `{
+		"title": "Test",
+		"tracks": [
+			{
+				"disc": 1,
+				"track": 1,
+				"title": "Track 1"
+				// Missing closing brace
+		]
+	}`
+
+	if err := os.WriteFile(jsonFile, []byte(malformedJSON), 0644); err != nil {
+		t.Fatalf("Failed to create malformed JSON: %v", err)
+	}
+
+	// Validate
+	report, err := ValidateJSONFiles(jsonFile, "")
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
+	}
+
+	// Should have load error
+	if len(report.LoadErrors) == 0 {
+		t.Error("Expected load error for malformed JSON")
+	}
+
+	if report.Album != nil {
+		t.Error("Album should not be loaded when JSON is malformed")
+	}
+}
+
+func TestValidateJSONFiles_ValidMultiDiscAlbum(t *testing.T) {
+	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "album.json")
+
+	// Create valid multi-disc album
+	album := &domain.Album{
+		Title:        "Multi-Disc Album",
+		OriginalYear: 2013,
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Disc 1 Track 1",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+					{Name: "Ensemble", Role: domain.RoleEnsemble},
+				},
+			},
+			{
+				Disc:  2,
+				Track: 1,
+				Title: "Disc 2 Track 1",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+					{Name: "Ensemble", Role: domain.RoleEnsemble},
+				},
+			},
+		},
+	}
+
+	repo := storage.NewRepository()
+	if err := repo.SaveToFile(album, jsonFile); err != nil {
+		t.Fatalf("Failed to save test JSON: %v", err)
+	}
+
+	// Validate
+	report, err := ValidateJSONFiles(jsonFile, "")
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
+	}
+
+	if report.Album == nil {
+		t.Fatal("Album should be loaded")
+	}
+
+	if len(report.Album.Tracks) != 2 {
+		t.Errorf("Track count = %d, want 2", len(report.Album.Tracks))
+	}
+
+	if len(report.LoadErrors) > 0 {
+		t.Errorf("Unexpected load errors: %v", report.LoadErrors)
+	}
+}
+
+func TestValidateJSONFiles_JSONSerialization(t *testing.T) {
+	tmpDir := t.TempDir()
+	jsonFile := filepath.Join(tmpDir, "album.json")
+
+	// Create album and save it
+	album := &domain.Album{
+		Title:        "Test Album",
+		OriginalYear: 2013,
+		Edition: &domain.Edition{
+			Label:         "Test Label",
+			CatalogNumber: "TL123",
+			Year:          2013,
+		},
+		Tracks: []*domain.Track{
+			{
+				Disc:  1,
+				Track: 1,
+				Title: "Track 1",
+				Artists: []domain.Artist{
+					{Name: "Composer", Role: domain.RoleComposer},
+				},
+			},
+		},
+	}
+
+	repo := storage.NewRepository()
+	if err := repo.SaveToFile(album, jsonFile); err != nil {
+		t.Fatalf("Failed to save test JSON: %v", err)
+	}
+
+	// Read it back and verify it's valid JSON
+	data, err := os.ReadFile(jsonFile)
+	if err != nil {
+		t.Fatalf("Failed to read JSON file: %v", err)
+	}
+
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("JSON is not valid: %v", err)
+	}
+
+	// Validate the file we just created
+	report, err := ValidateJSONFiles(jsonFile, "")
+	if err != nil {
+		t.Fatalf("ValidateJSONFiles error: %v", err)
+	}
+
+	if report.Album == nil {
+		t.Fatal("Album should be loaded")
+	}
+
+	if report.Album.Title != album.Title {
+		t.Errorf("Album title = %q, want %q", report.Album.Title, album.Title)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-	
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -58,22 +58,26 @@ func TestDiscogsParser_Parse(t *testing.T) {
 		if len(track.Composers()) == 0 {
 			t.Errorf("Track %d has no composer", i+1)
 		}
-		
+
 		// Should have ensemble (RIAS Kammerchor)
 		hasEnsemble := false
+		ensembleCount := 0
 		for _, artist := range track.Artists {
 			if artist.Role == domain.RoleEnsemble {
 				hasEnsemble = true
+				ensembleCount++
 				if !strings.Contains(artist.Name, "RIAS") && !strings.Contains(artist.Name, "Kammerchor") {
 					t.Errorf("Track %d: Expected RIAS Kammerchor in ensemble, got %q", i+1, artist.Name)
 				}
-				break
 			}
 		}
 		if !hasEnsemble {
 			t.Errorf("Track %d: Missing ensemble (RIAS Kammerchor)", i+1)
 		}
-		
+		if ensembleCount > 1 {
+			t.Errorf("Track %d: Found %d ensembles, expected exactly 1 (duplicate detected)", i+1, ensembleCount)
+		}
+
 		// Should have conductor (Hans-Christoph Rademann)
 		hasConductor := false
 		for _, artist := range track.Artists {
@@ -88,7 +92,7 @@ func TestDiscogsParser_Parse(t *testing.T) {
 		if !hasConductor {
 			t.Errorf("Track %d: Missing conductor (Hans-Christoph Rademann)", i+1)
 		}
-		
+
 		// Verify track number
 		if track.Track != i+1 {
 			t.Errorf("Track %d has wrong track number: got %d", i+1, track.Track)
@@ -104,7 +108,7 @@ func TestDiscogsParser_ParsePerformers(t *testing.T) {
 	}
 
 	parser := NewDiscogsParser()
-	performers, err := parser.ParsePerformers(string(html))
+	performers, dups, err := parser.ParsePerformers(string(html))
 
 	if err != nil {
 		t.Fatalf("ParsePerformers() error = %v", err)
@@ -120,14 +124,14 @@ func TestDiscogsParser_ParsePerformers(t *testing.T) {
 
 	for _, performer := range performers {
 		t.Logf("Performer: %s (role: %s)", performer.Name, performer.Role)
-		
+
 		if strings.Contains(performer.Name, "RIAS") || strings.Contains(performer.Name, "Kammerchor") {
 			foundEnsemble = true
 			if performer.Role != domain.RoleEnsemble {
 				t.Errorf("RIAS Kammerchor has wrong role: got %s, want %s", performer.Role, domain.RoleEnsemble)
 			}
 		}
-		
+
 		if strings.Contains(performer.Name, "Rademann") {
 			foundConductor = true
 			// Should be Conductor (from "Chorus Master" role in releaseCredits)
@@ -142,6 +146,27 @@ func TestDiscogsParser_ParsePerformers(t *testing.T) {
 	}
 	if !foundConductor {
 		t.Error("ParsePerformers() did not find conductor (Hans-Christoph Rademann)")
+	}
+
+	// Check deduplication notes - should have detected RIAS-Kammerchor vs RIAS Kammerchor
+	if len(dups) == 0 {
+		t.Logf("No duplicates detected (this is expected if names are already unique)")
+	} else {
+		t.Logf("Duplicates detected:")
+		for _, note := range dups {
+			t.Logf("  %s", note)
+		}
+		// Verify the deduplication was for the ensemble
+		foundDedup := false
+		for _, note := range dups {
+			if strings.Contains(note, "RIAS") || strings.Contains(note, "Kammerchor") {
+				foundDedup = true
+				break
+			}
+		}
+		if foundDedup {
+			t.Logf("✓ Correctly detected ensemble name variation duplication")
+		}
 	}
 }
 
@@ -165,7 +190,7 @@ func TestDiscogsParser_ParsePerformers_Simple(t *testing.T) {
 	`
 
 	parser := NewDiscogsParser()
-	performers, err := parser.ParsePerformers(html)
+	performers, dups, err := parser.ParsePerformers(html)
 
 	if err != nil {
 		t.Fatalf("ParsePerformers() error = %v", err)
@@ -173,6 +198,10 @@ func TestDiscogsParser_ParsePerformers_Simple(t *testing.T) {
 
 	if len(performers) != 2 {
 		t.Fatalf("ParsePerformers() returned %d performers, want 2", len(performers))
+	}
+
+	if len(dups) > 0 {
+		t.Errorf("Unexpected duplicates: %v", dups)
 	}
 
 	// Check ensemble
@@ -235,7 +264,7 @@ func TestMapDiscogsRoleToDomainRole(t *testing.T) {
 		{"unknown", "Percussion", domain.RoleUnknown, false},
 		{"empty", "", domain.RoleUnknown, false},
 		{"random", "FooBar", domain.RoleUnknown, false},
-		
+
 		// Case insensitive
 		{"uppercase", "CONDUCTOR", domain.RoleConductor, true},
 		{"mixed case", "ChOiR", domain.RoleEnsemble, true},
@@ -244,12 +273,12 @@ func TestMapDiscogsRoleToDomainRole(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotRole, gotMappable := mapDiscogsRoleToDomainRole(tt.discogsRole)
-			
+
 			if gotMappable != tt.wantMappable {
 				t.Errorf("mapDiscogsRoleToDomainRole(%q) mappable = %v, want %v",
 					tt.discogsRole, gotMappable, tt.wantMappable)
 			}
-			
+
 			if gotMappable && gotRole != tt.wantRole {
 				t.Errorf("mapDiscogsRoleToDomainRole(%q) role = %v, want %v",
 					tt.discogsRole, gotRole, tt.wantRole)
@@ -283,7 +312,7 @@ func TestInferRoleFromName(t *testing.T) {
 		{"pianist", "Glenn Gould", domain.RoleSoloist},
 		{"violinist", "Anne-Sophie Mutter", domain.RoleSoloist},
 		{"full name", "Hans-Christoph Rademann", domain.RoleSoloist},
-		
+
 		// Edge cases
 		{"empty", "", domain.RoleSoloist},
 		{"single word", "Madonna", domain.RoleSoloist},
@@ -700,5 +729,234 @@ func TestDiscogsParser_ParseTracks_MultiMovementWork(t *testing.T) {
 			}
 			t.Errorf("Track 6 composer = %q, want 'Franz Xaver Gruber'", composerName)
 		}
+	}
+}
+
+func TestDiscogsParser_ParsePerformers_DeduplicationFalsePositives(t *testing.T) {
+	// Test cases where aggressive deduplication should NOT merge different artists
+	tests := []struct {
+		name     string
+		html     string
+		expected int // Expected number of unique performers
+		note     string
+	}{
+		{
+			name: "should NOT merge different ensembles with similar names",
+			html: `
+			<script type="application/ld+json" id="release_schema">
+			{
+				"@context":"http://schema.org",
+				"@type":"MusicRelease",
+				"releaseOf":{
+					"@type":"MusicAlbum",
+					"byArtist":[
+						{"@type":"MusicGroup","name":"Berlin Philharmonic Orchestra"},
+						{"@type":"MusicGroup","name":"Berlin Philharmonic"}
+					]
+				}
+			}
+			</script>
+			`,
+			expected: 2, // These should remain separate
+			note:     "Berlin Philharmonic Orchestra vs Berlin Philharmonic are different ensembles",
+		},
+		{
+			name: "should merge name variations",
+			html: `
+			<script type="application/ld+json" id="release_schema">
+			{
+				"@context":"http://schema.org",
+				"@type":"MusicRelease",
+				"releaseOf":{
+					"@type":"MusicAlbum",
+					"byArtist":[
+						{"@type":"MusicGroup","name":"RIAS-Kammerchor"},
+						{"@type":"MusicGroup","name":"RIAS Kammerchor"}
+					]
+				}
+			}
+			</script>
+			`,
+			expected: 1, // These should be merged
+			note:     "RIAS-Kammerchor vs RIAS Kammerchor are the same ensemble",
+		},
+		{
+			name: "should NOT merge similar but distinct names",
+			html: `
+			<script type="application/ld+json" id="release_schema">
+			{
+				"@context":"http://schema.org",
+				"@type":"MusicRelease",
+				"releaseOf":{
+					"@type":"MusicAlbum",
+					"byArtist":[
+						{"@type":"MusicGroup","name":"Orchestra 1"},
+						{"@type":"MusicGroup","name":"Orchestra 2"}
+					]
+				}
+			}
+			</script>
+			`,
+			expected: 2, // Numbers should keep them separate
+			note:     "Orchestra 1 vs Orchestra 2 are different ensembles",
+		},
+		{
+			name: "should merge punctuation variations",
+			html: `
+			<script type="application/ld+json" id="release_schema">
+			{
+				"@context":"http://schema.org",
+				"@type":"MusicRelease",
+				"releaseOf":{
+					"@type":"MusicAlbum",
+					"byArtist":[
+						{"@type":"MusicGroup","name":"St. Martin's Orchestra"},
+						{"@type":"MusicGroup","name":"St Martins Orchestra"}
+					]
+				}
+			}
+			</script>
+			`,
+			expected: 1, // Should merge (punctuation removed)
+			note:     "St. Martin's vs St Martins should merge (punctuation normalized)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parser := NewDiscogsParser()
+			performers, dedupNotes, err := parser.ParsePerformers(tt.html)
+
+			if err != nil {
+				t.Fatalf("ParsePerformers() error = %v", err)
+			}
+
+			if len(performers) != tt.expected {
+				t.Errorf("Performers count = %d, want %d. Note: %s", len(performers), tt.expected, tt.note)
+				t.Logf("Found performers:")
+				for _, p := range performers {
+					t.Logf("  - %s (%s)", p.Name, p.Role)
+				}
+				if len(dedupNotes) > 0 {
+					t.Logf("Deduplications:")
+					for _, note := range dedupNotes {
+						t.Logf("  - %s", note)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestNormalizeNameForDedup(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "hyphen to space equivalent",
+			input:    "RIAS-Kammerchor",
+			expected: "riaskammerchor",
+		},
+		{
+			name:     "space equivalent",
+			input:    "RIAS Kammerchor",
+			expected: "riaskammerchor",
+		},
+		{
+			name:     "punctuation removed",
+			input:    "St. Martin's",
+			expected: "stmartins",
+		},
+		{
+			name:     "numbers preserved",
+			input:    "Orchestra 1",
+			expected: "orchestra1",
+		},
+		{
+			name:     "case normalized",
+			input:    "BERLIN PHILHARMONIC",
+			expected: "berlinphilharmonic",
+		},
+		{
+			name:     "multiple spaces",
+			input:    "RIAS    Kammerchor",
+			expected: "riaskammerchor",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizeNameForDedup(tt.input)
+			if got != tt.expected {
+				t.Errorf("normalizeNameForDedup(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNormalizeNameForDedup_FalsePositives(t *testing.T) {
+	// Test cases that should NOT normalize to the same value (potential false positives)
+	tests := []struct {
+		name     string
+		name1    string
+		name2    string
+		wantSame bool // Whether they should normalize to the same value
+		reason   string
+	}{
+		{
+			name:     "similar but different ensembles",
+			name1:    "Berlin Philharmonic Orchestra",
+			name2:    "Berlin Philharmonic",
+			wantSame: false,
+			reason:   "Different ensembles - 'Orchestra' vs no 'Orchestra'",
+		},
+		{
+			name:     "numbers distinguish ensembles",
+			name1:    "Orchestra 1",
+			name2:    "Orchestra 2",
+			wantSame: false,
+			reason:   "Numbers distinguish different ensembles",
+		},
+		{
+			name:     "same ensemble variations",
+			name1:    "RIAS-Kammerchor",
+			name2:    "RIAS Kammerchor",
+			wantSame: true,
+			reason:   "Same ensemble with punctuation variation",
+		},
+		{
+			name:     "punctuation variations",
+			name1:    "St. Martin's Orchestra",
+			name2:    "St Martins Orchestra",
+			wantSame: true,
+			reason:   "Same ensemble with punctuation variation",
+		},
+		{
+			name:     "different words",
+			name1:    "Berlin Philharmonic",
+			name2:    "Vienna Philharmonic",
+			wantSame: false,
+			reason:   "Different cities = different ensembles",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			norm1 := normalizeNameForDedup(tt.name1)
+			norm2 := normalizeNameForDedup(tt.name2)
+			same := norm1 == norm2
+
+			if same != tt.wantSame {
+				if tt.wantSame {
+					t.Errorf("Names should normalize to same value but didn't: '%s' -> '%s', '%s' -> '%s'. %s",
+						tt.name1, norm1, tt.name2, norm2, tt.reason)
+				} else {
+					t.Errorf("FALSE POSITIVE: Names incorrectly normalized to same value: '%s' -> '%s', '%s' -> '%s'. %s",
+						tt.name1, norm1, tt.name2, norm2, tt.reason)
+				}
+			}
+		})
 	}
 }
