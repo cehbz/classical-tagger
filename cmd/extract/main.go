@@ -10,9 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cehbz/classical-tagger/internal/domain"
 	"github.com/cehbz/classical-tagger/internal/scraping"
-	"github.com/cehbz/classical-tagger/internal/validation"
 )
 
 var (
@@ -262,37 +260,6 @@ func processResult(result *scraping.ExtractionResult) {
 		fmt.Fprintf(os.Stderr, "This metadata may be incomplete and unsuitable for tagging")
 	}
 
-	// Convert to domain model and validate
-	validationErrors := validation.Check(data, nil)
-	hasRequiredErrors := false
-	for _, validationError := range validationErrors {
-		switch validationError.Level {
-		case domain.LevelError:
-			if validationError.Required {
-				hasRequiredErrors = true
-			}
-			fmt.Fprintf(os.Stderr, "\n❌ ERROR: Domain conversion failed: %v\n", validationError.Message)
-		case domain.LevelWarning:
-			fmt.Fprintf(os.Stderr, "\n⚠️ WARNING: %s\n", validationError.Message)
-		default:
-			fmt.Fprintf(os.Stderr, "\nℹ️ INFO: %s\n", validationError.Message)
-		}
-	}
-	if hasRequiredErrors {
-		if !*force {
-			os.Exit(1)
-		} else {
-			fmt.Fprintf(os.Stderr, "⚠ WARNING: Continuing with partial data due to -force")
-		}
-	}
-
-	if len(validationErrors) > 0 {
-		fmt.Fprintf(os.Stderr, "\n⚠ Validation warnings:")
-		for _, verr := range validationErrors {
-			fmt.Fprintf(os.Stderr, "  %s\n", verr)
-		}
-	}
-
 	// Serialize to JSON
 	outFile := os.Stdout
 	if *outputFile != "" {
@@ -319,10 +286,10 @@ func processResult(result *scraping.ExtractionResult) {
 	}
 
 	// Show next steps
-	if !hasRequiredErrors {
+	if *outputFile != "" {
 		fmt.Fprintf(os.Stderr, "\nNext steps:")
 		fmt.Fprintf(os.Stderr, "  1. Review Metadata: cat %s\n", *outputFile)
-		fmt.Fprintf(os.Stderr, "  2. Validate album directory: validate /path/to/album\n")
+		fmt.Fprintf(os.Stderr, "  2. Validate JSON file: validate %s\n", *outputFile)
 		fmt.Fprintf(os.Stderr, "  3. Apply tags: tag -metadata %s -dir /path/to/album\n", *outputFile)
 	}
 }

@@ -4,3 +4,4 @@ tag
 validate
 extract_*.json
 *.diff
+outputs/

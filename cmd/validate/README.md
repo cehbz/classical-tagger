@@ -1,12 +1,12 @@
-# validate - Classical Music Directory Validator
+# validate - Classical Music JSON Metadata Validator
 
-Validates classical music album directories for compliance with torrent site rules.
+Validates JSON metadata files extracted from classical music albums for compliance with torrent site rules.
 
 ## Features
 
-- ✅ **Directory structure validation** - Multi-disc detection, path length limits
-- ✅ **FLAC tag validation** - Required tags, composer rules, artist format
-- ✅ **Filename validation** - Track numbering, title format
+- ✅ **JSON metadata validation** - Validates extracted album metadata against all validation rules
+- ✅ **Reference comparison** - Optionally compares against a reference JSON file
+- ✅ **Comprehensive rule checking** - All validation rules including structure, metadata, and formatting
 - ✅ **Rule references** - Each issue includes rule section numbers
 - ✅ **Colored output** - Visual indicators for errors, warnings, and info
 
@@ -20,29 +20,30 @@ go build -o validate
 ## Usage
 
 ```bash
-# Validate a single album directory
-./validate "/path/to/Bach - Goldberg Variations (1981) - FLAC"
+# Validate a JSON metadata file
+validate album.json
 
-# The command will scan the directory recursively and report all issues
+# Validate against a reference JSON file
+validate album.json reference.json
 ```
 
 ## Output Example
 
 ```
-=== Validation Report: /music/Bach - Goldberg Variations (1981) - FLAC ===
+=== Validation Report ===
 
-📁 DIRECTORY STRUCTURE ISSUES:
-⚠️  WARNING [Directory] [2.3.2] Folder name should contain the album title
+Metadata file: album.json
+Reference file: reference.json
 
-🏷️  METADATA ISSUES:
+🏷️  VALIDATION ISSUES:
 ❌ ERROR [Track 1] [classical.composer] Composer surname "Bach" found in track title
 ⚠️  WARNING [Album] [2.3.16.4] Edition information recommended
+❌ ERROR [Track 5] [2.3.18.2] Track 5 title 'SYMPHONY NO. 5': Not Title Case or Casual Title Case
 
 === SUMMARY ===
 ❌ FAILED: Album has critical errors
-  Structure issues: 1
-  Metadata issues: 2
-  Read errors: 0
+  Issues: 3
+  Load errors: 0
 ```
 
 ## Exit Codes
@@ -58,31 +59,34 @@ go build -o validate
 
 ## What It Checks
 
-### Directory Structure
-- Path length (180 character limit)
-- Leading spaces in paths
-- Multi-disc organization (CD1, CD2, etc.)
-- Folder naming conventions
+The validator checks all validation rules including:
 
-### Metadata
+### Metadata Rules
 - Required tags: Composer, Artist, Album, Title, Track Number
 - Composer NOT in track title
 - Artist format validation
 - Track number format
 - Album completeness
+- Tag capitalization (Title Case)
 
-### File Names
-- Track number format (01, 02, etc.)
-- File extension (.flac)
-- Character encoding
+### Structure Rules
+- Path length (180 character limit)
+- Leading spaces in paths/filenames
+- Folder naming conventions
+- Multi-disc organization
+- Filename format and capitalization
+
+### Reference Comparison
+When a reference JSON file is provided, additional checks:
+- Tag accuracy vs reference
+- Capitalization matching
+- Structure consistency
 
 ## Dependencies
 
-- `github.com/dhowden/tag` - FLAC tag reading
 - `github.com/cehbz/classical-tagger/internal/domain`
 - `github.com/cehbz/classical-tagger/internal/validation`
-- `github.com/cehbz/classical-tagger/internal/filesystem`
-- `github.com/cehbz/classical-tagger/internal/tagging`
+- `github.com/cehbz/classical-tagger/internal/storage`
 
 ## Testing
 
@@ -94,26 +98,34 @@ go test ./cmd/validate -v
 
 ```bash
 # Exit code can be used in scripts
-if ./validate "/path/to/album"; then
-    echo "Album is valid"
+if validate album.json; then
+    echo "Metadata is valid"
 else
-    echo "Album has errors"
+    echo "Metadata has errors"
     exit 1
 fi
 ```
 
-## Known Limitations
+## Workflow
 
-1. **Artist parsing**: Currently treats entire Artist tag as ensemble
-   - TODO: Parse "Soloist, Ensemble, Conductor" format
-2. **Arranger detection**: "(arr. by X)" not auto-parsed yet
-3. **Title case**: Capitalization not validated yet
-4. **Movement format**: Opus/movement numbers not validated yet
+1. Extract metadata using `extract` command:
+   ```bash
+   extract -url "https://..." -output album.json
+   ```
 
-## Future Enhancements
+2. Validate the extracted JSON:
+   ```bash
+   validate album.json
+   ```
 
-- [ ] JSON output format for automation
-- [ ] Batch validation of multiple directories
-- [ ] Configurable rule severity levels
-- [ ] Auto-fix suggestions
-- [ ] Integration with `tag` command for fixes
+3. Optionally validate against a reference:
+   ```bash
+   validate album.json reference.json
+   ```
+
+4. Apply tags using `tag` command (when implemented)
+
+## Related Commands
+
+- **extract** - Extract metadata from web pages or directories to JSON
+- **tag** - Apply metadata to FLAC files (coming soon)

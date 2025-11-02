@@ -23,7 +23,7 @@ func (r *Rules) AlbumTagCapitalization(actualAlbum, _ *domain.Album) RuleResult 
 			Level:   domain.LevelError,
 			Track:   0,
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album title: %s", capIssue),
+			Message: fmt.Sprintf("Album title '%s': %s", actualAlbum.Title, capIssue),
 		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
@@ -46,7 +46,7 @@ func (r *Rules) TrackTagCapitalization(actualTrack, _ *domain.Track, _, _ *domai
 			Level:   domain.LevelError,
 			Track:   actualTrack.Track,
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Track %s title: %s", formatTrackNumber(actualTrack), capIssue),
+			Message: fmt.Sprintf("Track %s title '%s': %s", formatTrackNumber(actualTrack), actualTrack.Title, capIssue),
 		})
 	}
 
