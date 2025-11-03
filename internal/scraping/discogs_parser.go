@@ -94,28 +94,29 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	}
 
 	// After parsing tracks and album-level performers, check for universal performers in tracks
-	// and merge with album-level performers if any exist
+	// and merge with album-level performers if any exist. Do NOT remove from tracks; instead ensure inclusion.
 	if len(data.Tracks) > 0 {
 		universalTrackArtists := domain.DetermineAlbumArtist(data)
 
-		// If we found universal performers in tracks
 		if len(universalTrackArtists) > 0 {
 			if len(albumLevelPerformers) > 0 {
 				// Merge album-level and track-derived performers (avoid duplicates)
 				combinedPerformers := mergePerformers(albumLevelPerformers, universalTrackArtists)
 				data.AlbumArtist = combinedPerformers
-				// Remove all combined performers from tracks
-				removeArtistsFromTracks(data.Tracks, combinedPerformers)
 			} else {
 				// No album-level performers, but found universal performers in tracks
 				data.AlbumArtist = universalTrackArtists
-				// Remove universal performers from tracks
-				removeArtistsFromTracks(data.Tracks, universalTrackArtists)
 			}
 		} else if len(albumLevelPerformers) > 0 {
 			// Only album-level performers, no universal performers in tracks
-			// Remove album-level performers from tracks
-			removeArtistsFromTracks(data.Tracks, albumLevelPerformers)
+			data.AlbumArtist = albumLevelPerformers
+		}
+
+		// Ensure AlbumArtist performers appear on each track unless it's Various Artists
+		if len(data.AlbumArtist) > 0 {
+			if !strings.EqualFold(strings.TrimSpace(domain.FormatArtists(data.AlbumArtist)), "Various Artists") {
+				ensureArtistsOnTracks(data.Tracks, data.AlbumArtist)
+			}
 		}
 	}
 
@@ -185,7 +186,13 @@ func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, []string,
 
 	// Step 2: Extract role mappings from releaseCredits in Apollo state
 	roleMap, _ := p.extractReleaseCredits(html)
-	// If extraction fails, roleMap will be empty and we'll infer all roles
+	// If GraphQL extraction fails or is incomplete, attempt to parse HTML Credits section
+	if len(roleMap) == 0 {
+		if htmlRoles, err := p.parseCreditsFromHTML(html); err == nil && len(htmlRoles) > 0 {
+			roleMap = htmlRoles
+		}
+	}
+	// If still empty, we'll infer roles as a last resort below
 
 	// Step 3: Build performer list by matching names with roles
 	performers := make([]domain.Artist, 0)
@@ -276,6 +283,55 @@ func (p *DiscogsParser) ParsePerformers(html string) ([]domain.Artist, []string,
 	}
 
 	return performers, dups, nil
+}
+
+// parseCreditsFromHTML parses the Discogs HTML "Credits" section to a name->role map.
+// It looks for common credits blocks/tables and extracts display name and credit role text.
+func (p *DiscogsParser) parseCreditsFromHTML(html string) (map[string]string, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML for credits: %w", err)
+	}
+
+	roles := make(map[string]string)
+
+	// New Discogs layout: credits are often under a section with headings like "Credits"
+	// and list items with role and name links. We try a few common selectors.
+	// 1) Credits list items
+	doc.Find("section:contains('Credits') li").Each(func(i int, s *goquery.Selection) {
+		text := strings.TrimSpace(s.Text())
+		if text == "" {
+			return
+		}
+		// Try to split "Role – Name" or "Role: Name"
+		parts := strings.FieldsFunc(text, func(r rune) bool { return r == '–' || r == '-' || r == ':' })
+		if len(parts) >= 2 {
+			role := strings.TrimSpace(parts[0])
+			name := strings.TrimSpace(strings.Join(parts[1:], " "))
+			if name != "" && role != "" {
+				roles[name] = role
+			}
+		}
+	})
+
+	// 2) Table rows that look like credits (fallback heuristic)
+	if len(roles) == 0 {
+		doc.Find("table tr").Each(func(i int, tr *goquery.Selection) {
+			tds := tr.Find("td")
+			if tds.Length() >= 2 {
+				role := strings.TrimSpace(tds.Eq(0).Text())
+				name := strings.TrimSpace(tds.Eq(1).Text())
+				if role != "" && name != "" {
+					roles[name] = role
+				}
+			}
+		})
+	}
+
+	if len(roles) == 0 {
+		return nil, fmt.Errorf("no credits found in HTML")
+	}
+	return roles, nil
 }
 
 // extractReleaseCredits extracts the releaseCredits from Apollo GraphQL state.

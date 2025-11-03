@@ -24,27 +24,34 @@ func (r *Rules) AlbumArtistTag(actualAlbum, _ *domain.Album) RuleResult {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 
-	// If album artist is already set, verify the invariant: AlbumArtist performers should NOT appear in tracks
+	// If album artist is set and is not "Various Artists", verify inclusion invariant:
+	// Every track's artists must include the AlbumArtist performers (by name and role).
 	if len(actualAlbum.AlbumArtist) > 0 {
-		// Find universal performers in tracks (if any exist, they violate the invariant)
-		universalArtists := domain.DetermineAlbumArtist(actualAlbum)
-		if len(universalArtists) > 0 {
-			// Violation: AlbumArtist is set but universal performers still appear in tracks
-			// This means extraction didn't properly remove them
-			performerNames := make([]string, len(universalArtists))
-			for i, artist := range universalArtists {
-				performerNames[i] = artist.Name
+		albumArtistStr := domain.FormatArtists(actualAlbum.AlbumArtist)
+		if !strings.EqualFold(strings.TrimSpace(albumArtistStr), "Various Artists") {
+			for _, track := range actualAlbum.Tracks {
+				for _, aa := range actualAlbum.AlbumArtist {
+					found := false
+					for _, ta := range track.Artists {
+						if ta.Name == aa.Name && ta.Role == aa.Role {
+							found = true
+							break
+						}
+					}
+					if !found {
+						issues = append(issues, domain.ValidationIssue{
+							Level: domain.LevelError,
+							Track: track.Track,
+							Rule:  meta.ID,
+							Message: fmt.Sprintf("Album Artist '%s' must be included in track %s artists (missing %s)",
+								albumArtistStr, formatTrackNumber(track), aa.Name),
+						})
+					}
+				}
 			}
-			albumArtistStr := domain.FormatArtists(actualAlbum.AlbumArtist)
-			issues = append(issues, domain.ValidationIssue{
-				Level: domain.LevelError,
-				Track: 0,
-				Rule:  meta.ID,
-				Message: fmt.Sprintf("Album Artist '%s' is set, but performers still appear in tracks: %v (violates invariant: AlbumArtist performers should not appear in tracks)",
-					albumArtistStr, performerNames),
-			})
+			return RuleResult{Meta: meta, Issues: issues}
 		}
-		// Album artist is set and invariant is maintained (no universal performers in tracks)
+		// Album Artist is "Various Artists"; no inclusion requirement
 		return RuleResult{Meta: meta, Issues: issues}
 	}
 

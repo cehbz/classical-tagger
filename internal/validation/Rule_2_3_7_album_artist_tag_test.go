@@ -177,3 +177,58 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 		})
 	}
 }
+
+func TestRules_AlbumArtist_InclusionInvariant(t *testing.T) {
+    rules := NewRules()
+
+    albumArtist := []domain.Artist{
+        {Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+        {Name: "Herbert von Karajan", Role: domain.RoleConductor},
+    }
+
+    // Missing inclusion on track -> expect error(s)
+    albumMissing := &domain.Album{
+        Title:        "Album",
+        OriginalYear: 1977,
+        AlbumArtist:  albumArtist,
+        Tracks: []*domain.Track{
+            {Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}}},
+        },
+    }
+    resMissing := rules.AlbumArtistTag(albumMissing, nil)
+    if resMissing.Passed() {
+        t.Errorf("Expected failure when AlbumArtist not included in track artists")
+    }
+
+    // Inclusion present on track -> expect pass
+    albumIncluded := &domain.Album{
+        Title:        "Album",
+        OriginalYear: 1977,
+        AlbumArtist:  albumArtist,
+        Tracks: []*domain.Track{
+            {Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{
+                {Name: "Beethoven", Role: domain.RoleComposer},
+                {Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
+                {Name: "Herbert von Karajan", Role: domain.RoleConductor},
+            }},
+        },
+    }
+    resIncluded := rules.AlbumArtistTag(albumIncluded, nil)
+    if !resIncluded.Passed() {
+        t.Errorf("Expected pass when AlbumArtist is included in track artists")
+    }
+
+    // Various Artists should not require inclusion
+    va := &domain.Album{
+        Title:        "Various Artists Sampler",
+        OriginalYear: 2001,
+        AlbumArtist:  []domain.Artist{{Name: "Various Artists", Role: domain.RoleEnsemble}},
+        Tracks: []*domain.Track{
+            {Disc: 1, Track: 1, Title: "Track", Artists: []domain.Artist{{Name: "Artist A", Role: domain.RoleSoloist}}},
+        },
+    }
+    resVA := rules.AlbumArtistTag(va, nil)
+    if !resVA.Passed() {
+        t.Errorf("Expected pass for Various Artists without inclusion requirement")
+    }
+}

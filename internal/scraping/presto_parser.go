@@ -83,13 +83,15 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 		})
 	}
 
-	// After parsing tracks, check for universal performers and synthesize AlbumArtist
+	// After parsing tracks, check for universal performers and synthesize AlbumArtist.
+	// Do NOT remove from tracks; instead ensure they are included on each track (unless Various Artists).
 	if len(data.Tracks) > 0 {
 		universalArtists := domain.DetermineAlbumArtist(data)
 		if len(universalArtists) > 0 {
 			data.AlbumArtist = universalArtists
-			// Remove universal performers from tracks to maintain invariant
-			removeArtistsFromTracks(data.Tracks, universalArtists)
+			if !strings.EqualFold(strings.TrimSpace(domain.FormatArtists(data.AlbumArtist)), "Various Artists") {
+				ensureArtistsOnTracks(data.Tracks, data.AlbumArtist)
+			}
 		}
 	}
 

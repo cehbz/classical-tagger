@@ -192,3 +192,22 @@ func mergePerformers(existing []domain.Artist, additional []domain.Artist) []dom
 
 	return result
 }
+
+// ensureArtistsOnTracks ensures the given artists exist on every track's artist list.
+// Matching is done by name AND role. Missing artists are appended to the track's artists.
+func ensureArtistsOnTracks(tracks []*domain.Track, artistsToEnsure []domain.Artist) {
+	for _, track := range tracks {
+		for _, required := range artistsToEnsure {
+			present := false
+			for _, a := range track.Artists {
+				if a.Name == required.Name && a.Role == required.Role {
+					present = true
+					break
+				}
+			}
+			if !present {
+				track.Artists = append(track.Artists, required)
+			}
+		}
+	}
+}

@@ -1,0 +1,75 @@
+"The Moderation Doctrine of Optional but Correct"
+
+Tags
+
+For non-classical works, the rules require the following tags for FLAC and MP3:
+
+ARTIST
+ALBUM
+TITLE
+TRACK NUMBER
+
+The rules also strongly encourage the YEAR tag.
+For classical works, the COMPOSER tag is also required and the ALBUM ARTIST tag is strongly encouraged. For classical music, please refer to details in the Classical Music Tagging wiki and the Classical Music Uploading Guide wiki.
+
+Folder Names
+
+The minimum requirement for folder names is the album name, and for non-classical works, the following format is encouraged:
+Artist - Album (Year) - Format
+
+For classical music, the folder and file naming is usually a difficult compromise due to long track names, long performer names, and the amount of information that is required to differentiate different performances.
+
+File Names
+
+For file names, the minimum requirement is that the folder have track number and title as well as the file extension. If optional information is included (such as artist, which is very useful for multi-artist compilations), it must be included in such a way that it does not cause the tracks to be listed in a random order on a modern OS or file manager. An example of properly doing this is to include the artists on a Various Artists compilation's filenames, but ensure that the track number precedes the artist. Note that numbers are not required to have zero-padding (01, 02, 03 ... 09, 10, 11) as opposed to being non-padded (1, 2, 3 ... 9 10 11), but if there are more than 9 tracks, this is generally considered best practice.
+
+Expectations Regarding Optional Tags/Fields and Trumpability
+
+Some people choose to add particular tags and features to file names or folders. For releases with many editions, catalog numbers, record labels, or sometimes both may be useful to include in the folder name in particular, though for smaller releases this would almost always be excessive. Many people also prefer to have the media type included in the folder name.
+
+Whether to include optional tags is largely a matter of personal preference, but there are often very good reasons for doing so, such as including "Various Artists" as the ALBUM ARTIST tag (but not the ARTIST tag, individual tracks should be tagged with the track's artist), including DISC NUMBER on multi-disc releases, etc. It may be desirable for some users to note editions in a Comment field or a more specific field for that purpose. Some compilations, in particular, may benefit from something more specific and useful than merely "Various Artists" in the ALBUM ARTIST tag even if that would be adequate.
+
+The moderation guideline is, in most cases, "optional but correct". If you include optional information, it cannot be objectively incorrect if it is reasonably useful, and if it is, it is trumpable. If a reasonable common sense case can be argued for an optional tag being tagged the way it is, it should in most cases be pretty obvious and not cause any issues. If it is reasonably trivial, such as DURATION, UPC, or LANGUAGE, we're not going to take action on it for optional tag issues.
+
+Some fields are, frankly, particularly flexible. The most obvious of these are going to be YEAR and ALBUM ART (and for this purpose, ALBUM ART includes embedded album art as well as stand-alone images.
+
+Take Dark Side of the Moon, specifically the 1987 Harvest Australian CD. One could easily justify several years for that release - 1973, when the album was first released, 1985 which is probably the year of that particular remaster (or whatever year it turned out to be if were found to be different), or 1987 which is the year of that particular edition. 1973 and 1987 are the easiest dates to defend, but as long as they're not completely out of bounds (ie, before the album was released, or something older with little demand tagged much more recently), Year is usually too research-heavy a field to get involved in for optional information. Generally speaking, most users would expect the year of first release to be in the YEAR tag. In this example, that would be 1973. It might be reasonable to use an edition year in the folder name if one is going to include catalog information in the folder name, but to use the year of first release if not.
+
+Genre, in particular, presents lots of problems with objective classification, and while staff encourage you to either upload music with either blank GENRE tags or GENRE tags which are as subjectively accurate as you can make them, short of violations of other rules such as advertising or harassing other users, staff aren't going to trump content based on tags and arguments over what genre a particular release is.
+
+There are two ways to fix optional tags which have been determined to be trumpable:
+Correct the optional tag with the correct information. (Example: a label compilation where the ALBUM ARTIST tag lists the artist of track 1 as the album artist for the entire album, but the ARTIST tags are correct. Upload a corrected version with the ALBUM ARTIST tag as "Various Artists" or some other correct information.)
+Remove the information in the optional tag. (Example: a label compilation where the ALBUM ARTIST tag lists the artist of track 1 as the album artist for the entire album, but the ARTIST tags are correct. Upload a corrected version without ALBUM ARTIST tags.)
+
+
+Correcting data in higher-profile tags like ALBUM ARTIST and DISC NUMBER is generally more helpful to more users, and for that reason, the first fix is the suggested fix, either fix is acceptable. For lower-profile tags such as TOTAL TRACKS or LANGUAGE, removing the incorrect tag would be preferable - but as these are lower-profile, moderator discretion might be to not get involved. If Total Tracks or Language were in the folder name and incorrect, however, these would be very high-profile mistakes.
+
+Examples of Low Value Trump Tags
+
+Sometimes the value of the "correction" in a trump attempt is simply too low to assert any value in disrupting existing swarms.
+
+COMMENT: Any "incorrect" information in a COMMENT tag is generally not going to be given any serious consideration outside of whether or not it breaks the rule against advertising/ripping credits in non-scene uploads.
+GENRE: As mentioned before, this is a relatively useful tag to most users, but many users have different criteria and may end up tagging listening copies differently than other users. It is not reasonable to enforce GENRE tag categorization, though staff would request either a reasonable attempt be made at describing the genre of the work, or that the tag be left blank.
+DISC NUMBER: * This has been deemed important enough, however an incorrect DISC NUMBER tag for a release with one disc is not a cause for concern with regards to tagging. It may be evidence that the rip is part of a multi-part set that has not been uploaded in its entirety, such as a box set of albums where a user has ripped a single disc as if it is a single album release.
+TOTAL DISCS: This is a relatively petty field that's not worth disrupting a swarm, however as with DISC NUMBER an incorrect TOTAL DISCS field may indicate an incomplete rip. More frequently, however, it's just incorrect tagging and can be ignored.
+TOTAL TRACKS: This is relatively low-value, and there are some circumstances (Sony DRM, CDs with data tracks, etc.) where the value can be one number too high. Additionally, some users handle this on a per-disc level and others a per-release level. It's not worth starting a swarm over for.
+
+A Note About Album Tags
+
+
+↑_ 2.3.18.3.1. Album tag with catalog information: The album tag may contain label or catalog information, though this is usually only helpful when there are other similar releases it could easily be confused with.
+This rule is to discourage petty trumping, but it is not meant to encourage the addition of verbose catalog information on releases. If you are a person who is best served by multiple versions of specific albums, these issues may be solved better by the creation of personal listening copies, rather than working with Redacted uploaders' naming conventions with and without catalog information, particularly since we neither require nor encourage it.
+
+Album tags must be consistent across an album. Obviously, multi-album boxed sets are going to have several albums, and therefore several album tags, but each individual album must have a consistent album tag. There is a reasonable leeway for discrete albums with multiple discs with actual names, as opposed to numbered discs. An example of this is Nine Inch Nail's The Fragile which has named discs "Left" and "Right" on the CD release. It would be the uploader's choice to either use "The Fragile" for the ALBUM tag, or "The Fragile (Left)" and "The Fragile (Right)". Keep in mind, filenames must sort in play order if not separated into disc folders, though in this example this would happen under almost all circumstances just because the first disc (Left) is alphabetically first. Note that on the vinyl and cassette releases, no discrete names are given, just "Disc 1" etc. on the vinyl release, and 1a etc. or similar on various tape releases.
+
+A Note About Album Art
+
+Album art is similarly subject to research, user convenience, and is not subject to trumping except in the most severely wrong cases. A wrong edition of the art for the correct album is not sufficient. It is "optional but incorrect", but it is simply the case that album art is so wholly optional on Reacted, its predecessors, and most of its sister sites that it is not sufficient justification unless the art is actually for the wrong release entirely, not merely a different edition than the one it is included with. Similarly, non-working broken images would be trumpable, yet poor quality (low resolution or poorly photographed images in lieu of scans) would not be.
+
+The issue with enforcing "correct" album art of a particular edition is that a lot of people simply Google album art or grab it from whatever edition has the best scans on a site like Discogs, and to introduce any sort of stricter standard (even "optional but correct for this edition" as we would apply it to, say, DISC NUMBER) would result in a hundred thousand time consuming research projects that are mostly wastes of time given that there is no trumping for album art except for embedded album art/padding over 1024 KiB and would set a difficult precedent to maintain.
+
+In Conclusion
+
+Some optional content (YEAR tags or folder names, ALBUM ART tags or non-embedded art, GENRE tags) is simply more flexible than others (DISC NUMBER tags, ALBUM ARTIST tags) but it is a reasonable user expectation that anything that user downloads should work and not be objectively incorrect by reasonably broad standards. Some optional content is incredibly welcome to many or even most users, such as the YEAR tag, moderate amounts of album art (some may appreciate more comprehensive art on special releases), and DISC NUMBER tag. Some optional content is generally going to appeal only to completionists or people with strong interests in certain artists or content types such as more comprehensive tagging of releases by favorite artists. Be considerate but resist the urge to go overboard; typically, users who want comprehensive tagging or have a highly idiosyncratic system of tags are generally forced to resort to a listening copy and a seeding copy anyway. If your system is particularly comprehensive, and it's already tagged before you upload it, however, there's probably little value in creating a more bare-bones version just to upload. Use your judgement and remember: "optional but correct".
+
+Note: Standards exist in the rules for "minor improvements" such as misspellings which are up to the discretion of the moderator. For optional tags, this discretion will usually be applied more widely in favor of the uploader so long as these minor issues do not cause considerable confusion.

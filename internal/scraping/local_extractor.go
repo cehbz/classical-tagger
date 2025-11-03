@@ -198,8 +198,10 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 				data.AlbumArtist = universalArtists
 			}
 
-			// Remove universal performers from tracks
-			removeArtistsFromTracks(data.Tracks, universalArtists)
+			// Ensure AlbumArtist performers are present on each track (unless Various Artists)
+			if !strings.EqualFold(strings.TrimSpace(domain.FormatArtists(data.AlbumArtist)), "Various Artists") {
+				ensureArtistsOnTracks(data.Tracks, data.AlbumArtist)
+			}
 		}
 	}
 
@@ -208,8 +210,10 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 		universalArtists := domain.DetermineAlbumArtist(data)
 		if len(universalArtists) > 0 {
 			data.AlbumArtist = universalArtists
-			// Remove album artist performers from track.Artists
-			removeArtistsFromTracks(data.Tracks, universalArtists)
+			// Ensure AlbumArtist performers are present on each track (unless Various Artists)
+			if !strings.EqualFold(strings.TrimSpace(domain.FormatArtists(data.AlbumArtist)), "Various Artists") {
+				ensureArtistsOnTracks(data.Tracks, data.AlbumArtist)
+			}
 		}
 	}
 
