@@ -13,6 +13,7 @@ func FormatArtists(artists []Artist) string {
 	var soloists []string
 	var ensembles []string
 	var conductors []string
+	var unknowns []string
 
 	for _, artist := range artists {
 		switch artist.Role {
@@ -25,6 +26,8 @@ func FormatArtists(artists []Artist) string {
 		case RoleComposer:
 			// Composers excluded from ARTIST tag
 			continue
+		case RoleUnknown:
+			unknowns = append(unknowns, artist.Name)
 		}
 	}
 
@@ -33,6 +36,8 @@ func FormatArtists(artists []Artist) string {
 	parts = append(parts, soloists...)
 	parts = append(parts, ensembles...)
 	parts = append(parts, conductors...)
+	// Append unknown-role artists preserving original relative order among them
+	parts = append(parts, unknowns...)
 
 	return strings.Join(parts, ", ")
 }

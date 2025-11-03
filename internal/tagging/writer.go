@@ -104,6 +104,7 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 		if artist.Role == domain.RoleComposer {
 			composer = &artist
 		} else {
+			// Preserve incoming order; grouping is handled by FormatArtists which now appends Unknown last
 			performers = append(performers, artist)
 		}
 	}

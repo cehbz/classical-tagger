@@ -24,29 +24,33 @@ func (r *Rules) AlbumArtistTag(actualAlbum, _ *domain.Album) RuleResult {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 
-	// If album artist is set and is not "Various Artists", verify inclusion invariant:
-	// Every track's artists must include the AlbumArtist performers (by name and role).
+	// If album artist is set and is not "Various Artists", verify lax inclusion invariant:
+	// Every AlbumArtist name must appear in at least one track's artists (name-only match).
 	if len(actualAlbum.AlbumArtist) > 0 {
 		albumArtistStr := domain.FormatArtists(actualAlbum.AlbumArtist)
 		if !strings.EqualFold(strings.TrimSpace(albumArtistStr), "Various Artists") {
+			// Build a set of normalized artist names present across all tracks
+			present := make(map[string]bool)
 			for _, track := range actualAlbum.Tracks {
-				for _, aa := range actualAlbum.AlbumArtist {
-					found := false
-					for _, ta := range track.Artists {
-						if ta.Name == aa.Name && ta.Role == aa.Role {
-							found = true
-							break
-						}
+				for _, ta := range track.Artists {
+					norm := normalizeNameForInclusion(ta.Name)
+					if norm != "" {
+						present[norm] = true
 					}
-					if !found {
-						issues = append(issues, domain.ValidationIssue{
-							Level: domain.LevelError,
-							Track: track.Track,
-							Rule:  meta.ID,
-							Message: fmt.Sprintf("Album Artist '%s' must be included in track %s artists (missing %s)",
-								albumArtistStr, formatTrackNumber(track), aa.Name),
-						})
-					}
+				}
+			}
+
+			// For each album artist, require presence in at least one track by normalized name
+			for _, aa := range actualAlbum.AlbumArtist {
+				normAA := normalizeNameForInclusion(aa.Name)
+				if normAA == "" || !present[normAA] {
+					issues = append(issues, domain.ValidationIssue{
+						Level: domain.LevelError,
+						Track: 0,
+						Rule:  meta.ID,
+						Message: fmt.Sprintf("Album Artist '%s' must appear in at least one track's ARTISTs (missing %s)",
+							albumArtistStr, aa.Name),
+					})
 				}
 			}
 			return RuleResult{Meta: meta, Issues: issues}

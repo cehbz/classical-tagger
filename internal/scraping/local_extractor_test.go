@@ -196,34 +196,34 @@ func TestLocalExtractor_ParseArtistField(t *testing.T) {
 		WantFirst string
 		WantRole  domain.Role
 	}{
-		{
-			Name:      "semicolon separated",
-			Field:     "Pollini; Berlin Phil; Karajan",
-			WantCount: 3,
-			WantFirst: "Pollini",
-			WantRole:  domain.RoleSoloist,
-		},
-		{
-			Name:      "comma separated",
-			Field:     "Pollini, Berlin Philharmonic, Karajan",
-			WantCount: 3,
-			WantFirst: "Pollini",
-			WantRole:  domain.RoleSoloist,
-		},
-		{
-			Name:      "single artist",
-			Field:     "Maurizio Pollini",
-			WantCount: 1,
-			WantFirst: "Maurizio Pollini",
-			WantRole:  domain.RoleSoloist,
-		},
-		{
-			Name:      "with ensemble",
-			Field:     "RIAS Kammerchor; Hans-Christoph Rademann",
-			WantCount: 2,
-			WantFirst: "RIAS Kammerchor",
-			WantRole:  domain.RoleEnsemble,
-		},
+        {
+            Name:      "semicolon separated",
+            Field:     "Pollini; Berlin Phil; Karajan",
+            WantCount: 3,
+            WantFirst: "Pollini",
+            WantRole:  domain.RoleUnknown,
+        },
+        {
+            Name:      "comma separated",
+            Field:     "Pollini, Berlin Philharmonic, Karajan",
+            WantCount: 3,
+            WantFirst: "Pollini",
+            WantRole:  domain.RoleUnknown,
+        },
+        {
+            Name:      "single artist",
+            Field:     "Maurizio Pollini",
+            WantCount: 1,
+            WantFirst: "Maurizio Pollini",
+            WantRole:  domain.RoleUnknown,
+        },
+        {
+            Name:      "with ensemble",
+            Field:     "RIAS Kammerchor; Hans-Christoph Rademann",
+            WantCount: 2,
+            WantFirst: "RIAS Kammerchor",
+            WantRole:  domain.RoleUnknown,
+        },
 	}
 
 	for _, tt := range tests {

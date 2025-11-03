@@ -468,35 +468,33 @@ func (e *LocalExtractor) extractTitleFromFilename(filePath string) string {
 // Handles formats like "Soloist; Orchestra; Conductor" or "Soloist, Orchestra, Conductor"
 // Returns immutable slice.
 func (e *LocalExtractor) parseArtistField(artistField string) []domain.Artist {
-	artists := make([]domain.Artist, 0)
+    artists := make([]domain.Artist, 0)
 
-	// Try semicolon separator first (more reliable)
-	var names []string
-	if strings.Contains(artistField, ";") {
-		names = strings.Split(artistField, ";")
-	} else if strings.Contains(artistField, ",") {
-		names = strings.Split(artistField, ",")
-	} else {
-		// Single artist
-		names = []string{artistField}
-	}
+    // Try semicolon separator first (more reliable)
+    var names []string
+    if strings.Contains(artistField, ";") {
+        names = strings.Split(artistField, ";")
+    } else if strings.Contains(artistField, ",") {
+        names = strings.Split(artistField, ",")
+    } else {
+        // Single artist
+        names = []string{artistField}
+    }
 
-	for _, name := range names {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
+    for _, name := range names {
+        name = strings.TrimSpace(name)
+        if name == "" {
+            continue
+        }
 
-		// Try to infer role from name
-		role := e.inferRoleFromName(name)
+        // Do not infer roles from names; preserve original order and mark as Unknown
+        artists = append(artists, domain.Artist{
+            Name: name,
+            Role: domain.RoleUnknown,
+        })
+    }
 
-		artists = append(artists, domain.Artist{
-			Name: name,
-			Role: domain.Role(role),
-		})
-	}
-
-	return artists
+    return artists
 }
 
 // inferRoleFromName attempts to infer artist role from their name.

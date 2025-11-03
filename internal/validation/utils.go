@@ -1,10 +1,11 @@
 package validation
 
 import (
-	"fmt"
-	"strings"
+    "fmt"
+    "strings"
+    "unicode"
 
-	"github.com/cehbz/classical-tagger/internal/domain"
+    "github.com/cehbz/classical-tagger/internal/domain"
 )
 
 // AlbumBuilder provides a fluent API for building domain.Album instances.
@@ -566,6 +567,20 @@ func buildAlbumWithGoodCaps() *domain.Album {
 	}
 
 	return builder.Build()
+}
+
+// normalizeNameForInclusion normalizes a name for inclusion checks:
+// - lowercases letters
+// - strips spaces and punctuation (keeps letters with diacritics and digits)
+func normalizeNameForInclusion(s string) string {
+    var out []rune
+    for _, r := range s {
+        lr := unicode.ToLower(r)
+        if unicode.IsLetter(lr) || unicode.IsDigit(lr) {
+            out = append(out, lr)
+        }
+    }
+    return string(out)
 }
 
 // buildAlbumWithBadCaps creates album with poor capitalization
