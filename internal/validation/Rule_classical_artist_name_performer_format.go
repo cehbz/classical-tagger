@@ -44,13 +44,21 @@ func (r *Rules) PerformerFormat(actualTrack, refTrack *domain.Track, actualAlbum
 		case domain.RoleArranger:
 			// Arranger typically credited in title, not artist tag
 			continue
+		case domain.RoleGuest:
+			// Guest artists are performers
+			others = append(others, artist)
+		case domain.RoleUnknown:
+			// Unknown role likely indicates a performer (not composer/arranger)
+			others = append(others, artist)
 		default:
+			// Any other role is treated as a performer
 			others = append(others, artist)
 		}
 	}
 
 	// Check if there are performers at all
-	totalPerformers := len(soloists) + len(ensembles) + len(conductors)
+	// Include others (unknown/guest roles) as they are still performers
+	totalPerformers := len(soloists) + len(ensembles) + len(conductors) + len(others)
 	if totalPerformers == 0 {
 		issues = append(issues, domain.ValidationIssue{
 			Level: domain.LevelError,
