@@ -28,7 +28,6 @@ func TestValidateJSONFiles_ValidAlbum(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Track 1.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -123,7 +122,6 @@ func TestValidateJSONFiles_WithReference(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Track 1.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -144,7 +142,6 @@ func TestValidateJSONFiles_WithReference(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Track 1.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -193,7 +190,6 @@ func TestValidateJSONFiles_InvalidReference(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Track 1.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -294,7 +290,6 @@ func TestValidateJSONFiles_ValidationIssues(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - ALL CAPS TRACK.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -403,7 +398,6 @@ func TestValidateJSONFiles_ValidMultiDiscAlbum(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "CD1/01 - Disc 1 Track 1.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -416,7 +410,6 @@ func TestValidateJSONFiles_ValidMultiDiscAlbum(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "CD2/01 - Disc 2 Track 1.flac",
-					Size: 0,
 				},
 				Disc:  2,
 				Track: 1,
@@ -471,7 +464,6 @@ func TestValidateJSONFiles_JSONSerialization(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Track 1.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,

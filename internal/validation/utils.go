@@ -31,7 +31,6 @@ func NewTorrent() *TorrentBuilder {
 				&domain.Track{
 					File: domain.File{
 						Path: "01.flac",
-						Size: 0,
 					},
 					Disc:  1,
 					Track: 1,
@@ -114,7 +113,6 @@ func (b *TorrentBuilder) AddTrack() *TrackBuilder {
 		track: &domain.Track{
 			File: domain.File{
 				Path: "",
-				Size: 0,
 			},
 			Disc:  1,
 			Track: len(b.torrent.Tracks()) + 1,
@@ -158,7 +156,6 @@ func (b *TorrentBuilder) ensureDefaultTrack() {
 			&domain.Track{
 				File: domain.File{
 					Path: "01.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -277,24 +274,44 @@ func buildTorrentWithTitlesAndFilenames(titleFiles []titleFile) *domain.Torrent 
 	return builder.Build()
 }
 
+// isAudioFile checks if a filename is an audio file based on extension
+func isAudioFile(filename string) bool {
+	audioExtensions := []string{".flac", ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".wma", ".ape"}
+	filenameLower := strings.ToLower(filename)
+	for _, ext := range audioExtensions {
+		if strings.HasSuffix(filenameLower, ext) {
+			return true
+		}
+	}
+	return false
+}
+
 // Helper function to build a torrent with specific filenames
 func buildTorrentWithFilenames(filenames ...string) *domain.Torrent {
 	builder := NewTorrent().
 		WithTitle("Beethoven Symphonies").
 		ClearTracks()
 
-	for i := range filenames {
-		builder.AddTrack().
-			WithTrack(i+1).
-			WithTitle("Symphony No. 5").
-			WithFilename(filenames[i]).
-			ClearArtists().
-			WithArtists(
-				domain.Artist{Name: "Ludwig van Beethoven", Role: domain.RoleComposer},
-				domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},
-				domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor},
-			).
-			Build()
+	trackNum := 1
+	for _, filename := range filenames {
+		if isAudioFile(filename) {
+			// Audio files become Track objects
+			builder.AddTrack().
+				WithTrack(trackNum).
+				WithTitle("Symphony No. 5").
+				WithFilename(filename).
+				ClearArtists().
+				WithArtists(
+					domain.Artist{Name: "Ludwig van Beethoven", Role: domain.RoleComposer},
+					domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble},
+					domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor},
+				).
+				Build()
+			trackNum++
+		} else {
+			// Non-audio files become File objects
+			builder.AddTracks(&domain.File{Path: filename})
+		}
 	}
 
 	return builder.Build()

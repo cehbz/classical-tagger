@@ -6,17 +6,14 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// TestRules_NoArchiveFiles is disabled because archive files are not included in metadata.
-// The metadata JSON only contains tracks (FLAC files), not all files in the directory.
-// This rule requires filesystem access or expanded metadata structure.
-// See TODO.md for details.
+// TestRules_NoArchiveFiles checks that archive files are detected in torrents.
+// Now that Torrent.Files contains all files (both Track and File objects), we can validate archive files.
 func TestRules_NoArchiveFiles(t *testing.T) {
-	t.Skip("Skipping NoArchiveFiles test - archive files not in metadata. See TODO.md")
 	rules := NewRules()
 
 	tests := []struct {
 		Name       string
-		Actual *domain.Torrent
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
@@ -95,22 +92,26 @@ func TestRules_NoArchiveFiles(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		for _, track := range tt.Actual.Tracks() {
-			t.Run(tt.Name, func(t *testing.T) {
-				result := rules.NoArchiveFiles(track, nil, tt.Actual, nil)
+		t.Run(tt.Name, func(t *testing.T) {
+			// Get first track if available, otherwise nil
+			var track *domain.Track
+			tracks := tt.Actual.Tracks()
+			if len(tracks) > 0 {
+				track = tracks[0]
+			}
 
-				// NoArchiveFiles checks the entire album for archive files
-				// So each track reports the same total number of archive files found
-				if result.Passed() != tt.WantPass {
-					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+			result := rules.NoArchiveFiles(track, nil, tt.Actual, nil)
+
+			// NoArchiveFiles checks all files in the torrent
+			if result.Passed() != tt.WantPass {
+				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
+			}
+			if !tt.WantPass && len(result.Issues) != tt.WantIssues {
+				t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
+				for _, issue := range result.Issues {
+					t.Logf("  Issue: %s", issue.Message)
 				}
-				if !tt.WantPass && len(result.Issues) != tt.WantIssues {
-					t.Errorf("Issues = %d, want %d", len(result.Issues), tt.WantIssues)
-					for _, issue := range result.Issues {
-						t.Logf("  Issue: %s", issue.Message)
-					}
-				}
-			})
-		}
+			}
+		})
 	}
 }

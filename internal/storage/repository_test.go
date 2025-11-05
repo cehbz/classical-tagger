@@ -24,7 +24,6 @@ func TestRepository_SaveAndLoad(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Ave Maria.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -71,7 +70,6 @@ func TestRepository_JSONFormat(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Work.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,
@@ -118,7 +116,6 @@ func TestRepository_RoleJSON(t *testing.T) {
 			&domain.Track{
 				File: domain.File{
 					Path: "01 - Test.flac",
-					Size: 0,
 				},
 				Disc:  1,
 				Track: 1,

@@ -93,7 +93,6 @@ func TestFLACWriter_WriteTrack_Integration(t *testing.T) {
 	track := &domain.Track{
 		File: domain.File{
 			Path: "01.flac",
-			Size: 0,
 		},
 		Disc:  1,
 		Track: 1,
@@ -173,7 +172,6 @@ func TestFLACWriter_SpecialCharacters(t *testing.T) {
 	track := &domain.Track{
 		File: domain.File{
 			Path: "01.flac",
-			Size: 0,
 		},
 		Disc:  1,
 		Track: 1,
@@ -227,7 +225,6 @@ func TestFLACWriter_MultiplePerformers(t *testing.T) {
 	track := &domain.Track{
 		File: domain.File{
 			Path: "01.flac",
-			Size: 0,
 		},
 		Disc:  1,
 		Track: 1,
@@ -288,7 +285,6 @@ func TestFLACWriter_NoEdition(t *testing.T) {
 	track := &domain.Track{
 		File: domain.File{
 			Path: "01.flac",
-			Size: 0,
 		},
 		Disc:    1,
 		Track:   1,
@@ -336,7 +332,6 @@ func TestFLACWriter_ErrorHandling(t *testing.T) {
 	track := &domain.Track{
 		File: domain.File{
 			Path: "01.flac",
-			Size: 0,
 		},
 		Disc:    1,
 		Track:   1,

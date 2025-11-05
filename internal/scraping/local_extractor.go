@@ -345,7 +345,6 @@ func (e *LocalExtractor) extractTrackMetadataWithAlbumArtist(filePath string, ba
 	track := &domain.Track{
 		File: domain.File{
 			Path: "", // Will be set below
-			Size: 0,  // Size not available from tags
 		},
 		Disc:    1, // Default
 		Track:   0,

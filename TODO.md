@@ -346,28 +346,6 @@ go test ./...
 
 ---
 
-## Validation Issues
-
-### NoArchiveFiles Rule (2.3.1) - Architectural Problem
-**Status:** Test disabled, needs architecture decision
-
-**Problem:** The `NoArchiveFiles` validation rule requires checking for archive files (zip, rar, etc.) in the torrent directory, but our metadata JSON only contains tracks (FLAC files). Archive files are not included in the metadata when extracting from directory.
-
-**Options:**
-- Option A: Convert to album-level rule that checks filesystem directly during validation (requires filesystem access)
-- Option B: Expand metadata structure to include all files in directory, not just tracks (requires changes to extractor, domain model, storage)
-- Option C: Skip this validation when working from metadata JSON, only validate during initial extraction
-
-**Files affected:**
-- `internal/validation/Rule_2_3_1_no_archive_files.go`
-- `internal/validation/Rule_2_3_1_no_archive_files_test.go` (currently disabled)
-
-**Priority:** Medium
-**Estimated effort:** 1-2 hours (depending on chosen option)
-
----
-
-**Last Updated:** October 21, 2025
 **Status:** Ready for implementation
 **Next Milestone:** Complete 5 metadata source scrapers
 

@@ -78,7 +78,6 @@ func (m Metadata) ToTrack(filename string) (*domain.Track, error) {
 	track := domain.Track{
 		File: domain.File{
 			Path: filename,
-			Size: 0, // Size not available from reader
 		},
 		Disc:    discNum,
 		Track:   trackNum,

@@ -13,16 +13,6 @@ type Track struct {
 	Artists []Artist `json:"artists"`
 }
 
-// GetPath implements FileLike interface.
-func (t *Track) GetPath() string {
-	return t.File.Path
-}
-
-// GetSize implements FileLike interface.
-func (t *Track) GetSize() int64 {
-	return t.File.Size
-}
-
 // Composers returns all the composer artists.
 func (t *Track) Composers() []*Artist {
 	var composers []*Artist

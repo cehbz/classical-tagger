@@ -21,28 +21,42 @@ func (r *Rules) NoArchiveFiles(actualTrack, refTrack *domain.Track, actualTorren
 		Weight: 1.0,
 	}
 
-	if actualTrack == nil || actualTrack.File.Path == "" {
+	if actualTorrent == nil {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
-	
+
 	var issues []domain.ValidationIssue
 
-	// Check track filename for archive extensions
-	fileName := actualTrack.File.Path
-	fileNameLower := strings.ToLower(fileName)
+	// Check all files in the torrent for archive extensions
+	for _, file := range actualTorrent.Files {
+		filePath := file.GetPath()
+		if filePath == "" {
+			continue
+		}
 
-	// Check for archive extensions
-	for _, ext := range archiveExtensions {
-		if strings.HasSuffix(fileNameLower, ext) {
-			issues = append(issues, domain.ValidationIssue{
-				Level: domain.LevelError,
-				Track: actualTrack.Track,
-				Rule:  meta.ID,
-				Message: fmt.Sprintf("Track %s: Archive file found '%s' (archives not allowed in torrents)",
-					formatTrackNumber(actualTrack), fileName),
-			})
-			break // Only report once per file
+		filePathLower := strings.ToLower(filePath)
+
+		// Check for archive extensions
+		for _, ext := range archiveExtensions {
+			if strings.HasSuffix(filePathLower, ext) {
+				// Determine track number for the issue message
+				trackNum := -1
+				if actualTrack != nil {
+					trackNum = actualTrack.Track
+				} else if track, ok := file.(*domain.Track); ok {
+					trackNum = track.Track
+				}
+
+				issues = append(issues, domain.ValidationIssue{
+					Level:   domain.LevelError,
+					Track:   trackNum,
+					Rule:    meta.ID,
+					Message: fmt.Sprintf("Archive file found '%s' (archives not allowed in torrents)", filePath),
+				})
+				break // Only report once per file
+			}
 		}
 	}
+
 	return RuleResult{Meta: meta, Issues: issues}
 }
