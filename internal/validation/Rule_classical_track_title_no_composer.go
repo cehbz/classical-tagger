@@ -10,7 +10,7 @@ import (
 
 // ComposerNotInTitle checks that composer name is NOT in track title (classical.track_title)
 // The composer should only be in the COMPOSER tag, not repeated in the title
-func (r *Rules) ComposerNotInTitle(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) ComposerNotInTitle(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.track_title",
 		Name:   "Composer name not in track title",

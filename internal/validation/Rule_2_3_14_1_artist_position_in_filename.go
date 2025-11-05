@@ -15,7 +15,7 @@ var artistBeforeTrackPattern = regexp.MustCompile(`^[^0-9]+\s*-\s*(\d+)`)
 
 // ArtistPositionInFilename checks that artist names (if present) come AFTER track numbers (rule 2.3.14.1)
 // For multi-artist/composer albums, this ensures proper sorting
-func (r *Rules) ArtistPositionInFilename(actualTrack, _ *domain.Track, actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) ArtistPositionInFilename(actualTrack, _ *domain.Track, actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.14.1",
 		Name:   "Artist name must come after track number in filename",
@@ -26,7 +26,7 @@ func (r *Rules) ArtistPositionInFilename(actualTrack, _ *domain.Track, actualAlb
 	var issues []domain.ValidationIssue
 
 	// First, determine if this is a multi-artist/multi-composer album
-	isMultiArtist := isMultiComposerAlbum(actualAlbum)
+	isMultiArtist := isMultiComposerAlbum(actualTorrent)
 
 	if !isMultiArtist {
 		// For single-artist albums, artist in filename is optional and position doesn't matter
@@ -34,7 +34,7 @@ func (r *Rules) ArtistPositionInFilename(actualTrack, _ *domain.Track, actualAlb
 	}
 
 	// For multi-artist albums, check each track
-	fileName := actualTrack.Name
+	fileName := actualTrack.File.Path
 	if fileName == "" {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
@@ -59,10 +59,10 @@ func (r *Rules) ArtistPositionInFilename(actualTrack, _ *domain.Track, actualAlb
 }
 
 // isMultiComposerAlbum determines if an album has multiple composers
-func isMultiComposerAlbum(album *domain.Album) bool {
+func isMultiComposerAlbum(album *domain.Torrent) bool {
 	composers := make(map[string]bool)
 
-	for _, track := range album.Tracks {
+	for _, track := range album.Tracks() {
 		for _, artist := range track.Artists {
 			if artist.Role == domain.RoleComposer {
 				composers[artist.Name] = true

@@ -11,35 +11,35 @@ func TestRules_TrackNumberFormat(t *testing.T) {
 
 	tests := []struct {
 		Name     string
-		Actual   *domain.Album
+		Actual *domain.Torrent
 		WantPass bool
 		WantInfo int
 	}{
 		{
 			Name:     "pass - sequential numbering",
-			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 3}}),
+			Actual:   buildTorrentWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 3}}),
 			WantPass: true,
 		},
 		{
 			Name:     "info - gap in numbering",
-			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 4}}),
+			Actual:   buildTorrentWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {1, 4}}),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "pass - multi-disc starting at 1",
-			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 1}, {2, 2}}),
+			Actual:   buildTorrentWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 1}, {2, 2}}),
 			WantPass: true,
 		},
 		{
 			Name:     "info - disc doesn't start at 1",
-			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 2}, {2, 3}}),
+			Actual:   buildTorrentWithDiscTracks([]discTrack{{1, 1}, {1, 2}, {2, 2}, {2, 3}}),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "info - multiple gaps",
-			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {1, 3}, {1, 5}}),
+			Actual:   buildTorrentWithDiscTracks([]discTrack{{1, 1}, {1, 3}, {1, 5}}),
 			WantPass: false,
 			WantInfo: 1,
 		},

@@ -7,21 +7,21 @@ import (
 )
 
 // TestRules_Discover tests that rule discovery finds valid rule methods
-func TestRules_AlbumRules(t *testing.T) {
+func TestRules_TorrentRules(t *testing.T) {
 	rules := NewRules()
-	albumRules := rules.AlbumRules()
+	torrentRules := rules.TorrentRules()
 
 	// Should discover at least one rule
-	if len(albumRules) == 0 {
+	if len(torrentRules) == 0 {
 		t.Fatal("Discover() found no rules")
 	}
 
-	t.Logf("Discovered %d rules", len(albumRules))
+	t.Logf("Discovered %d rules", len(torrentRules))
 
 	// Each discovered rule should be callable
-	emptyAlbum := &domain.Album{Title: "Test", OriginalYear: 2000}
-	for i, ruleFunc := range albumRules {
-		result := ruleFunc(emptyAlbum, nil)
+	emptyTorrent := &domain.Torrent{Title: "Test", OriginalYear: 2000}
+	for i, ruleFunc := range torrentRules {
+		result := ruleFunc(emptyTorrent, nil)
 
 		// Should return valid RuleResult
 		if result.Meta.ID == "" {
@@ -48,10 +48,10 @@ func TestRules_TrackRules(t *testing.T) {
 	t.Logf("Discovered %d rules", len(trackRules))
 
 	// Each discovered rule should be callable
-	emptyTrack := &domain.Track{Disc: 1, Track: 1, Title: "Test", Name: "01 Test.flac"}
-	emptyAlbum := &domain.Album{Title: "Test", OriginalYear: 2000}
+	emptyTrack := &domain.Track{Disc: 1, Track: 1, Title: "Test", File: domain.File{Path: "01 Test.flac"}}
+	emptyTorrent := &domain.Torrent{Title: "Test", OriginalYear: 2000}
 	for i, ruleFunc := range trackRules {
-		result := ruleFunc(emptyTrack, nil, emptyAlbum, nil)
+		result := ruleFunc(emptyTrack, nil, emptyTorrent, nil)
 		if result.Meta.ID == "" {
 			t.Errorf("Rule %d has empty ID", i)
 		}
@@ -67,13 +67,13 @@ func TestRules_TrackRules(t *testing.T) {
 // TestRules_DiscoverUniqueIDs tests that all discovered rules have unique IDs
 func TestRules_DiscoverUniqueIDs(t *testing.T) {
 	rules := NewRules()
-	albumRules := rules.AlbumRules()
+	albumRules := rules.TorrentRules()
 
-	emptyAlbum := &domain.Album{Title: "Test", OriginalYear: 2000}
+	emptyTorrent := &domain.Torrent{Title: "Test", OriginalYear: 2000}
 	seenIDs := make(map[string]int)
 
 	for i, ruleFunc := range albumRules {
-		result := ruleFunc(emptyAlbum, nil)
+		result := ruleFunc(emptyTorrent, nil)
 		ruleID := result.Meta.ID
 
 		if prevIndex, exists := seenIDs[ruleID]; exists {
@@ -82,10 +82,10 @@ func TestRules_DiscoverUniqueIDs(t *testing.T) {
 		seenIDs[ruleID] = i
 	}
 
-	emptyTrack := &domain.Track{Disc: 1, Track: 1, Title: "Test", Name: "01 Test.flac"}
+	emptyTrack := &domain.Track{Disc: 1, Track: 1, Title: "Test", File: domain.File{Path: "01 Test.flac"}}
 	trackRules := rules.TrackRules()
 	for i, ruleFunc := range trackRules {
-		result := ruleFunc(emptyTrack, nil, emptyAlbum, nil)
+		result := ruleFunc(emptyTrack, nil, emptyTorrent, nil)
 		ruleID := result.Meta.ID
 		if prevIndex, exists := seenIDs[ruleID]; exists {
 			t.Errorf("Duplicate rule ID %q: found at indices %d and %d", ruleID, prevIndex, i)
@@ -107,10 +107,10 @@ func TestRules_DiscoverIgnoresDiscoverMethod(t *testing.T) {
 
 // TestRunAll_EmptyAlbum tests running all rules on an empty album
 func TestRunAll_EmptyAlbum(t *testing.T) {
-	album := &domain.Album{Title: "Empty Album", OriginalYear: 2000}
+	torrent := &domain.Torrent{Title: "Empty Album", OriginalYear: 2000}
 	ruleCount := 0
 	errorCount := 0
-	mapAllRulesWithAlbum(album, func(result RuleResult) {
+	mapAllRulesWithTorrent(torrent, func(result RuleResult) {
 		ruleCount++
 		if !result.Passed() {
 			errorCount++
@@ -128,32 +128,33 @@ func TestRunAll_EmptyAlbum(t *testing.T) {
 // TestRunAll_ValidAlbum tests running all rules on a valid album
 func TestRunAll_ValidAlbum(t *testing.T) {
 	// Create a valid album
-	album := &domain.Album{
+	torrent := &domain.Torrent{
 		Title: "Test Album", OriginalYear: 2013,
 		Edition: &domain.Edition{
 			Label:         "test label",
 			Year:          2013,
 			CatalogNumber: "HMC902170",
 		},
-		Tracks: []*domain.Track{
+		Files: []domain.FileLike{
 			&domain.Track{
+				File:  domain.File{Path: "01 Test Work.flac"},
 				Disc:  1,
 				Track: 1,
 				Title: "Test Work",
-				Artists: []domain.Artist{
-					{Name: "Felix Mendelssohn", Role: domain.RoleComposer},
-					{Name: "Test Ensemble", Role: domain.RoleEnsemble},
-				},
-				Name: "01 Test Work.flac",
 			},
 		},
 	}
 
-	// Use same album as reference
+	// Use same torrent as reference
 	ruleCount := 0
 	errorCount := 0
 	warningCount := 0
-	mapAllRulesWithReferenceAlbumAndTrack(album.Tracks[0], album.Tracks[0], album, album, func(result RuleResult) {
+	tracks := torrent.Tracks()
+	if len(tracks) == 0 {
+		t.Fatal("No tracks found in torrent")
+	}
+	track := tracks[0]
+	mapAllRulesWithReferenceTorrentAndTrack(track, track, torrent, torrent, func(result RuleResult) {
 		ruleCount++
 		if !result.Passed() {
 			errorCount++
@@ -175,31 +176,31 @@ func TestRunAll_ValidAlbum(t *testing.T) {
 }
 
 func mapAllRules(fn func(result RuleResult)) {
-	album := &domain.Album{Title: "Test", OriginalYear: 2000}
-	mapAllRulesWithAlbum(album, fn)
+	torrent := &domain.Torrent{Title: "Test", OriginalYear: 2000}
+	mapAllRulesWithTorrent(torrent, fn)
 }
 
-func mapAllRulesWithAlbum(album *domain.Album, fn func(result RuleResult)) {
-	track := &domain.Track{Disc: 1, Track: 1, Title: "Test", Name: "01 Test.flac"}
-	mapAllRulesWithAlbumAndTrack(track, album, fn)
+func mapAllRulesWithTorrent(torrent *domain.Torrent, fn func(result RuleResult)) {
+	track := &domain.Track{Disc: 1, Track: 1, Title: "Test", File: domain.File{Path: "01 Test.flac"}}
+	mapAllRulesWithTorrentAndTrack(track, torrent, fn)
 }
 
-func mapAllRulesWithAlbumAndTrack(track *domain.Track, album *domain.Album, fn func(result RuleResult)) {
-	mapAllRulesWithReferenceAlbumAndTrack(track, nil, album, nil, fn)
+func mapAllRulesWithTorrentAndTrack(track *domain.Track, torrent *domain.Torrent, fn func(result RuleResult)) {
+	mapAllRulesWithReferenceTorrentAndTrack(track, nil, torrent, nil, fn)
 }
 
-func mapAllRulesWithReferenceAlbumAndTrack(track, referenceTrack *domain.Track, album, referenceAlbum *domain.Album, fn func(result RuleResult)) {
+func mapAllRulesWithReferenceTorrentAndTrack(track *domain.Track, referenceTrack *domain.Track, torrent *domain.Torrent, referenceTorrent *domain.Torrent, fn func(result RuleResult)) {
 	rules := NewRules()
-	albumRules := rules.AlbumRules()
+	albumRules := rules.TorrentRules()
 
 	for _, ruleFunc := range albumRules {
-		fn(ruleFunc(album, referenceAlbum))
+		fn(ruleFunc(torrent, referenceTorrent))
 	}
 
 	if track != nil {
 		trackRules := rules.TrackRules()
 		for _, ruleFunc := range trackRules {
-			fn(ruleFunc(track, referenceTrack, album, referenceAlbum))
+			fn(ruleFunc(track, referenceTrack, torrent, referenceTorrent))
 		}
 	}
 }

@@ -13,7 +13,7 @@ var artistFieldSeparator = "; "
 // ArtistFieldFormat checks artist field formatting (rule 2.3.7)
 // For classical: performers listed, not composer
 // Format should be consistent with semicolon separation if multiple
-func (r *Rules) ArtistFieldFormat(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult {
+func (r *Rules) ArtistFieldFormat(actualTrack, refTrack *domain.Track, actualTorrent, refTorrent *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.7-format",
 		Name:   "Artist field format must follow conventions",

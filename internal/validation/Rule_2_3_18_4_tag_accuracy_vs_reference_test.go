@@ -11,8 +11,8 @@ func TestRules_TagAccuracyVsReference(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		Actual       *domain.Album
-		Reference    *domain.Album
+		Actual       *domain.Torrent
+		Reference    *domain.Torrent
 		WantPass     bool
 		WantErrors   int
 		WantWarnings int
@@ -20,55 +20,55 @@ func TestRules_TagAccuracyVsReference(t *testing.T) {
 	}{
 		{
 			Name:      "valid - exact match",
-			Actual:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
-			Reference: NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:    NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference: NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:  true,
 		},
 		{
 			Name:         "warning - year mismatch",
-			Actual:       NewAlbum().WithOriginalYear(1960).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
-			Reference:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:       NewTorrent().WithOriginalYear(1960).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference:    NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:       "error - composer mismatch",
-			Actual:     NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Mozart", domain.RoleComposer).Build().Build(),
-			Reference:  NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:     NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Mozart", domain.RoleComposer).Build().Build(),
+			Reference:  NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - title mismatch",
-			Actual:     NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 6").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
-			Reference:  NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:     NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 6").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference:  NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:      "info - minor title difference",
-			Actual:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Sympony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(), // Typo
-			Reference: NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:    NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Sympony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(), // Typo
+			Reference: NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
 		{
 			Name:         "warning - moderate title difference",
-			Actual:       NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5 Finale").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
-			Reference:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:       NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5 Finale").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Reference:    NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:      "pass - no reference",
-			Actual:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:    NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			Reference: nil,
 			WantPass:  true,
 		},
 		{
 			Name:         "multiple errors",
-			Actual:       NewAlbum().WithOriginalYear(1960).ClearTracks().AddTrack().WithTitle("Concerto").ClearArtists().WithArtist("Mozart", domain.RoleComposer).Build().Build(),
-			Reference:    NewAlbum().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
+			Actual:       NewTorrent().WithOriginalYear(1960).ClearTracks().AddTrack().WithTitle("Concerto").ClearArtists().WithArtist("Mozart", domain.RoleComposer).Build().Build(),
+			Reference:    NewTorrent().WithOriginalYear(1963).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtist("Beethoven", domain.RoleComposer).Build().Build(),
 			WantPass:     false,
 			WantErrors:   2, // Composer + title
 			WantWarnings: 1, // Year

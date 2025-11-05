@@ -13,7 +13,7 @@ var archiveExtensions = []string{
 }
 
 // NoArchiveFiles checks that torrent contains no archive files (rule 2.3.1)
-func (r *Rules) NoArchiveFiles(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult {
+func (r *Rules) NoArchiveFiles(actualTrack, refTrack *domain.Track, actualTorrent, refTorrent *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.1",
 		Name:   "No archive files (zip, rar, etc.) in torrent",
@@ -21,14 +21,14 @@ func (r *Rules) NoArchiveFiles(actualTrack, refTrack *domain.Track, actualAlbum,
 		Weight: 1.0,
 	}
 
-	if actualTrack == nil || actualTrack.Name == "" {
+	if actualTrack == nil || actualTrack.File.Path == "" {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 	
 	var issues []domain.ValidationIssue
 
 	// Check track filename for archive extensions
-	fileName := actualTrack.Name
+	fileName := actualTrack.File.Path
 	fileNameLower := strings.ToLower(fileName)
 
 	// Check for archive extensions

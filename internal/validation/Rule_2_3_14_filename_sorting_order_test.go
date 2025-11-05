@@ -11,13 +11,13 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name: "valid - correct sorting with zero padding",
-			Actual: buildAlbumWithFilenames(
+			Actual: buildTorrentWithFilenames(
 				"01 - First.flac",
 				"02 - Second.flac",
 				"03 - Third.flac",
@@ -26,7 +26,7 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 		},
 		{
 			Name: "invalid - lexicographic sort without zero padding is incorrect",
-			Actual: buildAlbumWithFilenames(
+			Actual: buildTorrentWithFilenames(
 				"1 - First.flac",
 				"2 - Second.flac",
 				"3 - Third.flac",
@@ -37,7 +37,7 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 		},
 		{
 			Name: "invalid - no zero padding causes sorting issue",
-			Actual: buildAlbumWithTrackFilenames(
+			Actual: buildTorrentWithTrackFilenames(
 				trackFile{1, "1 - First.flac"},
 				trackFile{2, "2 - Second.flac"},
 				trackFile{10, "10 - Tenth.flac"},
@@ -48,7 +48,7 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 		},
 		{
 			Name: "invalid - incorrect ordering",
-			Actual: buildAlbumWithTrackFilenames(
+			Actual: buildTorrentWithTrackFilenames(
 				trackFile{1, "02 - Second.flac"}, // Wrong filename for track 1
 				trackFile{2, "01 - First.flac"},  // Wrong filename for track 2
 			),
@@ -57,14 +57,14 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 		},
 		{
 			Name: "valid - single track",
-			Actual: buildAlbumWithFilenames(
+			Actual: buildTorrentWithFilenames(
 				"Complete Work.flac",
 			),
 			WantPass: true,
 		},
 		{
 			Name: "valid - multi-disc with proper organization",
-			Actual: buildMultiDiscAlbumWithFilenames(
+			Actual: buildMultiDiscTorrentWithFilenames(
 				[]trackFile{
 					{1, "CD1/01 - First.flac"},
 					{2, "CD1/02 - Second.flac"},
@@ -95,4 +95,3 @@ func TestRules_FilenameSortingOrder(t *testing.T) {
 		})
 	}
 }
-

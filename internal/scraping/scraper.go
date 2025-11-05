@@ -66,11 +66,11 @@ func (r *Registry) Extract(url string) (*ExtractionResult, error) {
 	return extractor.Extract(url)
 }
 
-// SaveToJSON saves extracted album data to JSON format.
-// No conversion needed - domain.Album is domain.Album.
-func SaveToJSON(albumData *domain.Album) ([]byte, error) {
+// SaveToJSON saves extracted torrent data to JSON format.
+// Converts Album to Torrent if needed (for backward compatibility).
+func SaveToJSON(torrentData *domain.Torrent) ([]byte, error) {
 	repo := storage.NewRepository()
-	jsonData, err := repo.SaveToJSON(albumData)
+	jsonData, err := repo.SaveToJSON(torrentData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save JSON: %w", err)
 	}
@@ -91,6 +91,7 @@ func DefaultRegistry() *Registry {
 
 // SynthesizeMissingEditionData fills in missing required edition data with placeholder values.
 // Returns true if any data was synthesized.
+// Note: This function works with Album internally (for scraper compatibility).
 func SynthesizeMissingEditionData(data *domain.Album) bool {
 	if data.Edition == nil {
 		return false

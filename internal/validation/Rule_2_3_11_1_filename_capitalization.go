@@ -11,7 +11,7 @@ import (
 )
 
 // FilenameCapitalization checks that filenames use proper Title Case (rule 2.3.11.1)
-func (r *Rules) FilenameCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) FilenameCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.11.1",
 		Name:   "Filename capitalization must be Title Case",
@@ -21,7 +21,7 @@ func (r *Rules) FilenameCapitalization(actualTrack, _ *domain.Track, _, _ *domai
 
 	var issues []domain.ValidationIssue
 
-	fileName := actualTrack.Name
+	fileName := actualTrack.File.Path
 	if fileName == "" {
 		return RuleResult{Meta: meta, Issues: nil}
 	}

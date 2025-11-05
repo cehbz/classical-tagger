@@ -15,7 +15,7 @@ var opusPattern = regexp.MustCompile(`(?i)\b(Op\.?|BWV|K\.?|Hob\.?|D\.?|RV|Wq\.?
 
 // OpusNumbers checks for presence of opus/catalog numbers (classical.opus)
 // INFO level - suggests including catalog numbers for better identification
-func (r *Rules) OpusNumbers(actualTrack, refTrack *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) OpusNumbers(actualTrack, refTrack *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.opus",
 		Name:   "Opus/catalog numbers recommended in track titles",

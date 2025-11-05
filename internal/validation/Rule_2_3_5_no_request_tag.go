@@ -9,7 +9,7 @@ import (
 
 // NoRequestTagInTitle checks that album title doesn't contain [REQ] tag (rule 2.3.5)
 // [REQ] is used in requests but should be removed from actual torrents
-func (r *Rules) NoRequestTagInTitle(actual, _ *domain.Album) RuleResult {
+func (r *Rules) NoRequestTagInTitle(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.5",
 		Name:   "Album title must not contain [REQ] tag",

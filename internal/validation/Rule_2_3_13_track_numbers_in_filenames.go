@@ -14,7 +14,7 @@ var trackNumberPattern = regexp.MustCompile(`^(\d+)[\s\-_\.]+`)
 
 // TrackNumbersInFilenames checks that all filenames contain track numbers (rule 2.3.13)
 // Exception: Single-track torrents don't require track numbers
-func (r *Rules) TrackNumbersInFilenames(actual, _ *domain.Album) RuleResult {
+func (r *Rules) TrackNumbersInFilenames(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.13",
 		Name:   "Track numbers required in file names",
@@ -23,7 +23,7 @@ func (r *Rules) TrackNumbersInFilenames(actual, _ *domain.Album) RuleResult {
 	}
 
 	var issues []domain.ValidationIssue
-	tracks := actual.Tracks
+	tracks := actual.Tracks()
 
 	// Exception: Single-track torrents don't require track numbers
 	if len(tracks) == 1 {
@@ -31,7 +31,7 @@ func (r *Rules) TrackNumbersInFilenames(actual, _ *domain.Album) RuleResult {
 	}
 
 	for _, track := range tracks {
-		fileName := track.Name
+		fileName := track.File.Path
 		if fileName == "" {
 			// No filename set - this will be caught by other rules
 			continue

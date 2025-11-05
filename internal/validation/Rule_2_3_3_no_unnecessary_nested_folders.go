@@ -10,7 +10,7 @@ import (
 // NoUnnecessaryNestedFolders checks that there are no extra nested folders (rule 2.3.3)
 // Acceptable: CD1/, CD2/, Disc1/, etc. for multi-disc releases
 // Not acceptable: Artist/Album/CD1/files or Album/Year/files
-func (r *Rules) NoUnnecessaryNestedFolders(actualTrack, _ *domain.Track, actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) NoUnnecessaryNestedFolders(actualTrack, _ *domain.Track, actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.3",
 		Name:   "No unnecessary nested folders beyond disc folders",
@@ -18,14 +18,14 @@ func (r *Rules) NoUnnecessaryNestedFolders(actualTrack, _ *domain.Track, actualA
 		Weight: 1.0,
 	}
 
-	if actualTrack == nil || actualTrack.Name == "" {
+	if actualTrack == nil || actualTrack.File.Path == "" {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 
 	var issues []domain.ValidationIssue
 
 	// Check each track's path
-	fileName := actualTrack.Name
+	fileName := actualTrack.File.Path
 	if fileName == "" {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
@@ -42,7 +42,7 @@ func (r *Rules) NoUnnecessaryNestedFolders(actualTrack, _ *domain.Track, actualA
 	folderCount := len(pathParts) - 1 // Subtract 1 for the filename itself
 
 	// Determine if album is multi-disc
-	isMultiDisc := actualAlbum != nil && actualAlbum.IsMultiDisc()
+	isMultiDisc := actualTorrent != nil && actualTorrent.IsMultiDisc()
 
 	// Rule 2.3.3 logic:
 	// - Single disc album: Reject ALL folders (depth > 0)

@@ -11,23 +11,23 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 
 	tests := []struct {
 		Name     string
-		Actual   *domain.Album
+		Actual *domain.Torrent
 		WantPass bool
 		WantInfo int
 	}{
 		{
 			Name:     "pass - single disc",
-			Actual:   buildAlbumWithFilenames("01 - Track.flac"),
+			Actual:   buildTorrentWithFilenames("01 - Track.flac"),
 			WantPass: true,
 		},
 		{
 			Name:     "pass - no folders",
-			Actual:   buildAlbumWithDiscTracks([]discTrack{{1, 1}, {2, 1}}),
+			Actual:   buildTorrentWithDiscTracks([]discTrack{{1, 1}, {2, 1}}),
 			WantPass: true,
 		},
 		{
 			Name: "pass - properly padded folders (10+ discs)",
-			Actual: buildAlbumWithFilenames(
+			Actual: buildTorrentWithFilenames(
 				"CD01/01 - Track.flac",
 				"CD02/01 - Track.flac",
 				"CD10/01 - Track.flac",
@@ -36,7 +36,7 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 		},
 		{
 			Name: "info - unpadded folders with 10+ discs",
-			Actual: buildAlbumWithFilenamesAndDiscs(
+			Actual: buildTorrentWithFilenamesAndDiscs(
 				[]string{"CD1/01 - Track.flac", "CD2/01 - Track.flac", "CD10/01 - Track.flac"},
 				[]int{1, 2, 10},
 			),
@@ -45,7 +45,7 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 		},
 		{
 			Name: "pass - two digit folders",
-			Actual: buildAlbumWithFilenames(
+			Actual: buildTorrentWithFilenames(
 				"CD1/01 - Track.flac",
 				"CD2/01 - Track.flac",
 			),
@@ -53,7 +53,7 @@ func TestRules_MultiDiscFolderSorting(t *testing.T) {
 		},
 		{
 			Name: "pass - Disc naming with padding",
-			Actual: buildAlbumWithFilenames(
+			Actual: buildTorrentWithFilenames(
 				"Disc01/01 - Track.flac",
 				"Disc02/01 - Track.flac",
 				"Disc10/01 - Track.flac",

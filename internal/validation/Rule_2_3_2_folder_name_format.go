@@ -16,7 +16,7 @@ var folderNamePattern = regexp.MustCompile(`^.+\s+-\s+.+\s+\[\d{4}\]`)
 
 // FolderNameFormat checks that album title follows proper folder naming format (rule 2.3.2)
 // Format: "Artist - Album [Year] [Format] [Extra Info]"
-func (r *Rules) FolderNameFormat(actual, _ *domain.Album) RuleResult {
+func (r *Rules) FolderNameFormat(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.2",
 		Name:   "Folder name format: Artist - Album [Year] [Format]",

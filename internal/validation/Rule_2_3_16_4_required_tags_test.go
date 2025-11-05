@@ -11,18 +11,18 @@ func TestRules_RequiredTags(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		Actual       *domain.Album
+		Actual       *domain.Torrent
 		WantPass     bool
 		WantErrors   int
 		WantWarnings int
 	}{
 		{
 			Name: "valid - all required tags present",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony No. 5",
@@ -39,11 +39,11 @@ func TestRules_RequiredTags(t *testing.T) {
 		},
 		{
 			Name: "missing year - warning only",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 0,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony",
@@ -60,11 +60,11 @@ func TestRules_RequiredTags(t *testing.T) {
 		},
 		{
 			Name: "missing track title",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "",
@@ -80,11 +80,11 @@ func TestRules_RequiredTags(t *testing.T) {
 		},
 		{
 			Name: "missing artists",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:    1,
 						Track:   1,
 						Title:   "Symphony",
@@ -97,11 +97,11 @@ func TestRules_RequiredTags(t *testing.T) {
 		},
 		{
 			Name: "only composer, no performers",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:    1,
 						Track:   1,
 						Title:   "Symphony",
@@ -114,11 +114,11 @@ func TestRules_RequiredTags(t *testing.T) {
 		},
 		{
 			Name: "multiple tracks, some missing title",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony No. 1",
@@ -127,7 +127,7 @@ func TestRules_RequiredTags(t *testing.T) {
 							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
 						},
 					},
-					{
+					&domain.Track{
 						Disc:  1,
 						Track: 2,
 						Title: "",
@@ -136,7 +136,7 @@ func TestRules_RequiredTags(t *testing.T) {
 							{Name: "Vienna Phil", Role: domain.RoleEnsemble},
 						},
 					},
-					{
+					&domain.Track{
 						Disc:  1,
 						Track: 3,
 						Title: "Symphony No. 3",
@@ -152,17 +152,17 @@ func TestRules_RequiredTags(t *testing.T) {
 		},
 		{
 			Name: "multiple issues",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 0,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:    1,
 						Track:   1,
 						Title:   "",
 						Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}},
 					},
-					{
+					&domain.Track{
 						Disc:    1,
 						Track:   2,
 						Title:   "Symphony",
@@ -179,7 +179,7 @@ func TestRules_RequiredTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			result := rules.RequiredAlbumTags(tt.Actual, tt.Actual)
-			for _, track := range tt.Actual.Tracks {
+			for _, track := range tt.Actual.Tracks() {
 				trackResult := rules.RequiredTrackTags(track, nil, tt.Actual, nil)
 				result.Issues = append(result.Issues, trackResult.Issues...)
 			}

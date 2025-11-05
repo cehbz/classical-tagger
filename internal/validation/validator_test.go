@@ -9,13 +9,13 @@ import (
 func TestCheck(t *testing.T) {
 	tests := []struct {
 		Name           string
-		SetupAlbum     *domain.Album
+		SetupTorrent *domain.Torrent
 		WantErrorCount int
 		WantWarnCount  int
 	}{
 		{
 			Name: "valid complete album",
-			SetupAlbum: &domain.Album{
+			SetupTorrent: &domain.Torrent{
 				Title:        "Test Album",
 				OriginalYear: 2013,
 				Edition: &domain.Edition{
@@ -23,8 +23,9 @@ func TestCheck(t *testing.T) {
 					Year:          2013,
 					CatalogNumber: "HMC902170",
 				},
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: "01 Frohlocket, Op. 79-1.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Frohlocket, Op. 79/1",
@@ -32,7 +33,6 @@ func TestCheck(t *testing.T) {
 							{Name: "Felix Mendelssohn", Role: domain.RoleComposer},
 							{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
 						},
-						Name: "01 Frohlocket, Op. 79-1.flac",
 					},
 				},
 			},
@@ -41,11 +41,11 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			Name: "missing edition",
-			SetupAlbum: &domain.Album{
+			SetupTorrent: &domain.Torrent{
 				Title:        "Test Album",
 				OriginalYear: 2013,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony No. 1",
@@ -60,11 +60,11 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			Name: "composer in title",
-			SetupAlbum: &domain.Album{
+			SetupTorrent: &domain.Torrent{
 				Title:        "Test Album",
 				OriginalYear: 2013,
-				Tracks: []*domain.Track{
-						{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Bach: Goldberg Variations",
@@ -81,8 +81,8 @@ func TestCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			album := tt.SetupAlbum
-			issues := Check(album, nil)
+			torrent := tt.SetupTorrent
+			issues := Check(torrent, nil)
 
 			errorCount := 0
 			warnCount := 0

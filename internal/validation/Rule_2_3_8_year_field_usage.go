@@ -9,7 +9,7 @@ import (
 
 // YearFieldUsage checks proper year field usage (rule 2.3.8)
 // Recording year for original recordings, release year for reissues
-func (r *Rules) YearFieldUsage(actual, reference *domain.Album) RuleResult {
+func (r *Rules) YearFieldUsage(actual, reference *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.8",
 		Name:   "Year field must use recording year (or original release for reissues)",

@@ -14,7 +14,7 @@ var guestIndicators = []string{
 
 // GuestArtistIdentification checks for proper guest artist handling (classical.guest)
 // INFO level - suggests separating guest artists in tags
-func (r *Rules) GuestArtistIdentification(actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) GuestArtistIdentification(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.guest",
 		Name:   "Guest artists should be identified in tags or title",
@@ -26,14 +26,14 @@ func (r *Rules) GuestArtistIdentification(actualAlbum, _ *domain.Album) RuleResu
 
 	// Analyze performers across tracks to identify potential guests
 	performerCounts := make(map[string]int)
-	totalTracks := len(actualAlbum.Tracks)
+	totalTracks := len(actualTorrent.Tracks())
 
 	if totalTracks == 0 {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 
 	// Count appearances of each performer
-	for _, track := range actualAlbum.Tracks {
+	for _, track := range actualTorrent.Tracks() {
 		for _, artist := range track.Artists {
 			// Count soloists and conductors (potential guests)
 			if artist.Role == domain.RoleSoloist || artist.Role == domain.RoleConductor {
@@ -50,7 +50,7 @@ func (r *Rules) GuestArtistIdentification(actualAlbum, _ *domain.Album) RuleResu
 			// Check if already indicated in title
 			hasGuestIndication := false
 
-			for _, track := range actualAlbum.Tracks {
+			for _, track := range actualTorrent.Tracks() {
 				// Check if this performer is on this track
 				hasPerformer := false
 				for _, artist := range track.Artists {

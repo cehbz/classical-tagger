@@ -11,50 +11,50 @@ func TestRules_FilenameCapitalization(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name:       "valid - Title Case",
-			Actual:     buildAlbumWithFilenames("01 - Symphony No. 5 in C Minor.flac"),
+			Actual:     buildTorrentWithFilenames("01 - Symphony No. 5 in C Minor.flac"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - Casual Title Case (every word capitalized)",
-			Actual:     buildAlbumWithFilenames("01 - Symphony No. 5 In C Minor.flac"),
+			Actual:     buildTorrentWithFilenames("01 - Symphony No. 5 In C Minor.flac"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "invalid - all uppercase",
-			Actual:     buildAlbumWithFilenames("01 - SYMPHONY NO. 5.flac"),
+			Actual:     buildTorrentWithFilenames("01 - SYMPHONY NO. 5.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - all lowercase",
-			Actual:     buildAlbumWithFilenames("01 - symphony no. 5.flac"),
+			Actual:     buildTorrentWithFilenames("01 - symphony no. 5.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "valid - mixed case (acceptable)",
-			Actual:     buildAlbumWithFilenames("01 - Symphony No. 5.flac"),
+			Actual:     buildTorrentWithFilenames("01 - Symphony No. 5.flac"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - with numbers and abbreviations",
-			Actual:     buildAlbumWithFilenames("01 - BWV 1007 - Prelude.flac"),
+			Actual:     buildTorrentWithFilenames("01 - BWV 1007 - Prelude.flac"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 	}
 
 	for _, tt := range tests {
-		for _, track := range tt.Actual.Tracks {
+		for _, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
 				result := rules.FilenameCapitalization(track, nil, nil, nil)
 

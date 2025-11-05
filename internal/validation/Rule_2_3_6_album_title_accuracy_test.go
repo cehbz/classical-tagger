@@ -84,8 +84,8 @@ func TestRules_AlbumTitleAccuracy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			actual := NewAlbum().WithTitle(tt.ActualTitle).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
-			reference := NewAlbum().WithTitle(tt.RefTitle).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
+			actual := NewTorrent().WithTitle(tt.ActualTitle).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
+			reference := NewTorrent().WithTitle(tt.RefTitle).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
 
 			result := rules.AlbumTitleAccuracy(actual, reference)
 
@@ -122,7 +122,7 @@ func TestRules_AlbumTitleAccuracy(t *testing.T) {
 func TestRules_AlbumTitleAccuracy_NoReference(t *testing.T) {
 	rules := NewRules()
 
-	actual := NewAlbum().WithTitle("Any Title").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
+	actual := NewTorrent().WithTitle("Any Title").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
 	result := rules.AlbumTitleAccuracy(actual, nil)
 
 	if !result.Passed() {

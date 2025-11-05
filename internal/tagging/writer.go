@@ -23,7 +23,7 @@ func NewFLACWriter() *FLACWriter {
 // WriteTrack writes a track's metadata to a new FLAC file.
 // The source file's audio data is preserved bit-perfect.
 // The destination file is created in the output directory structure.
-func (w *FLACWriter) WriteTrack(sourcePath, destPath string, track *domain.Track, album *domain.Album) error {
+func (w *FLACWriter) WriteTrack(sourcePath, destPath string, track *domain.Track, torrent *domain.Torrent) error {
 	// Parse source FLAC
 	flacFile, err := flac.ParseFile(sourcePath)
 	if err != nil {
@@ -31,7 +31,7 @@ func (w *FLACWriter) WriteTrack(sourcePath, destPath string, track *domain.Track
 	}
 
 	// Convert domain metadata to Vorbis comment tags
-	tags := MetadataToVorbisComment(track, album)
+	tags := MetadataToVorbisComment(track, torrent)
 
 	// Find or create VorbisComment block
 	var cmtBlock *flacvorbis.MetaDataBlockVorbisComment
@@ -85,14 +85,14 @@ func (w *FLACWriter) WriteTrack(sourcePath, destPath string, track *domain.Track
 	return nil
 }
 
-// MetadataToVorbisComment converts domain Track and Album to Vorbis comment tags.
+// MetadataToVorbisComment converts domain Track and Torrent to Vorbis comment tags.
 // Returns a map of tag names to values following classical music conventions.
-func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[string]string {
+func MetadataToVorbisComment(track *domain.Track, torrent *domain.Torrent) map[string]string {
 	tags := make(map[string]string)
 
 	// Required tags per rules 2.3.16.4
 	tags["TITLE"] = track.Title
-	tags["ALBUM"] = album.Title
+	tags["ALBUM"] = torrent.Title
 	tags["TRACKNUMBER"] = strconv.Itoa(track.Track)
 	tags["DISCNUMBER"] = strconv.Itoa(track.Disc)
 
@@ -139,12 +139,12 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 	// Date fields following Vorbis/MusicBrainz conventions:
 	// - ORIGINALDATE: Year of original recording/release
 	// - DATE: Release date of this specific edition
-	if album.OriginalYear > 0 {
-		tags["ORIGINALDATE"] = strconv.Itoa(album.OriginalYear)
+	if torrent.OriginalYear > 0 {
+		tags["ORIGINALDATE"] = strconv.Itoa(torrent.OriginalYear)
 	}
 
 	// Edition information (if present)
-	if edition := album.Edition; edition != nil {
+	if edition := torrent.Edition; edition != nil {
 		// DATE: Edition year (this specific release)
 		if edition.Year > 0 {
 			tags["DATE"] = strconv.Itoa(edition.Year)
@@ -157,9 +157,9 @@ func MetadataToVorbisComment(track *domain.Track, album *domain.Album) map[strin
 		}
 	}
 
-	// ALBUMARTIST tag (if set in album)
-	if len(album.AlbumArtist) > 0 {
-		tags["ALBUMARTIST"] = domain.FormatArtists(album.AlbumArtist)
+	// ALBUMARTIST tag (if set in torrent)
+	if len(torrent.AlbumArtist) > 0 {
+		tags["ALBUMARTIST"] = domain.FormatArtists(torrent.AlbumArtist)
 	}
 
 	return tags

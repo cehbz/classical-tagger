@@ -16,86 +16,86 @@ func TestRules_NoArchiveFiles(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name:       "valid - only audio files",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "invalid - zip file present",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "booklet.zip"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "booklet.zip"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - rar file present",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "artwork.rar"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "artwork.rar"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - 7z file present",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "scans.7z"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "scans.7z"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - tar.gz file present",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "files.tar.gz"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "files.tar.gz"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - multiple archive files",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "artwork.zip", "booklet.rar"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "artwork.zip", "booklet.rar"),
 			WantPass:   false,
 			WantIssues: 2,
 		},
 		{
 			Name:       "valid - .log and .cue files are OK",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "Album.log", "Album.cue"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "Album.log", "Album.cue"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - image files are OK",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "cover.jpg", "back.png"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "cover.jpg", "back.png"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "invalid - case insensitive check",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "files.ZIP", "data.RAR"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "files.ZIP", "data.RAR"),
 			WantPass:   false,
 			WantIssues: 2,
 		},
 		{
 			Name:       "invalid - archive in subdirectory",
-			Actual:     buildAlbumWithFilenames("CD1/01 - Track.flac", "CD1/booklet.zip"),
+			Actual:     buildTorrentWithFilenames("CD1/01 - Track.flac", "CD1/booklet.zip"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - tgz shorthand",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "files.tgz"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "files.tgz"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - bz2 compression",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac", "files.tar.bz2"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac", "files.tar.bz2"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 	}
 
 	for _, tt := range tests {
-		for _, track := range tt.Actual.Tracks {
+		for _, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
 				result := rules.NoArchiveFiles(track, nil, tt.Actual, nil)
 

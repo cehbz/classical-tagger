@@ -14,7 +14,7 @@ import (
 var composerNamePattern = regexp.MustCompile(`^[A-Z]\S*[\s\.]+\S+|^\S+\s+\S+`)
 
 // ComposerTagRequired checks that composer tag is present and uniquely identifiable (classical.composer)
-func (r *Rules) ComposerTagRequired(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) ComposerTagRequired(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.composer",
 		Name:   "Composer tag required with identifiable name",

@@ -10,7 +10,7 @@ import (
 // RequiredTags checks that all required tags are present (rule 2.3.16.4)
 // Required: Artist, Album, Title, Track Number
 // Optional but encouraged: Year
-func (r *Rules) RequiredAlbumTags(actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) RequiredAlbumTags(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.16.4-album",
 		Name:   "Required tags present",
@@ -23,7 +23,7 @@ func (r *Rules) RequiredAlbumTags(actualAlbum, _ *domain.Album) RuleResult {
 	// Check album-level tags
 
 	// Album title (required)
-	if actualAlbum.Title == "" {
+	if actualTorrent.Title == "" {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
 			Track:   0,
@@ -33,7 +33,7 @@ func (r *Rules) RequiredAlbumTags(actualAlbum, _ *domain.Album) RuleResult {
 	}
 
 	// Year (optional but strongly encouraged)
-	if actualAlbum.OriginalYear == 0 {
+	if actualTorrent.OriginalYear == 0 {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelWarning,
 			Track:   0,
@@ -47,7 +47,7 @@ func (r *Rules) RequiredAlbumTags(actualAlbum, _ *domain.Album) RuleResult {
 // RequiredTags checks that all required tags are present (rule 2.3.16.4)
 // Required: Artist, Album, Title, Track Number
 // Optional but encouraged: Year
-func (r *Rules) RequiredTrackTags(actualTrack, _ *domain.Track, actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) RequiredTrackTags(actualTrack, _ *domain.Track, actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.16.4-track",
 		Name:   "Required tags present",
@@ -95,7 +95,7 @@ func (r *Rules) RequiredTrackTags(actualTrack, _ *domain.Track, actualAlbum, _ *
 			// Enforce when single-track album or when the track title itself is missing
 			// (indicates an incomplete tagging situation). Multi-track composer-only
 			// entries with proper titles are handled by performer-format rules.
-			if actualAlbum == nil || len(actualAlbum.Tracks) <= 1 || strings.TrimSpace(actualTrack.Title) == "" {
+			if actualTorrent == nil || len(actualTorrent.Tracks()) <= 1 || strings.TrimSpace(actualTrack.Title) == "" {
 				issues = append(issues, domain.ValidationIssue{
 					Level:   domain.LevelError,
 					Track:   trackNum,

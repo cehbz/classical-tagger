@@ -1,34 +1,38 @@
 package validation
 
 import (
-    "fmt"
-    "strings"
-    "unicode"
+	"fmt"
+	"strings"
+	"unicode"
 
-    "github.com/cehbz/classical-tagger/internal/domain"
+	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// AlbumBuilder provides a fluent API for building domain.Album instances.
-type AlbumBuilder struct {
-	album *domain.Album
+// TorrentBuilder provides a fluent API for building domain.Torrent instances.
+type TorrentBuilder struct {
+	torrent *domain.Torrent
 }
 
 // TrackBuilder provides a fluent API for building domain.Track instances.
 type TrackBuilder struct {
 	track   *domain.Track
-	builder *AlbumBuilder // reference to parent builder for Build() to return
+	builder *TorrentBuilder // reference to parent builder for Build() to return
 }
 
-// NewAlbum creates a new AlbumBuilder with sensible defaults.
-// Defaults: Title="Album", OriginalYear=1963, single track (Disc=1, Track=1, Title="Symphony")
+// NewTorrent creates a new TorrentBuilder with sensible defaults.
+// Defaults: Title="Torrent", OriginalYear=1963, single track (Disc=1, Track=1, Title="Symphony")
 // with Composer="Beethoven" and Ensemble="Orchestra".
-func NewAlbum() *AlbumBuilder {
-	return &AlbumBuilder{
-		album: &domain.Album{
-			Title:        "Album",
+func NewTorrent() *TorrentBuilder {
+	return &TorrentBuilder{
+		torrent: &domain.Torrent{
+			Title:        "Torrent",
 			OriginalYear: 0,
-			Tracks: []*domain.Track{
-				{
+			Files: []domain.FileLike{
+				&domain.Track{
+					File: domain.File{
+						Path: "01.flac",
+						Size: 0,
+					},
 					Disc:  1,
 					Track: 1,
 					Title: "Symphony",
@@ -42,69 +46,55 @@ func NewAlbum() *AlbumBuilder {
 	}
 }
 
-// WithTitle sets the album title.
-func (b *AlbumBuilder) WithTitle(title string) *AlbumBuilder {
-	b.album.Title = title
+// WithTitle sets the torrent title.
+func (b *TorrentBuilder) WithTitle(title string) *TorrentBuilder {
+	b.torrent.Title = title
 	return b
 }
 
-// WithOriginalYear sets the album's original year.
-func (b *AlbumBuilder) WithOriginalYear(year int) *AlbumBuilder {
-	b.album.OriginalYear = year
+// WithOriginalYear sets the torrent's original year.
+func (b *TorrentBuilder) WithOriginalYear(year int) *TorrentBuilder {
+	b.torrent.OriginalYear = year
 	return b
 }
 
 // WithComposer adds a composer to the default track (first track).
 // If no tracks exist, creates a default track first.
-func (b *AlbumBuilder) WithComposer(name string) *AlbumBuilder {
-	b.ensureDefaultTrack()
-	if len(b.album.Tracks) > 0 {
-		b.album.Tracks[0].Artists = append(b.album.Tracks[0].Artists, domain.Artist{
-			Name: name,
-			Role: domain.RoleComposer,
-		})
-	}
-	return b
+func (b *TorrentBuilder) WithComposer(name string) *TorrentBuilder {
+	return b.WithArtists(domain.Artist{
+		Name: name,
+		Role: domain.RoleComposer,
+	})
 }
 
 // WithComposers adds multiple composers to the default track (variadic).
-func (b *AlbumBuilder) WithComposers(names ...string) *AlbumBuilder {
-	b.ensureDefaultTrack()
-	if len(b.album.Tracks) > 0 {
-		for _, name := range names {
-			b.album.Tracks[0].Artists = append(b.album.Tracks[0].Artists, domain.Artist{
-				Name: name,
-				Role: domain.RoleComposer,
-			})
-		}
+func (b *TorrentBuilder) WithComposers(names ...string) *TorrentBuilder {
+	for _, name := range names {
+		b.WithComposer(name)
 	}
 	return b
 }
 
 // WithArtist adds a specific artist to the default track.
-func (b *AlbumBuilder) WithArtist(name string, role domain.Role) *AlbumBuilder {
-	b.ensureDefaultTrack()
-	if len(b.album.Tracks) > 0 {
-		b.album.Tracks[0].Artists = append(b.album.Tracks[0].Artists, domain.Artist{
-			Name: name,
-			Role: role,
-		})
-	}
-	return b
+func (b *TorrentBuilder) WithArtist(name string, role domain.Role) *TorrentBuilder {
+	return b.WithArtists(domain.Artist{Name: name, Role: role})
 }
 
 // WithArtists adds multiple artists to the default track (variadic).
-func (b *AlbumBuilder) WithArtists(artists ...domain.Artist) *AlbumBuilder {
+func (b *TorrentBuilder) WithArtists(artists ...domain.Artist) *TorrentBuilder {
 	b.ensureDefaultTrack()
-	if len(b.album.Tracks) > 0 {
-		b.album.Tracks[0].Artists = append(b.album.Tracks[0].Artists, artists...)
+	files := b.torrent.Files
+	if len(files) > 0 {
+		if track, ok := files[0].(*domain.Track); ok {
+			track.Artists = append(track.Artists, artists...)
+		}
 	}
 	return b
 }
 
-// WithEdition sets the album edition.
-func (b *AlbumBuilder) WithEdition(label, catalogNumber string, year int) *AlbumBuilder {
-	b.album.Edition = &domain.Edition{
+// WithEdition sets the torrent edition.
+func (b *TorrentBuilder) WithEdition(label, catalogNumber string, year int) *TorrentBuilder {
+	b.torrent.Edition = &domain.Edition{
 		Label:         label,
 		CatalogNumber: catalogNumber,
 		Year:          year,
@@ -113,17 +103,21 @@ func (b *AlbumBuilder) WithEdition(label, catalogNumber string, year int) *Album
 }
 
 // WithoutEdition explicitly removes the edition.
-func (b *AlbumBuilder) WithoutEdition() *AlbumBuilder {
-	b.album.Edition = nil
+func (b *TorrentBuilder) WithoutEdition() *TorrentBuilder {
+	b.torrent.Edition = nil
 	return b
 }
 
-// AddTrack returns a TrackBuilder for adding a new track to the album.
-func (b *AlbumBuilder) AddTrack() *TrackBuilder {
+// AddTrack returns a TrackBuilder for adding a new track to the torrent.
+func (b *TorrentBuilder) AddTrack() *TrackBuilder {
 	return &TrackBuilder{
 		track: &domain.Track{
+			File: domain.File{
+				Path: "",
+				Size: 0,
+			},
 			Disc:  1,
-			Track: len(b.album.Tracks) + 1,
+			Track: len(b.torrent.Tracks()) + 1,
 			Artists: []domain.Artist{
 				{Name: "Beethoven", Role: domain.RoleComposer},
 				{Name: "Orchestra", Role: domain.RoleEnsemble},
@@ -133,34 +127,39 @@ func (b *AlbumBuilder) AddTrack() *TrackBuilder {
 	}
 }
 
-// AddTracks adds multiple tracks to the album (variadic).
-func (b *AlbumBuilder) AddTracks(tracks ...*domain.Track) *AlbumBuilder {
-	b.album.Tracks = append(b.album.Tracks, tracks...)
+// AddFiles adds multiple files to the torrent (variadic)
+func (b *TorrentBuilder) AddTracks(tracks ...domain.FileLike) *TorrentBuilder {
+	b.torrent.Files = append(b.torrent.Files, tracks...)
 	return b
 }
 
-// WithTracks replaces all tracks in the album.
-func (b *AlbumBuilder) WithTracks(tracks []*domain.Track) *AlbumBuilder {
-	b.album.Tracks = tracks
+// WithTracks replaces all tracks in the torrent.
+func (b *TorrentBuilder) WithTracks(tracks []domain.FileLike) *TorrentBuilder {
+	b.torrent.Files = tracks
 	return b
 }
 
-// ClearTracks removes all tracks from the album.
-func (b *AlbumBuilder) ClearTracks() *AlbumBuilder {
-	b.album.Tracks = nil
+// ClearTracks removes all tracks from the torrent.
+func (b *TorrentBuilder) ClearTracks() *TorrentBuilder {
+	b.torrent.Files = nil
 	return b
 }
 
-// Build returns the constructed album.
-func (b *AlbumBuilder) Build() *domain.Album {
-	return b.album
+// Build returns the constructed torrent (converted from torrent).
+func (b *TorrentBuilder) Build() *domain.Torrent {
+	// Convert Torrent to Torrent
+	return b.torrent
 }
 
 // ensureDefaultTrack ensures there's at least one track with defaults.
-func (b *AlbumBuilder) ensureDefaultTrack() {
-	if len(b.album.Tracks) == 0 {
-		b.album.Tracks = []*domain.Track{
-			{
+func (b *TorrentBuilder) ensureDefaultTrack() {
+	if len(b.torrent.Tracks()) == 0 {
+		b.torrent.Files = []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Symphony",
@@ -193,7 +192,7 @@ func (tb *TrackBuilder) WithTitle(title string) *TrackBuilder {
 
 // WithFilename sets the track filename.
 func (tb *TrackBuilder) WithFilename(filename string) *TrackBuilder {
-	tb.track.Name = filename
+	tb.track.File.Path = filename
 	return tb
 }
 
@@ -218,9 +217,9 @@ func (tb *TrackBuilder) ClearArtists() *TrackBuilder {
 	return tb
 }
 
-// Build adds the track to the album and returns the album builder.
-func (tb *TrackBuilder) Build() *AlbumBuilder {
-	tb.builder.album.Tracks = append(tb.builder.album.Tracks, tb.track)
+// Build adds the track to the torrent and returns the torrent builder.
+func (tb *TrackBuilder) Build() *TorrentBuilder {
+	tb.builder.torrent.Files = append(tb.builder.torrent.Files, tb.track)
 	return tb.builder
 }
 
@@ -261,10 +260,10 @@ type titleFile struct {
 	Filename string
 }
 
-// buildAlbumWithTitlesAndFilenames creates album with specific title/filename pairs
-func buildAlbumWithTitlesAndFilenames(titleFiles []titleFile) *domain.Album {
-	builder := NewAlbum().
-		WithTitle("Test Album").
+// buildTorrentWithTitlesAndFilenames creates torrent with specific title/filename pairs
+func buildTorrentWithTitlesAndFilenames(titleFiles []titleFile) *domain.Torrent {
+	builder := NewTorrent().
+		WithTitle("Test Torrent").
 		ClearTracks()
 
 	for i, tf := range titleFiles {
@@ -278,9 +277,9 @@ func buildAlbumWithTitlesAndFilenames(titleFiles []titleFile) *domain.Album {
 	return builder.Build()
 }
 
-// Helper function to build an album with specific filenames
-func buildAlbumWithFilenames(filenames ...string) *domain.Album {
-	builder := NewAlbum().
+// Helper function to build a torrent with specific filenames
+func buildTorrentWithFilenames(filenames ...string) *domain.Torrent {
+	builder := NewTorrent().
 		WithTitle("Beethoven Symphonies").
 		ClearTracks()
 
@@ -301,9 +300,9 @@ func buildAlbumWithFilenames(filenames ...string) *domain.Album {
 	return builder.Build()
 }
 
-// buildSingleComposerAlbumWithFilenames creates album with one composer
-func buildSingleComposerAlbumWithFilenames(composerName string, filenames ...string) *domain.Album {
-	builder := NewAlbum().ClearTracks()
+// buildSingleComposerTorrentWithFilenames creates torrent with one composer
+func buildSingleComposerTorrentWithFilenames(composerName string, filenames ...string) *domain.Torrent {
+	builder := NewTorrent().ClearTracks()
 
 	for i := range filenames {
 		builder.AddTrack().
@@ -328,9 +327,9 @@ type composerTrack struct {
 	Filename     string
 }
 
-// buildMultiComposerAlbumWithFilenames creates album with multiple composers
-func buildMultiComposerAlbumWithFilenames(composerTracks ...[]composerTrack) *domain.Album {
-	builder := NewAlbum().
+// buildMultiComposerTorrentWithFilenames creates torrent with multiple composers
+func buildMultiComposerTorrentWithFilenames(composerTracks ...[]composerTrack) *domain.Torrent {
+	builder := NewTorrent().
 		WithTitle("Various Composers").
 		ClearTracks()
 
@@ -358,10 +357,10 @@ type trackFile struct {
 	Filename string
 }
 
-// buildAlbumWithTrackFilenames creates an album with specific track/filename pairs
-func buildAlbumWithTrackFilenames(trackFiles ...trackFile) *domain.Album {
-	builder := NewAlbum().
-		WithTitle("Test Album").
+// buildTorrentWithTrackFilenames creates a torrent with specific track/filename pairs
+func buildTorrentWithTrackFilenames(trackFiles ...trackFile) *domain.Torrent {
+	builder := NewTorrent().
+		WithTitle("Test Torrent").
 		ClearTracks()
 
 	for _, tf := range trackFiles {
@@ -375,10 +374,10 @@ func buildAlbumWithTrackFilenames(trackFiles ...trackFile) *domain.Album {
 	return builder.Build()
 }
 
-// buildMultiDiscAlbumWithFilenames creates multi-disc album
-func buildMultiDiscAlbumWithFilenames(disc1, disc2 []trackFile) *domain.Album {
-	builder := NewAlbum().
-		WithTitle("Multi-Disc Album").
+// buildMultiDiscTorrentWithFilenames creates multi-disc torrent
+func buildMultiDiscTorrentWithFilenames(disc1, disc2 []trackFile) *domain.Torrent {
+	builder := NewTorrent().
+		WithTitle("Multi-Disc Torrent").
 		ClearTracks()
 
 	for _, tf := range disc1 {
@@ -408,10 +407,10 @@ type discTrack struct {
 	TrackNum int
 }
 
-// buildAlbumWithDiscTracks creates an album with specific disc/track combinations
-func buildAlbumWithDiscTracks(discTracks []discTrack) *domain.Album {
-	builder := NewAlbum().
-		WithTitle("Multi-Disc Album").
+// buildTorrentWithDiscTracks creates a torrent with specific disc/track combinations
+func buildTorrentWithDiscTracks(discTracks []discTrack) *domain.Torrent {
+	builder := NewTorrent().
+		WithTitle("Multi-Disc Torrent").
 		ClearTracks()
 
 	for _, dt := range discTracks {
@@ -426,16 +425,16 @@ func buildAlbumWithDiscTracks(discTracks []discTrack) *domain.Album {
 	return builder.Build()
 }
 
-// buildAlbumWithArtistName creates album with specific artist name
-func buildAlbumWithArtistName(artistName string) *domain.Album {
-	return NewAlbum().
+// buildTorrentWithArtistName creates torrent with specific artist name
+func buildTorrentWithArtistName(artistName string) *domain.Torrent {
+	return NewTorrent().
 		WithComposer(artistName).
 		Build()
 }
 
-// buildAlbumWithTrackTitle creates album with specific track title
-func buildAlbumWithTrackTitle(title string) *domain.Album {
-	return NewAlbum().
+// buildTorrentWithTrackTitle creates torrent with specific track title
+func buildTorrentWithTrackTitle(title string) *domain.Torrent {
+	return NewTorrent().
 		ClearTracks().
 		AddTrack().
 		WithTitle(title).
@@ -443,9 +442,9 @@ func buildAlbumWithTrackTitle(title string) *domain.Album {
 		Build()
 }
 
-// buildAlbumWithFilenamesAndDiscs creates album with specific filenames and disc numbers
-func buildAlbumWithFilenamesAndDiscs(filenames []string, discs []int) *domain.Album {
-	builder := NewAlbum().ClearTracks()
+// buildTorrentWithFilenamesAndDiscs creates torrent with specific filenames and disc numbers
+func buildTorrentWithFilenamesAndDiscs(filenames []string, discs []int) *domain.Torrent {
+	builder := NewTorrent().ClearTracks()
 
 	for i, filename := range filenames {
 		builder.AddTrack().
@@ -459,16 +458,16 @@ func buildAlbumWithFilenamesAndDiscs(filenames []string, discs []int) *domain.Al
 	return builder.Build()
 }
 
-// buildAlbumWithCompleteEdition creates album with complete edition information
-func buildAlbumWithCompleteEdition() *domain.Album {
-	return NewAlbum().
+// buildTorrentWithCompleteEdition creates torrent with complete edition information
+func buildTorrentWithCompleteEdition() *domain.Torrent {
+	return NewTorrent().
 		WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).
 		Build()
 }
 
-// buildAlbumWithConsistentSoloist creates album with same soloist on all tracks
-func buildAlbumWithConsistentSoloist(soloistName string, trackCount int) *domain.Album {
-	builder := NewAlbum().ClearTracks()
+// buildTorrentWithConsistentSoloist creates torrent with same soloist on all tracks
+func buildTorrentWithConsistentSoloist(soloistName string, trackCount int) *domain.Torrent {
+	builder := NewTorrent().ClearTracks()
 
 	for i := 0; i < trackCount; i++ {
 		builder.AddTrack().
@@ -486,14 +485,14 @@ func buildAlbumWithConsistentSoloist(soloistName string, trackCount int) *domain
 	return builder.Build()
 }
 
-// buildAlbumWithGuestSoloist creates album where one soloist appears infrequently
-func buildAlbumWithGuestSoloist(mainSoloist, guestSoloist string, trackCount int) *domain.Album {
+// buildTorrentWithGuestSoloist creates torrent where one soloist appears infrequently
+func buildTorrentWithGuestSoloist(mainSoloist, guestSoloist string, trackCount int) *domain.Torrent {
 	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
 	main := domain.Artist{Name: mainSoloist, Role: domain.RoleSoloist}
 	guest := domain.Artist{Name: guestSoloist, Role: domain.RoleSoloist}
 	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
 
-	builder := NewAlbum().ClearTracks()
+	builder := NewTorrent().ClearTracks()
 
 	for i := 0; i < trackCount; i++ {
 		var artists []domain.Artist
@@ -515,14 +514,14 @@ func buildAlbumWithGuestSoloist(mainSoloist, guestSoloist string, trackCount int
 	return builder.Build()
 }
 
-// buildAlbumWithGuestInTitle creates album with guest indicated in title
-func buildAlbumWithGuestInTitle(mainSoloist, guestSoloist string, trackCount int) *domain.Album {
+// buildTorrentWithGuestInTitle creates torrent with guest indicated in title
+func buildTorrentWithGuestInTitle(mainSoloist, guestSoloist string, trackCount int) *domain.Torrent {
 	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
 	main := domain.Artist{Name: mainSoloist, Role: domain.RoleSoloist}
 	guest := domain.Artist{Name: guestSoloist, Role: domain.RoleSoloist}
 	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
 
-	builder := NewAlbum().ClearTracks()
+	builder := NewTorrent().ClearTracks()
 
 	for i := 0; i < trackCount; i++ {
 		var artists []domain.Artist
@@ -548,9 +547,9 @@ func buildAlbumWithGuestInTitle(mainSoloist, guestSoloist string, trackCount int
 	return builder.Build()
 }
 
-// buildAlbumWithGoodCaps creates album with proper capitalization
-func buildAlbumWithGoodCaps() *domain.Album {
-	builder := NewAlbum().
+// buildTorrentWithGoodCaps creates torrent with proper capitalization
+func buildTorrentWithGoodCaps() *domain.Torrent {
+	builder := NewTorrent().
 		WithTitle("Beethoven - Symphonies [1963] [FLAC]").
 		ClearTracks()
 
@@ -573,19 +572,19 @@ func buildAlbumWithGoodCaps() *domain.Album {
 // - lowercases letters
 // - strips spaces and punctuation (keeps letters with diacritics and digits)
 func normalizeNameForInclusion(s string) string {
-    var out []rune
-    for _, r := range s {
-        lr := unicode.ToLower(r)
-        if unicode.IsLetter(lr) || unicode.IsDigit(lr) {
-            out = append(out, lr)
-        }
-    }
-    return string(out)
+	var out []rune
+	for _, r := range s {
+		lr := unicode.ToLower(r)
+		if unicode.IsLetter(lr) || unicode.IsDigit(lr) {
+			out = append(out, lr)
+		}
+	}
+	return string(out)
 }
 
-// buildAlbumWithBadCaps creates album with poor capitalization
-func buildAlbumWithBadCaps() *domain.Album {
-	builder := NewAlbum().
+// buildTorrentWithBadCaps creates torrent with poor capitalization
+func buildTorrentWithBadCaps() *domain.Torrent {
+	builder := NewTorrent().
 		WithTitle("BEETHOVEN - SYMPHONIES").
 		ClearTracks()
 

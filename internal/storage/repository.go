@@ -8,7 +8,7 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// Repository handles JSON serialization and deserialization of albums.
+// Repository handles JSON serialization and deserialization of torrents.
 // No DTOs needed - domain objects serialize directly with JSON tags.
 type Repository struct{}
 
@@ -17,29 +17,29 @@ func NewRepository() *Repository {
 	return &Repository{}
 }
 
-// SaveToJSON serializes an album to JSON bytes.
+// SaveToJSON serializes a torrent to JSON bytes.
 // Domain objects have JSON tags, so no DTO conversion needed.
-func (r *Repository) SaveToJSON(album *domain.Album) ([]byte, error) {
-	data, err := json.MarshalIndent(album, "", "  ")
+func (r *Repository) SaveToJSON(torrent *domain.Torrent) ([]byte, error) {
+	data, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal album: %w", err)
+		return nil, fmt.Errorf("failed to marshal torrent: %w", err)
 	}
 	return data, nil
 }
 
-// LoadFromJSON deserializes an album from JSON bytes.
+// LoadFromJSON deserializes a torrent from JSON bytes.
 // Domain objects have JSON tags, so no DTO conversion needed.
-func (r *Repository) LoadFromJSON(data []byte) (*domain.Album, error) {
-	var album domain.Album
-	if err := json.Unmarshal(data, &album); err != nil {
+func (r *Repository) LoadFromJSON(data []byte) (*domain.Torrent, error) {
+	var torrent domain.Torrent
+	if err := json.Unmarshal(data, &torrent); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
-	return &album, nil
+	return &torrent, nil
 }
 
-// SaveToFile saves an album to a JSON file.
-func (r *Repository) SaveToFile(album *domain.Album, path string) error {
-	data, err := r.SaveToJSON(album)
+// SaveToFile saves a torrent to a JSON file.
+func (r *Repository) SaveToFile(torrent *domain.Torrent, path string) error {
+	data, err := r.SaveToJSON(torrent)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func (r *Repository) SaveToFile(album *domain.Album, path string) error {
 	return nil
 }
 
-// LoadFromFile loads an album from a JSON file.
-func (r *Repository) LoadFromFile(path string) (*domain.Album, error) {
+// LoadFromFile loads a torrent from a JSON file.
+func (r *Repository) LoadFromFile(path string) (*domain.Torrent, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)

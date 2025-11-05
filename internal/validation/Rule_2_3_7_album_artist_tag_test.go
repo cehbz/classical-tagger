@@ -11,17 +11,17 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 
 	tests := []struct {
 		Name     string
-		Actual   *domain.Album
+		Torrent *domain.Torrent
 		WantPass bool
 		WantInfo int
 	}{
 		{
 			Name: "pass - single track",
-			Actual: &domain.Album{
+			Torrent: &domain.Torrent{
 				Title:        "Album",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Work 1",
@@ -36,11 +36,11 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 		},
 		{
 			Name: "info - dominant performer",
-			Actual: &domain.Album{
+			Torrent: &domain.Torrent{
 				Title:        "Album",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Work 1",
@@ -56,11 +56,11 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 		},
 		{
 			Name: "info - various composers",
-			Actual: &domain.Album{
+			Torrent: &domain.Torrent{
 				Title:        "Various Artists Album",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Work 1",
@@ -76,11 +76,11 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 		},
 		{
 			Name: "pass - no dominant performer",
-			Actual: &domain.Album{
+			Torrent: &domain.Torrent{
 				Title:        "Album",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Work 1",
@@ -89,7 +89,7 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 							domain.Artist{Name: "Pollini", Role: domain.RoleSoloist},
 						},
 					},
-					{
+					&domain.Track{
 						Disc:  1,
 						Track: 2,
 						Title: "Work 2",
@@ -98,7 +98,7 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 							domain.Artist{Name: "Arrau", Role: domain.RoleSoloist},
 						},
 					},
-					{
+					&domain.Track{
 						Disc:  1,
 						Track: 3,
 						Title: "Work 3",
@@ -107,7 +107,7 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 							domain.Artist{Name: "Brendel", Role: domain.RoleSoloist},
 						},
 					},
-					{
+					&domain.Track{
 						Disc:  1,
 						Track: 4,
 						Title: "Work 4",
@@ -122,11 +122,11 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 		},
 		{
 			Name: "pass - two composers only",
-			Actual: &domain.Album{
+				Torrent: &domain.Torrent{
 				Title:        "Album",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Work 1",
@@ -135,7 +135,7 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 							domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble},
 						},
 					},
-					{
+					&domain.Track{
 						Disc:  1,
 						Track: 2,
 						Title: "Work 2",
@@ -152,7 +152,7 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			result := rules.AlbumArtistTag(tt.Actual, nil)
+			result := rules.AlbumArtistTag(tt.Torrent, nil)
 
 			if result.Passed() != tt.WantPass {
 				t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -181,38 +181,38 @@ func TestRules_AlbumArtistTag(t *testing.T) {
 func TestRules_AlbumArtist_LaxInclusion(t *testing.T) {
 	rules := NewRules()
 
-	// AlbumArtist two names; only one appears on some tracks -> pass (lax inclusion requires at least once across album)
-	album := &domain.Album{
+	// AlbumArtist two names; only one appears on some tracks -> pass (lax inclusion requires at least once across torrent)
+	torrent := &domain.Torrent{
 		Title:        "Album",
 		OriginalYear: 2000,
 		AlbumArtist: []domain.Artist{
 			{Name: "RIAS-Kammerchor", Role: domain.RoleUnknown},
 			{Name: "Hans-Christoph Rademann", Role: domain.RoleUnknown},
 		},
-		Tracks: []*domain.Track{
-			{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "RIAS-Kammerchor", Role: domain.RoleUnknown}}},
-			{Disc: 1, Track: 2, Title: "Work 2", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}}},
-			{Disc: 1, Track: 3, Title: "Work 3", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "Hans-Christoph Rademann", Role: domain.RoleUnknown}}},
+		Files: []domain.FileLike{
+			&domain.Track{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "RIAS-Kammerchor", Role: domain.RoleUnknown}}},
+			&domain.Track{Disc: 1, Track: 2, Title: "Work 2", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}}},
+			&domain.Track{Disc: 1, Track: 3, Title: "Work 3", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "Hans-Christoph Rademann", Role: domain.RoleUnknown}}},
 		},
 	}
-	res := rules.AlbumArtistTag(album, nil)
+	res := rules.AlbumArtistTag(torrent, nil)
 	if !res.Passed() {
 		t.Errorf("Expected pass when AlbumArtist names appear at least once across tracks")
 	}
 
 	// Missing one AlbumArtist entirely -> error
-	albumMissing := &domain.Album{
+	torrentMissing := &domain.Torrent{
 		Title:        "Album",
 		OriginalYear: 2000,
 		AlbumArtist: []domain.Artist{
 			{Name: "RIAS-Kammerchor", Role: domain.RoleUnknown},
 			{Name: "Hans-Christoph Rademann", Role: domain.RoleUnknown},
 		},
-		Tracks: []*domain.Track{
-			{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "RIAS-Kammerchor", Role: domain.RoleUnknown}}},
+		Files: []domain.FileLike{
+			&domain.Track{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "RIAS-Kammerchor", Role: domain.RoleUnknown}}},
 		},
 	}
-	res2 := rules.AlbumArtistTag(albumMissing, nil)
+	res2 := rules.AlbumArtistTag(torrentMissing, nil)
 	if res2.Passed() {
 		t.Errorf("Expected failure when an AlbumArtist name is missing from all tracks")
 	}
@@ -227,44 +227,44 @@ func TestRules_AlbumArtist_InclusionInvariant(t *testing.T) {
 	}
 
 	// Missing inclusion on track -> expect error(s)
-	albumMissing := &domain.Album{
+	torrentMissing := &domain.Torrent{
 		Title:        "Album",
 		OriginalYear: 1977,
 		AlbumArtist:  albumArtist,
-		Tracks: []*domain.Track{
-			{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}}},
+		Files: []domain.FileLike{
+			&domain.Track{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}}},
 		},
 	}
-	resMissing := rules.AlbumArtistTag(albumMissing, nil)
+	resMissing := rules.AlbumArtistTag(torrentMissing, nil)
 	if resMissing.Passed() {
 		t.Errorf("Expected failure when AlbumArtist not included in track artists")
 	}
 
 	// Inclusion present on track -> expect pass
-	albumIncluded := &domain.Album{
+	torrentIncluded := &domain.Torrent{
 		Title:        "Album",
 		OriginalYear: 1977,
 		AlbumArtist:  albumArtist,
-		Tracks: []*domain.Track{
-			{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{
+		Files: []domain.FileLike{
+			&domain.Track{Disc: 1, Track: 1, Title: "Work 1", Artists: []domain.Artist{
 				{Name: "Beethoven", Role: domain.RoleComposer},
 				{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble},
 				{Name: "Herbert von Karajan", Role: domain.RoleConductor},
 			}},
 		},
 	}
-	resIncluded := rules.AlbumArtistTag(albumIncluded, nil)
+	resIncluded := rules.AlbumArtistTag(torrentIncluded, nil)
 	if !resIncluded.Passed() {
 		t.Errorf("Expected pass when AlbumArtist is included in track artists")
 	}
 
 	// Various Artists should not require inclusion
-	va := &domain.Album{
+	va := &domain.Torrent{
 		Title:        "Various Artists Sampler",
 		OriginalYear: 2001,
 		AlbumArtist:  []domain.Artist{{Name: "Various Artists", Role: domain.RoleEnsemble}},
-		Tracks: []*domain.Track{
-			{Disc: 1, Track: 1, Title: "Track", Artists: []domain.Artist{{Name: "Artist A", Role: domain.RoleSoloist}}},
+		Files: []domain.FileLike{
+			&domain.Track{Disc: 1, Track: 1, Title: "Track", Artists: []domain.Artist{{Name: "Artist A", Role: domain.RoleSoloist}}},
 		},
 	}
 	resVA := rules.AlbumArtistTag(va, nil)

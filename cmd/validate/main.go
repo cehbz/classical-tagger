@@ -15,7 +15,7 @@ type ValidationReport struct {
 	MetadataFile  string
 	ReferenceFile string
 	Issues        []domain.ValidationIssue
-	Album         *domain.Album
+	Torrent       *domain.Torrent
 	LoadErrors    []error
 }
 
@@ -49,27 +49,31 @@ func ValidateJSONFiles(metadataFile string, referenceFile string) (*ValidationRe
 
 	// Load JSON metadata file
 	repo := storage.NewRepository()
-	album, err := repo.LoadFromFile(metadataFile)
+	torrent, err := repo.LoadFromFile(metadataFile)
 	if err != nil {
 		report.LoadErrors = append(report.LoadErrors, fmt.Errorf("failed to load JSON metadata file: %w", err))
+		// Torrent is nil when load fails - tests expect this behavior
+		report.Torrent = nil
 		return report, nil
 	}
-	report.Album = album
+	report.Torrent = torrent
 
 	// Load reference JSON file if provided
-	var referenceAlbum *domain.Album
+	var referenceTorrent *domain.Torrent
 	if referenceFile != "" {
-		refAlbum, err := repo.LoadFromFile(referenceFile)
+		refTorrent, err := repo.LoadFromFile(referenceFile)
 		if err != nil {
 			report.LoadErrors = append(report.LoadErrors, fmt.Errorf("failed to load reference JSON file: %w", err))
 			// Continue validation without reference
 		} else {
-			referenceAlbum = refAlbum
+			referenceTorrent = refTorrent
 		}
 	}
 
-	// Perform validation
-	report.Issues = validation.Check(album, referenceAlbum)
+	// Perform validation (only if torrent was loaded successfully)
+	if torrent != nil {
+		report.Issues = validation.Check(torrent, referenceTorrent)
+	}
 
 	return report, nil
 }

@@ -26,7 +26,7 @@ func TestDiscogsParser_Parse(t *testing.T) {
 		t.Fatal("Parse() returned nil result")
 	}
 
-	data := result.Album
+	data := result.Torrent
 
 	// Test title extraction
 	if data.Title == "" || data.Title == MissingTitle {
@@ -49,7 +49,8 @@ func TestDiscogsParser_Parse(t *testing.T) {
 	}
 
 	// Test tracks extraction
-	if len(data.Tracks) == 0 {
+	tracks := data.Tracks()
+	if len(tracks) == 0 {
 		t.Error("No tracks extracted")
 	}
 
@@ -90,7 +91,7 @@ func TestDiscogsParser_Parse(t *testing.T) {
 	}
 
 	// Verify tracks include album-level performers (ensemble and conductor should be present)
-	for i, track := range data.Tracks {
+	for i, track := range tracks {
 		if len(track.Composers()) == 0 {
 			t.Errorf("Track %d has no composer", i+1)
 		}
@@ -538,7 +539,7 @@ func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	tracks := result.Album.Tracks
+	tracks := result.Torrent.Tracks()
 	if len(tracks) != 3 {
 		t.Fatalf("Expected 3 tracks, got %d", len(tracks))
 	}

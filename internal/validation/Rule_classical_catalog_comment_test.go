@@ -11,42 +11,42 @@ func TestRules_CatalogInfoInComments(t *testing.T) {
 
 	tests := []struct {
 		Name     string
-		Actual   *domain.Album
+		Actual   *domain.Torrent
 		WantPass bool
 		WantInfo int
 	}{
 		{
 			Name:     "pass - complete edition info",
-			Actual:   buildAlbumWithCompleteEdition(),
+			Actual:   buildTorrentWithCompleteEdition(),
 			WantPass: true,
 		},
 		{
 			Name:     "info - no edition info",
-			Actual:   NewAlbum().WithTitle("Symphony").WithoutEdition().Build(),
+			Actual:   NewTorrent().WithTitle("Symphony").WithoutEdition().Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "info - missing label",
-			Actual:   NewAlbum().WithEdition("", "CAT123", 1990).Build(),
+			Actual:   NewTorrent().WithEdition("", "CAT123", 1990).Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "info - missing catalog",
-			Actual:   NewAlbum().WithEdition("Deutsche Grammophon", "", 1990).Build(),
+			Actual:   NewTorrent().WithEdition("Deutsche Grammophon", "", 1990).Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "info - missing year",
-			Actual:   NewAlbum().WithEdition("Deutsche Grammophon", "CAT123", 0).Build(),
+			Actual:   NewTorrent().WithEdition("Deutsche Grammophon", "CAT123", 0).Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "info - multiple missing fields",
-			Actual:   NewAlbum().WithEdition("", "", 0).Build(),
+			Actual:   NewTorrent().WithEdition("", "", 0).Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},

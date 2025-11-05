@@ -11,8 +11,8 @@ func TestRules_YearFieldUsage(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		Actual       *domain.Album
-		Reference    *domain.Album
+		Actual       *domain.Torrent
+		Reference    *domain.Torrent
 		WantPass     bool
 		WantErrors   int
 		WantWarnings int
@@ -20,55 +20,55 @@ func TestRules_YearFieldUsage(t *testing.T) {
 	}{
 		{
 			Name:     "valid - reasonable year",
-			Actual:   NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:         "warning - year too early",
-			Actual:       NewAlbum().WithOriginalYear(1890).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:       NewTorrent().WithOriginalYear(1890).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:       "error - year in future",
-			Actual:     NewAlbum().WithOriginalYear(3000).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithOriginalYear(3000).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:      "valid - matches reference",
-			Actual:    NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
-			Reference: NewAlbum().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:    NewTorrent().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference: NewTorrent().WithTitle("Symphony").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:  true,
 		},
 		{
-			Name:      "info - small difference from reference",
-			Actual:    NewAlbum().WithOriginalYear(1963).WithEdition("Deutsche Grammophon", "DG-479-0334", 1963).Build(),
-			Reference: NewAlbum().WithOriginalYear(1965).WithEdition("Deutsche Grammophon", "DG-479-0334", 1965).Build(),
-			WantPass:  false,
-			WantErrors:  1,
+			Name:       "info - small difference from reference",
+			Actual:     NewTorrent().WithOriginalYear(1963).WithEdition("Deutsche Grammophon", "DG-479-0334", 1963).Build(),
+			Reference:  NewTorrent().WithOriginalYear(1965).WithEdition("Deutsche Grammophon", "DG-479-0334", 1965).Build(),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
-			Name:         "warning - large difference from reference",
-			Actual:       NewAlbum().WithOriginalYear(1963).WithEdition("Deutsche Grammophon", "DG-479-0334", 1963).Build(),
-			Reference:    NewAlbum().WithOriginalYear(1970).WithEdition("Deutsche Grammophon", "DG-479-0334", 1970).Build(),
-			WantPass:     false,
-			WantErrors:  1,
+			Name:       "warning - large difference from reference",
+			Actual:     NewTorrent().WithOriginalYear(1963).WithEdition("Deutsche Grammophon", "DG-479-0334", 1963).Build(),
+			Reference:  NewTorrent().WithOriginalYear(1970).WithEdition("Deutsche Grammophon", "DG-479-0334", 1970).Build(),
+			WantPass:   false,
+			WantErrors: 1,
 		},
 		{
 			Name:         "warning - edition year before album year",
-			Actual:       NewAlbum().WithOriginalYear(1990).WithEdition("Label", "CAT123", 1985).Build(),
+			Actual:       NewTorrent().WithOriginalYear(1990).WithEdition("Label", "CAT123", 1985).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:     "valid - edition year after album year",
-			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 2010).Build(),
+			Actual:   NewTorrent().WithOriginalYear(1963).WithEdition("Label", "CAT123", 2010).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - same edition and album year",
-			Actual:   NewAlbum().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1963).Build(),
+			Actual:   NewTorrent().WithOriginalYear(1963).WithEdition("Label", "CAT123", 1963).Build(),
 			WantPass: true,
 		},
 	}

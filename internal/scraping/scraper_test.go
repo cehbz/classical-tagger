@@ -71,7 +71,7 @@ func (m *MockExtractor) Extract(url string) (*ExtractionResult, error) {
 	}
 
 	return &ExtractionResult{
-		Album: data,
+		Torrent: data.ToTorrent(""),
 	}, nil
 }
 

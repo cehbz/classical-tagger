@@ -11,35 +11,35 @@ func TestRules_AlbumTagCapitalization(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantErrors int
 	}{
 		{
 			Name:     "valid - Title Case",
-			Actual:   NewAlbum().WithTitle("Symphony No. 5 in C Minor").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Symphony No. 5 in C Minor").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - Casual Title Case",
-			Actual:   NewAlbum().WithTitle("Symphony No. 5 In C Minor").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Symphony No. 5 In C Minor").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:       "error - all uppercase",
-			Actual:     NewAlbum().WithTitle("SYMPHONY NO. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithTitle("SYMPHONY NO. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - all lowercase",
-			Actual:     NewAlbum().WithTitle("symphony no. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithTitle("symphony no. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:     "valid - mixed case acceptable",
-			Actual:   NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 	}
@@ -77,31 +77,31 @@ func TestRules_TrackTagCapitalization(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantErrors int
 	}{
 		{
 			Name:       "error - artist name all caps",
-			Actual:     NewAlbum().WithComposer("BEETHOVEN").Build(),
+			Actual:     NewTorrent().WithComposer("BEETHOVEN").Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - artist name all lowercase",
-			Actual:     NewAlbum().WithComposer("beethoven").Build(),
+			Actual:     NewTorrent().WithComposer("beethoven").Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:     "valid - proper artist name",
-			Actual:   NewAlbum().WithComposer("Ludwig van Beethoven").Build(),
+			Actual:   NewTorrent().WithComposer("Ludwig van Beethoven").Build(),
 			WantPass: true,
 		},
 	}
 
 	for _, tt := range tests {
-		for _, track := range tt.Actual.Tracks {
+		for _, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
 				result := rules.TrackTagCapitalization(track, nil, nil, nil)
 
@@ -135,34 +135,34 @@ func TestRules_TagCapitalizationVsReference(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		Actual       *domain.Album
-		Reference    *domain.Album
+		Actual       *domain.Torrent
+		Reference    *domain.Torrent
 		WantPass     bool
 		WantWarnings int
 	}{
 		{
 			Name:      "valid - exact match",
-			Actual:    NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
-			Reference: NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:    NewTorrent().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference: NewTorrent().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:  true,
 		},
 		{
 			Name:         "warning - case mismatch",
-			Actual:       NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
-			Reference:    NewAlbum().WithTitle("Symphony no. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:       NewTorrent().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference:    NewTorrent().WithTitle("Symphony no. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - all caps vs proper",
-			Actual:       NewAlbum().WithTitle("SYMPHONY NO. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
-			Reference:    NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:       NewTorrent().WithTitle("SYMPHONY NO. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Reference:    NewTorrent().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:      "pass - no reference",
-			Actual:    NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:    NewTorrent().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			Reference: nil,
 			WantPass:  true,
 		},

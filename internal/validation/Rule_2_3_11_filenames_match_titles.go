@@ -13,7 +13,7 @@ import (
 var filenameTrackPattern = regexp.MustCompile(`^\d+[\s\-_\.]+(.+?)\.[\w]+$`)
 
 // FilenamesMatchTitles checks that filenames accurately reflect track titles (rule 2.3.11)
-func (r *Rules) FilenamesMatchTitles(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) FilenamesMatchTitles(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.11",
 		Name:   "Filenames must accurately reflect track titles",
@@ -23,7 +23,7 @@ func (r *Rules) FilenamesMatchTitles(actualTrack, _ *domain.Track, _, _ *domain.
 
 	var issues []domain.ValidationIssue
 
-	fileName := actualTrack.Name
+	fileName := actualTrack.File.Path
 	if fileName == "" {
 		return RuleResult{Meta: meta, Issues: nil}
 	}

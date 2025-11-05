@@ -1,13 +1,26 @@
 package domain
 
 // Track represents a single track/movement.
+// Track embeds File, so it IS a File and can be stored in Files []*File.
 // All fields are exported and mutable.
 type Track struct {
+	File // Embedded - Track IS a File
+
+	// Track-specific metadata
 	Disc    int      `json:"disc"`
 	Track   int      `json:"track"`
 	Title   string   `json:"title"`
-	Name    string   `json:"name,omitempty"` // filename
 	Artists []Artist `json:"artists"`
+}
+
+// GetPath implements FileLike interface.
+func (t *Track) GetPath() string {
+	return t.File.Path
+}
+
+// GetSize implements FileLike interface.
+func (t *Track) GetSize() int64 {
+	return t.File.Size
 }
 
 // Composers returns all the composer artists.

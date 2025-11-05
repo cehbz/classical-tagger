@@ -80,7 +80,7 @@ func TestRules_TorrentArtistFullComposerName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			builder := NewAlbum().WithTitle(tt.AlbumTitle).ClearTracks()
+			builder := NewTorrent().WithTitle(tt.AlbumTitle).ClearTracks()
 			for i, composerName := range tt.Composers {
 				builder.AddTrack().
 					WithTrack(i+1).

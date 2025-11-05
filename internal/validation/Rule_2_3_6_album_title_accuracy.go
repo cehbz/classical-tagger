@@ -10,7 +10,7 @@ import (
 
 // AlbumTitleAccuracy checks that album title matches reference (rule 2.3.6)
 // Uses fuzzy matching to allow for minor differences
-func (r *Rules) AlbumTitleAccuracy(actual, reference *domain.Album) RuleResult {
+func (r *Rules) AlbumTitleAccuracy(actual, reference *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.6",
 		Name:   "Album title must accurately match reference",

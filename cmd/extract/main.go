@@ -209,7 +209,7 @@ func extractFromURL() {
 
 // processResult handles the common result processing and output with force mode support
 func processResult(result *scraping.ExtractionResult) {
-	data := result.Album
+	data := result.Torrent
 
 	// Display extraction summary
 	fmt.Fprintf(os.Stderr, "✓ Extracted: %s", data.Title)
@@ -229,7 +229,7 @@ func processResult(result *scraping.ExtractionResult) {
 			fmt.Fprintf(os.Stderr, "  Catalog: %s\n", data.Edition.CatalogNumber)
 		}
 	}
-	fmt.Fprintf(os.Stderr, "  Tracks: %d\n", len(data.Tracks))
+	fmt.Fprintf(os.Stderr, "  Tracks: %d\n", len(data.Tracks()))
 
 	// Show extraction errors and warnings
 	if len(result.Errors) > 0 {

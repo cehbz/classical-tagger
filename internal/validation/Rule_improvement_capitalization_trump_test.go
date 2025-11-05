@@ -11,34 +11,34 @@ func TestRules_CapitalizationTrump(t *testing.T) {
 
 	tests := []struct {
 		Name      string
-		Actual    *domain.Album
-		Reference *domain.Album
+		Actual    *domain.Torrent
+		Reference *domain.Torrent
 		WantPass  bool
 		WantInfo  int
 	}{
 		{
 			Name:     "pass - no reference",
-			Actual:   NewAlbum().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:      "info - no improvement",
-			Actual:    buildAlbumWithBadCaps(),
-			Reference: buildAlbumWithGoodCaps(),
+			Actual:    buildTorrentWithBadCaps(),
+			Reference: buildTorrentWithGoodCaps(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
 		{
 			Name:      "info - significant improvement",
-			Actual:    buildAlbumWithGoodCaps(),
-			Reference: buildAlbumWithBadCaps(),
+			Actual:    buildTorrentWithGoodCaps(),
+			Reference: buildTorrentWithBadCaps(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
 		{
 			Name:      "info - same quality",
-			Actual:    buildAlbumWithGoodCaps(),
-			Reference: buildAlbumWithGoodCaps(),
+			Actual:    buildTorrentWithGoodCaps(),
+			Reference: buildTorrentWithGoodCaps(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
@@ -77,17 +77,17 @@ func TestCountCapitalizationIssues(t *testing.T) {
 
 	tests := []struct {
 		Name      string
-		Album     *domain.Album
+		Album     *domain.Torrent
 		WantCount int
 	}{
 		{
 			Name:      "good capitalization",
-			Album:     buildAlbumWithGoodCaps(),
+			Album:     buildTorrentWithGoodCaps(),
 			WantCount: 0,
 		},
 		{
 			Name:      "bad capitalization",
-			Album:     buildAlbumWithBadCaps(),
+			Album:     buildTorrentWithBadCaps(),
 			WantCount: 4, // Title + 3 track titles
 		},
 	}

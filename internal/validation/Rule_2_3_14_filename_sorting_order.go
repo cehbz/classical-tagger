@@ -8,7 +8,7 @@ import (
 )
 
 // FilenameSortingOrder checks that filenames sort alphabetically into playback order (rule 2.3.14)
-func (r *Rules) FilenameSortingOrder(actual, _ *domain.Album) RuleResult {
+func (r *Rules) FilenameSortingOrder(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.14",
 		Name:   "Filenames sort alphabetically into playback order",
@@ -17,7 +17,7 @@ func (r *Rules) FilenameSortingOrder(actual, _ *domain.Album) RuleResult {
 	}
 
 	var issues []domain.ValidationIssue
-	tracks := actual.Tracks
+	tracks := actual.Tracks()
 
 	if len(tracks) <= 1 {
 		return RuleResult{Meta: meta, Issues: nil} // Single track or empty, nothing to sort
@@ -42,7 +42,7 @@ func (r *Rules) FilenameSortingOrder(actual, _ *domain.Album) RuleResult {
 
 		// Sort by raw filename (exact bytewise order)
 		sort.Slice(sortedTracks, func(i, j int) bool {
-			return sortedTracks[i].Name < sortedTracks[j].Name
+			return sortedTracks[i].File.Path < sortedTracks[j].File.Path
 		})
 
 		// Build canonical order (by track number)
@@ -61,7 +61,7 @@ func (r *Rules) FilenameSortingOrder(actual, _ *domain.Album) RuleResult {
 					Track: b.Track,
 					Rule:  meta.ID,
 					Message: fmt.Sprintf("Disc %d: Filename sorting differs at position %d: got '%s' (track %d), expected '%s' (track %d)",
-						disc, i+1, a.Name, a.Track, b.Name, b.Track),
+						disc, i+1, a.File.Path, a.Track, b.File.Path, b.Track),
 				})
 				mismatchReported = true
 				break

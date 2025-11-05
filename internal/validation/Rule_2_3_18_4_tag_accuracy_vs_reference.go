@@ -9,7 +9,7 @@ import (
 
 // TagAccuracyVsReference checks all tags against reference data (rule 2.3.18.4)
 // Comprehensive validation of all tag fields
-func (r *Rules) TagAccuracyVsReference(actual, reference *domain.Album) RuleResult {
+func (r *Rules) TagAccuracyVsReference(actual, reference *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.4",
 		Name:   "All tags must accurately match reference data",
@@ -38,8 +38,8 @@ func (r *Rules) TagAccuracyVsReference(actual, reference *domain.Album) RuleResu
 	}
 
 	// Validate track-level tags
-	actualTracks := actual.Tracks
-	refTracks := reference.Tracks
+	actualTracks := actual.Tracks()
+	refTracks := reference.Tracks()
 
 	// Create a map for easier track matching
 	refTrackMap := make(map[string]*domain.Track)

@@ -7,7 +7,7 @@ import (
 )
 
 // AlbumTagCapitalization checks that album tags use proper Title Case (album: 2.3.18.2-album)
-func (r *Rules) AlbumTagCapitalization(actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) AlbumTagCapitalization(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.2-album",
 		Name:   "Tags must use proper Title Case capitalization",
@@ -18,19 +18,19 @@ func (r *Rules) AlbumTagCapitalization(actualAlbum, _ *domain.Album) RuleResult 
 	var issues []domain.ValidationIssue
 
 	// Check album title
-	if capIssue := checkCapitalization(actualAlbum.Title); capIssue != "" {
+	if capIssue := checkCapitalization(actualTorrent.Title); capIssue != "" {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
 			Track:   0,
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album title '%s': %s", actualAlbum.Title, capIssue),
+			Message: fmt.Sprintf("Album title '%s': %s", actualTorrent.Title, capIssue),
 		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
 }
 
 // TrackTagCapitalization checks that track tags use proper Title Case (track: 2.3.18.2)
-func (r *Rules) TrackTagCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) TrackTagCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.2",
 		Name:   "Tags must use proper Title Case capitalization",
@@ -66,7 +66,7 @@ func (r *Rules) TrackTagCapitalization(actualTrack, _ *domain.Track, _, _ *domai
 }
 
 // TagCapitalizationVsReference checks capitalization matches reference (rule 2.3.18.2 with reference)
-func (r *Rules) TagCapitalizationVsReference(actual, reference *domain.Album) RuleResult {
+func (r *Rules) TagCapitalizationVsReference(actual, reference *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.2.ref",
 		Name:   "Tag capitalization should match reference",
@@ -94,8 +94,8 @@ func (r *Rules) TagCapitalizationVsReference(actual, reference *domain.Album) Ru
 	}
 
 	// Compare track titles
-	actualTracks := actual.Tracks
-	refTracks := reference.Tracks
+	actualTracks := actual.Tracks()
+	refTracks := reference.Tracks()
 
 	refTrackMap := make(map[string]*domain.Track)
 	for _, refTrack := range refTracks {

@@ -8,7 +8,7 @@ import (
 
 // CapitalizationTrump checks if proper capitalization alone justifies replacing torrent
 // This is a specialized improvement rule focused on capitalization
-func (r *Rules) CapitalizationTrump(actual, reference *domain.Album) RuleResult {
+func (r *Rules) CapitalizationTrump(actual, reference *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "improvement.capitalization",
 		Name:   "Proper capitalization can trump existing torrent if significantly better",
@@ -76,7 +76,7 @@ func (r *Rules) CapitalizationTrump(actual, reference *domain.Album) RuleResult 
 }
 
 // countCapitalizationIssues counts all capitalization problems in an album
-func (r *Rules) countCapitalizationIssues(album *domain.Album) int {
+func (r *Rules) countCapitalizationIssues(album *domain.Torrent) int {
 	count := 0
 
 	// Count album title capitalization
@@ -85,7 +85,7 @@ func (r *Rules) countCapitalizationIssues(album *domain.Album) int {
 	}
 
 	// Check all track titles and artists
-	for _, track := range album.Tracks {
+	for _, track := range album.Tracks() {
 		// Track title
 		if checkCapitalization(track.Title) != "" {
 			count++

@@ -2,16 +2,16 @@ package validation
 
 import "github.com/cehbz/classical-tagger/internal/domain"
 
-// Check validates an album's metadata against validation rules.
+// Check validates a torrent's metadata against validation rules.
 // If reference is nil, only non-reference-dependent validations are performed.
 // Returns all validation issues found.
-func Check(actual, reference *domain.Album) []domain.ValidationIssue {
+func Check(actual, reference *domain.Torrent) []domain.ValidationIssue {
 	var issues []domain.ValidationIssue
 	rules := NewRules()
 
-	// Run all album-level rules
-	albumRules := rules.AlbumRules()
-	for _, rule := range albumRules {
+	// Run all torrent-level rules
+	torrentRules := rules.TorrentRules()
+	for _, rule := range torrentRules {
 		result := rule(actual, reference)
 		issues = append(issues, result.Issues...)
 	}
@@ -20,10 +20,16 @@ func Check(actual, reference *domain.Album) []domain.ValidationIssue {
 	trackRules := rules.TrackRules()
 
 	// Iterate through tracks and validate each one
-	for i, actualTrack := range actual.Tracks {
+	actualTracks := actual.Tracks()
+	refTracks := []*domain.Track(nil)
+	if reference != nil {
+		refTracks = reference.Tracks()
+	}
+
+	for i, actualTrack := range actualTracks {
 		var refTrack *domain.Track
-		if reference != nil && i < len(reference.Tracks) {
-			refTrack = reference.Tracks[i]
+		if i < len(refTracks) {
+			refTrack = refTracks[i]
 		}
 
 		// Run each track rule for this track

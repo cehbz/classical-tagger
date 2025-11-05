@@ -72,7 +72,7 @@ func TestRules_ComposerInFolderName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			actual := NewAlbum().WithTitle(tt.AlbumTitle).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: tt.ComposerName, Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build()
+			actual := NewTorrent().WithTitle(tt.AlbumTitle).ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: tt.ComposerName, Role: domain.RoleComposer}, domain.Artist{Name: "Vienna Philharmonic", Role: domain.RoleEnsemble}, domain.Artist{Name: "Herbert von Karajan", Role: domain.RoleConductor}).Build().Build()
 			result := rules.ComposerInFolderName(actual, nil)
 
 			if result.Passed() != tt.WantPass {

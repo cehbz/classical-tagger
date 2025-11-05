@@ -24,7 +24,7 @@ func TestPrestoParser_Parse(t *testing.T) {
 		t.Fatal("Parse() returned nil result")
 	}
 
-	data := result.Album
+	data := result.Torrent
 
 	// Test title extraction
 	if data.Title == "" || data.Title == MissingTitle {
@@ -42,12 +42,13 @@ func TestPrestoParser_Parse(t *testing.T) {
 	}
 
 	// Test tracks extraction
-	if len(data.Tracks) == 0 {
+	tracks := data.Tracks()
+	if len(tracks) == 0 {
 		t.Error("No tracks extracted")
 	}
 
 	// Verify track structure
-	for i, track := range data.Tracks {
+	for i, track := range tracks {
 		if track.Title == "" {
 			t.Errorf("Track %d has no title", i+1)
 		}

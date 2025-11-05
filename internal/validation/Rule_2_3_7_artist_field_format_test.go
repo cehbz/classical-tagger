@@ -11,48 +11,51 @@ func TestRules_ArtistFieldFormat(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		Actual       *domain.Album
-		Reference    *domain.Album
+		Actual       *domain.Torrent
+		Reference    *domain.Torrent
 		WantPass     bool
 		WantWarnings int
 		WantInfo     int
 	}{
 		{
 			Name:     "valid - has performers",
-			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:         "warning - only composer",
-			Actual:       NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}).Build().Build(),
+			Actual:       NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}).Build().Build(),
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:     "valid - just performers (no composer)",
-			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Phil", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - ensemble only",
-			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Emerson Quartet", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Emerson Quartet", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:      "info - performer count differs from reference",
-			Actual:    NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}).Build().Build(),
-			Reference: NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:    NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}).Build().Build(),
+			Reference: NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
 	}
 
 	for _, tt := range tests {
-		for i, track := range tt.Actual.Tracks {
+		for i, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
 				var refTrack *domain.Track
-				if tt.Reference != nil && i < len(tt.Reference.Tracks) {
-					refTrack = tt.Reference.Tracks[i]
+				if tt.Reference != nil {
+					refTracks := tt.Reference.Tracks()
+					if i < len(refTracks) {
+						refTrack = refTracks[i]
+					}
 				}
 				result := rules.ArtistFieldFormat(track, refTrack, tt.Actual, tt.Reference)
 				if result.Passed() != tt.WantPass {

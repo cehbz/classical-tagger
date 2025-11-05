@@ -12,7 +12,7 @@ var separatorPatterns = []string{";", " / ", " & ", ", ", " and "}
 
 // NoCombinedTags checks that tags don't combine multiple values (rule 2.3.18.3)
 // Each artist/performer should have separate tag entries
-func (r *Rules) NoCombinedTags(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) NoCombinedTags(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.3",
 		Name:   "No combined tags - use separate entries for multiple artists",

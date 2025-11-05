@@ -9,7 +9,7 @@ import (
 
 // PerformerFormat checks that artist tags follow classical format (classical.artist_name)
 // Format: "Soloist(s), Orchestra(s)/Ensemble(s), Conductor"
-func (r *Rules) PerformerFormat(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult {
+func (r *Rules) PerformerFormat(actualTrack, refTrack *domain.Track, actualTorrent, refTorrent *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.artist_name",
 		Name:   "Performer format: Soloist, Ensemble, Conductor",

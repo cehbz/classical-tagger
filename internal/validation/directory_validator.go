@@ -104,7 +104,7 @@ func (v *DirectoryValidator) ValidateStructure(basePath string, files []string) 
 }
 
 // ValidateFolderName checks if the album folder name follows conventions.
-func (v *DirectoryValidator) ValidateFolderName(folderName string, album *domain.Album) []domain.ValidationIssue {
+func (v *DirectoryValidator) ValidateFolderName(folderName string, album *domain.Torrent) []domain.ValidationIssue {
 	var issues []domain.ValidationIssue
 
 	// Check 180 character limit
@@ -132,10 +132,11 @@ func (v *DirectoryValidator) ValidateFolderName(folderName string, album *domain
 	}
 
 	// For classical music, should mention composer (classical.folder_name)
-	if len(album.Tracks) > 0 {
+	tracks := album.Tracks()
+	if len(tracks) > 0 {
 		// Find the first composer in the track artists
 		var composerName string
-		for _, artist := range album.Tracks[0].Artists {
+		for _, artist := range tracks[0].Artists {
 			if artist.Role == domain.RoleComposer {
 				composerName = artist.Name
 				break

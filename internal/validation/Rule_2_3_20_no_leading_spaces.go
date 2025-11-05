@@ -8,7 +8,7 @@ import (
 )
 
 // AlbumNoLeadingSpaces checks that no file or folder names have leading spaces (album: 2.3.20-album)
-func (r *Rules) AlbumNoLeadingSpaces(actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) AlbumNoLeadingSpaces(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.20-album",
 		Name:   "No leading spaces in file or folder names",
@@ -19,29 +19,29 @@ func (r *Rules) AlbumNoLeadingSpaces(actualAlbum, _ *domain.Album) RuleResult {
 	var issues []domain.ValidationIssue
 
 	// Check album title
-	if strings.HasPrefix(actualAlbum.Title, " ") {
+	if strings.HasPrefix(actualTorrent.Title, " ") {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
 			Track:   0, // Album-level issue
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album title has leading space: '%s'", actualAlbum.Title),
+			Message: fmt.Sprintf("Album title has leading space: '%s'", actualTorrent.Title),
 		})
 	}
 
 	// Check folder name
-	if strings.HasPrefix(actualAlbum.FolderName, " ") {
+	if strings.HasPrefix(actualTorrent.RootPath, " ") {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
 			Track:   0, // Album-level issue
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album folder name has leading space: '%s'", actualAlbum.FolderName),
+			Message: fmt.Sprintf("Album folder name has leading space: '%s'", actualTorrent.RootPath),
 		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
 }
 
 // TrackNoLeadingSpaces checks that no file or folder names have leading spaces (track: 2.3.20)
-func (r *Rules) TrackNoLeadingSpaces(actualTrack, _ *domain.Track, actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) TrackNoLeadingSpaces(actualTrack, _ *domain.Track, actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.20",
 		Name:   "No leading spaces in file or folder names",
@@ -54,7 +54,7 @@ func (r *Rules) TrackNoLeadingSpaces(actualTrack, _ *domain.Track, actualAlbum, 
 	// Track-level rule ignores album-level title spacing to avoid double-counting
 
 	// Check filename
-	fileName := actualTrack.Name
+	fileName := actualTrack.File.Path
 	if fileName != "" {
 		// Check the base filename and any path components
 		parts := strings.Split(fileName, "/")

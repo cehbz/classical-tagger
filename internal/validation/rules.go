@@ -6,11 +6,11 @@ import (
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// AlbumRuleFunc is the signature for album-level validation rules
-type AlbumRuleFunc func(actual, reference *domain.Album) RuleResult
+// TorrentRuleFunc is the signature for torrent-level validation rules
+type TorrentRuleFunc func(actual, reference *domain.Torrent) RuleResult
 
 // TrackRuleFunc is the signature for track-level validation rules
-type TrackRuleFunc func(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult
+type TrackRuleFunc func(actualTrack, refTrack *domain.Track, actualTorrent, refTorrent *domain.Torrent) RuleResult
 
 // Rules is a collection of validation rules.
 // Any exported method on this struct that matches either AlbumRuleFunc or TrackRuleFunc signature
@@ -22,18 +22,18 @@ func NewRules() *Rules {
 	return &Rules{}
 }
 
-// AlbumRules finds all album-level rule methods using reflection.
+// TorrentRules finds all torrent-level rule methods using reflection.
 // It looks for exported methods with signature:
 //
-//	func (r *Rules) MethodName(actual, reference *domain.Album) RuleResult
-func (r *Rules) AlbumRules() []AlbumRuleFunc {
-	var rules []AlbumRuleFunc
+//	func (r *Rules) MethodName(actual, reference *domain.Torrent) RuleResult
+func (r *Rules) TorrentRules() []TorrentRuleFunc {
+	var rules []TorrentRuleFunc
 
 	rulesType := reflect.TypeOf(r)
 	rulesValue := reflect.ValueOf(r)
 
-	// Get the Album pointer type for comparison
-	albumPtrType := reflect.TypeOf((*domain.Album)(nil))
+	// Get the Torrent pointer type for comparison
+	torrentPtrType := reflect.TypeOf((*domain.Torrent)(nil))
 
 	// Get the RuleResult type for comparison
 	ruleResultType := reflect.TypeOf(RuleResult{})
@@ -49,7 +49,7 @@ func (r *Rules) AlbumRules() []AlbumRuleFunc {
 		methodType := method.Type
 
 		// Check signature for album-level rule:
-		// - Must have 3 inputs: receiver (*Rules), actual (*domain.Album), reference (*domain.Album)
+		// - Must have 3 inputs: receiver (*Rules), actual (*domain.Torrent), reference (*domain.Torrent)
 		// - Must have 1 output: RuleResult
 		if methodType.NumIn() != 3 || methodType.NumOut() != 1 {
 			continue
@@ -57,9 +57,9 @@ func (r *Rules) AlbumRules() []AlbumRuleFunc {
 
 		// Check parameter types
 		// methodType.In(0) is the receiver (*Rules)
-		// methodType.In(1) should be *domain.Album (actual)
-		// methodType.In(2) should be *domain.Album (reference)
-		if methodType.In(1) != albumPtrType || methodType.In(2) != albumPtrType {
+		// methodType.In(1) should be *domain.Torrent (actual)
+		// methodType.In(2) should be *domain.Torrent (reference)
+		if methodType.In(1) != torrentPtrType || methodType.In(2) != torrentPtrType {
 			continue
 		}
 
@@ -71,7 +71,7 @@ func (r *Rules) AlbumRules() []AlbumRuleFunc {
 		// This is a valid album-level rule method - wrap it as an AlbumRuleFunc
 		methodValue := rulesValue.Method(i)
 
-		rule := func(actual, reference *domain.Album) RuleResult {
+		rule := func(actual, reference *domain.Torrent) RuleResult {
 			results := methodValue.Call([]reflect.Value{
 				reflect.ValueOf(actual),
 				reflect.ValueOf(reference),
@@ -88,7 +88,7 @@ func (r *Rules) AlbumRules() []AlbumRuleFunc {
 // TrackRules finds all track-level rule methods using reflection.
 // It looks for exported methods with signature:
 //
-//	func (r *Rules) MethodName(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult
+//	func (r *Rules) MethodName(actualTrack, refTrack *domain.Track, actualTorrent, refTorrent *domain.Torrent) RuleResult
 func (r *Rules) TrackRules() []TrackRuleFunc {
 	var rules []TrackRuleFunc
 
@@ -98,8 +98,8 @@ func (r *Rules) TrackRules() []TrackRuleFunc {
 	// Get the Track pointer type for comparison
 	trackPtrType := reflect.TypeOf((*domain.Track)(nil))
 
-	// Get the Album pointer type for comparison
-	albumPtrType := reflect.TypeOf((*domain.Album)(nil))
+	// Get the Torrent pointer type for comparison
+	torrentPtrType := reflect.TypeOf((*domain.Torrent)(nil))
 
 	// Get the RuleResult type for comparison
 	ruleResultType := reflect.TypeOf(RuleResult{})
@@ -115,7 +115,7 @@ func (r *Rules) TrackRules() []TrackRuleFunc {
 		methodType := method.Type
 
 		// Check signature for track-level rule:
-		// - Must have 5 inputs: receiver (*Rules), actualTrack (*Track), refTrack (*Track), actualAlbum (*Album), refAlbum (*Album)
+		// - Must have 5 inputs: receiver (*Rules), actualTrack (*Track), refTrack (*Track), actualTorrent (*Torrent), refTorrent (*Torrent)
 		// - Must have 1 output: RuleResult
 		if methodType.NumIn() != 5 || methodType.NumOut() != 1 {
 			continue
@@ -125,10 +125,10 @@ func (r *Rules) TrackRules() []TrackRuleFunc {
 		// methodType.In(0) is the receiver (*Rules)
 		// methodType.In(1) should be *domain.Track (actualTrack)
 		// methodType.In(2) should be *domain.Track (refTrack)
-		// methodType.In(3) should be *domain.Album (actualAlbum)
-		// methodType.In(4) should be *domain.Album (refAlbum)
+		// methodType.In(3) should be *domain.Torrent (actualTorrent)
+		// methodType.In(4) should be *domain.Torrent (refTorrent)
 		if methodType.In(1) != trackPtrType || methodType.In(2) != trackPtrType ||
-			methodType.In(3) != albumPtrType || methodType.In(4) != albumPtrType {
+			methodType.In(3) != torrentPtrType || methodType.In(4) != torrentPtrType {
 			continue
 		}
 
@@ -140,12 +140,12 @@ func (r *Rules) TrackRules() []TrackRuleFunc {
 		// This is a valid track-level rule method - wrap it as a TrackRuleFunc
 		methodValue := rulesValue.Method(i)
 
-		rule := func(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album) RuleResult {
+		rule := func(actualTrack, refTrack *domain.Track, actualTorrent, refTorrent *domain.Torrent) RuleResult {
 			results := methodValue.Call([]reflect.Value{
 				reflect.ValueOf(actualTrack),
 				reflect.ValueOf(refTrack),
-				reflect.ValueOf(actualAlbum),
-				reflect.ValueOf(refAlbum),
+				reflect.ValueOf(actualTorrent),
+				reflect.ValueOf(refTorrent),
 			})
 			return results[0].Interface().(RuleResult)
 		}

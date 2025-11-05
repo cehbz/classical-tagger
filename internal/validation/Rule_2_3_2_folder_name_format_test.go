@@ -104,14 +104,14 @@ func TestRules_FolderNameFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			actual := &domain.Album{
+			actual := &domain.Torrent{
 				Title:        tt.AlbumTitle,
 				OriginalYear: tt.AlbumYear,
-				Tracks: []*domain.Track{
-					{
-						Disc:    1,
-						Track:   1,
-						Title:   "Symphony",
+				Files: []domain.FileLike{
+					&domain.Track{
+						Disc:  1,
+						Track: 1,
+						Title: "Symphony",
 						Artists: []domain.Artist{{Name: "Beethoven", Role: domain.RoleComposer}, {Name: "Orchestra", Role: domain.RoleEnsemble}},
 					},
 				},

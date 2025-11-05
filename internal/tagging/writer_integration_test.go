@@ -90,9 +90,11 @@ func TestFLACWriter_WriteTrack_Integration(t *testing.T) {
 	// Generate test FLAC
 	sourcePath := generateTestFLAC(t, tmpDir, "source.flac")
 	destPath := filepath.Join(tmpDir, "dest.flac")
-
-	// Create test metadata
 	track := &domain.Track{
+		File: domain.File{
+			Path: "01.flac",
+			Size: 0,
+		},
 		Disc:  1,
 		Track: 1,
 		Title: "Goldberg Variations, BWV 988: Aria",
@@ -102,17 +104,20 @@ func TestFLACWriter_WriteTrack_Integration(t *testing.T) {
 		},
 	}
 
-	album := &domain.Album{
-		Title: "Goldberg Variations", OriginalYear: 1955,
+	// Create test metadata
+	torrent := &domain.Torrent{
+		RootPath:     "goldberg",
+		Title:        "Goldberg Variations",
+		OriginalYear: 1955,
 		Edition: &domain.Edition{
 			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
 		},
-		Tracks: []*domain.Track{track},
+		Files: []domain.FileLike{track},
 	}
 
 	// Write tags
 	writer := NewFLACWriter()
-	err := writer.WriteTrack(sourcePath, destPath, track, album)
+	err := writer.WriteTrack(sourcePath, destPath, track, torrent)
 	if err != nil {
 		t.Fatalf("WriteTrack() error = %v", err)
 	}
@@ -166,6 +171,10 @@ func TestFLACWriter_SpecialCharacters(t *testing.T) {
 
 	// Create metadata with special characters
 	track := &domain.Track{
+		File: domain.File{
+			Path: "01.flac",
+			Size: 0,
+		},
 		Disc:  1,
 		Track: 1,
 		Title: "Sonate für Violine und Klavier: Frisch (Œuvre)",
@@ -174,16 +183,18 @@ func TestFLACWriter_SpecialCharacters(t *testing.T) {
 			{Name: "Mstislav Rostropóvič", Role: domain.RoleSoloist},
 		},
 	}
-	album := &domain.Album{
-		Title: "Bartók: Complete Works", OriginalYear: 2020,
+	torrent := &domain.Torrent{
+		RootPath:     "bartok",
+		Title:        "Bartók: Complete Works",
+		OriginalYear: 2020,
 		Edition: &domain.Edition{
 			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
 		},
-		Tracks: []*domain.Track{track},
+		Files: []domain.FileLike{track},
 	}
 
 	writer := NewFLACWriter()
-	err := writer.WriteTrack(sourcePath, destPath, track, album)
+	err := writer.WriteTrack(sourcePath, destPath, track, torrent)
 	if err != nil {
 		t.Fatalf("WriteTrack() error = %v", err)
 	}
@@ -214,6 +225,10 @@ func TestFLACWriter_MultiplePerformers(t *testing.T) {
 
 	// Create metadata with multiple performers
 	track := &domain.Track{
+		File: domain.File{
+			Path: "01.flac",
+			Size: 0,
+		},
 		Disc:  1,
 		Track: 1,
 		Title: "Violin Concerto in D major, Op. 77: I. Allegro non troppo",
@@ -224,7 +239,8 @@ func TestFLACWriter_MultiplePerformers(t *testing.T) {
 			{Name: "Herbert von Karajan", Role: domain.RoleConductor},
 		},
 	}
-	album := &domain.Album{
+	torrent := &domain.Torrent{
+		RootPath:     "brahms",
 		Title:        "Brahms: Violin Concerto",
 		OriginalYear: 1980,
 		Edition: &domain.Edition{
@@ -232,11 +248,11 @@ func TestFLACWriter_MultiplePerformers(t *testing.T) {
 			Year:          1992,
 			CatalogNumber: "SK 52594",
 		},
-		Tracks: []*domain.Track{track},
+		Files: []domain.FileLike{track},
 	}
 
 	writer := NewFLACWriter()
-	err := writer.WriteTrack(sourcePath, destPath, track, album)
+	err := writer.WriteTrack(sourcePath, destPath, track, torrent)
 	if err != nil {
 		t.Fatalf("WriteTrack() error = %v", err)
 	}
@@ -269,21 +285,27 @@ func TestFLACWriter_NoEdition(t *testing.T) {
 	sourcePath := generateTestFLAC(t, tmpDir, "source.flac")
 	destPath := filepath.Join(tmpDir, "dest.flac")
 
-	album := &domain.Album{
+	track := &domain.Track{
+		File: domain.File{
+			Path: "01.flac",
+			Size: 0,
+		},
+		Disc:    1,
+		Track:   1,
+		Title:   "Test Track",
+		Artists: []domain.Artist{{Name: "Test Composer", Role: domain.RoleComposer}},
+	}
+	torrent := &domain.Torrent{
+		RootPath:     "test",
 		Title:        "Test Album",
 		OriginalYear: 2020,
 		Edition:      nil,
-		Tracks: []*domain.Track{{
-			Disc:    1,
-			Track:   1,
-			Title:   "Test Track",
-			Artists: []domain.Artist{{Name: "Test Composer", Role: domain.RoleComposer}},
-		}},
+		Files:        []domain.FileLike{track},
 	}
 	// No edition
 
 	writer := NewFLACWriter()
-	err := writer.WriteTrack(sourcePath, destPath, album.Tracks[0], album)
+	err := writer.WriteTrack(sourcePath, destPath, track, torrent)
 	if err != nil {
 		t.Fatalf("WriteTrack() error = %v", err)
 	}
@@ -311,19 +333,25 @@ func TestFLACWriter_NoEdition(t *testing.T) {
 func TestFLACWriter_ErrorHandling(t *testing.T) {
 	tmpDir := t.TempDir()
 	writer := NewFLACWriter()
-
 	track := &domain.Track{
+		File: domain.File{
+			Path: "01.flac",
+			Size: 0,
+		},
 		Disc:    1,
 		Track:   1,
 		Title:   "Test",
 		Artists: []domain.Artist{{Name: "Test", Role: domain.RoleComposer}},
 	}
-	album := &domain.Album{
-		Title: "Test", OriginalYear: 2020,
+
+	torrent := &domain.Torrent{
+		RootPath:     "test",
+		Title:        "Test",
+		OriginalYear: 2020,
 		Edition: &domain.Edition{
 			Label: "Sony Classical", Year: 1992, CatalogNumber: "SK 52594",
 		},
-		Tracks: []*domain.Track{track},
+		Files: []domain.FileLike{track},
 	}
 
 	tests := []struct {
@@ -357,7 +385,7 @@ func TestFLACWriter_ErrorHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			err := writer.WriteTrack(tt.SourcePath, tt.DestPath, track, album)
+			err := writer.WriteTrack(tt.SourcePath, tt.DestPath, track, torrent)
 			if (err != nil) != tt.WantErr {
 				t.Errorf("WriteTrack() error = %v, wantErr %v", err, tt.WantErr)
 			}

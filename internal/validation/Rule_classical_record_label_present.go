@@ -8,7 +8,7 @@ import (
 
 // RecordLabelPresent checks that record label and catalog number are present (classical.record_label)
 // These should be in the Edition information
-func (r *Rules) RecordLabelPresent(actual, _ *domain.Album) RuleResult {
+func (r *Rules) RecordLabelPresent(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.record_label",
 		Name:   "Record label and catalog number present",
@@ -63,7 +63,7 @@ func (r *Rules) RecordLabelPresent(actual, _ *domain.Album) RuleResult {
 }
 
 // RecordLabelAccuracy checks that record label and catalog match reference (if provided)
-func (r *Rules) RecordLabelAccuracy(actual, reference *domain.Album) RuleResult {
+func (r *Rules) RecordLabelAccuracy(actual, reference *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.record_label.accuracy",
 		Name:   "Record label and catalog number accuracy",

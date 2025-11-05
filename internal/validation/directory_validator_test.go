@@ -114,17 +114,17 @@ func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 	tests := []struct {
 		Name        string
 		FolderName  string
-		Album       *domain.Album
+		Torrent *domain.Torrent
 		WantWarning bool
 	}{
 		{
 			Name:       "good folder name with artist and album",
 			FolderName: "Glenn Gould - Goldberg Variations (1981) - FLAC",
-			Album: &domain.Album{
+			Torrent: &domain.Torrent{
 				Title:        "Goldberg Variations",
 				OriginalYear: 1981,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Aria",
@@ -139,11 +139,11 @@ func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 		{
 			Name:       "minimal folder name (just album)",
 			FolderName: "Goldberg Variations",
-			Album: &domain.Album{
+			Torrent: &domain.Torrent{
 				Title:        "Goldberg Variations",
 				OriginalYear: 1981,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Aria",
@@ -158,11 +158,11 @@ func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 		{
 			Name:       "folder name missing composer",
 			FolderName: "Piano Works",
-			Album: &domain.Album{
+			Torrent: &domain.Torrent{
 				Title:        "Piano Works",
 				OriginalYear: 1981,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
 						Disc:  1,
 						Track: 1,
 						Title: "Nocturne",
@@ -178,7 +178,7 @@ func TestDirectoryValidator_ValidateFolderName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			issues := validator.ValidateFolderName(tt.FolderName, tt.Album)
+			issues := validator.ValidateFolderName(tt.FolderName, tt.Torrent)
 
 			hasWarning := false
 			for _, issue := range issues {

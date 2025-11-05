@@ -8,7 +8,7 @@ import (
 
 // MultiDiscTrackNumbering checks that multi-disc releases number tracks correctly (rule 2.3.15)
 // Each disc should start at track 1
-func (r *Rules) MultiDiscTrackNumbering(actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) MultiDiscTrackNumbering(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.15",
 		Name:   "Multi-disc track numbering starts at 1 for each disc",
@@ -22,7 +22,7 @@ func (r *Rules) MultiDiscTrackNumbering(actualAlbum, _ *domain.Album) RuleResult
 	discTracks := make(map[int][]*domain.Track)
 	maxDisc := 1
 
-	for _, track := range actualAlbum.Tracks {
+	for _, track := range actualTorrent.Tracks() {
 		disc := track.Disc
 		if disc > maxDisc {
 			maxDisc = disc
@@ -31,7 +31,7 @@ func (r *Rules) MultiDiscTrackNumbering(actualAlbum, _ *domain.Album) RuleResult
 	}
 
 	// Multi-disc specific checks: each disc should start at track 1
-	isMultiDisc := actualAlbum.IsMultiDisc()
+	isMultiDisc := actualTorrent.IsMultiDisc()
 	if isMultiDisc {
 		// Multi-disc: check each disc starts at 1 and no missing discs
 		for disc := 1; disc <= maxDisc; disc++ {

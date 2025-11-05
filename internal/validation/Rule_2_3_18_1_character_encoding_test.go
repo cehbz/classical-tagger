@@ -11,57 +11,57 @@ func TestRules_AlbumCharacterEncoding(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantErrors int
 	}{
 		{
 			Name:     "valid - proper UTF-8",
-			Actual:   NewAlbum().WithTitle("Beethoven - Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Beethoven - Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - proper accented characters",
-			Actual:   NewAlbum().WithTitle("Dvořák - String Quartet").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Dvořák - String Quartet").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - proper German umlauts",
-			Actual:   NewAlbum().WithTitle("Arnold Schönberg - Symphonies").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Arnold Schönberg - Symphonies").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:       "error - mojibake pattern Ã©",
-			Actual:     NewAlbum().WithTitle("ConcertÃ© in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithTitle("ConcertÃ© in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - mojibake pattern â€™",
-			Actual:     NewAlbum().WithTitle("Donâ€™t Stop Believin").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithTitle("Donâ€™t Stop Believin").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - replacement character",
-			Actual:     NewAlbum().WithTitle("Concert\uFFFD in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithTitle("Concert\uFFFD in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - null byte",
-			Actual:     NewAlbum().WithTitle("Concert\x00 in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithTitle("Concert\x00 in D").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:     "valid - proper Russian characters",
-			Actual:   NewAlbum().WithTitle("Tchaikovsky - Лебединое озеро").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Tchaikovsky - Лебединое озеро").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:       "error - encoding issue in artist name",
-			Actual:     NewAlbum().WithTitle("DvÃ¶rÃ¡k").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:     NewTorrent().WithTitle("DvÃ¶rÃ¡k").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass:   false,
 			WantErrors: 1,
 		},
@@ -97,74 +97,79 @@ func TestRules_TrackCharacterEncoding(t *testing.T) {
 
 	// builder sanity check
 	t.Run("builder_sanity_for_track_title", func(t *testing.T) {
-		album := NewAlbum().ClearTracks().AddTrack().WithTitle("ZZZ").Build().Build()
-		if len(album.Tracks) != 1 || album.Tracks[0].Title != "ZZZ" {
-			t.Fatalf("builder produced title=%q (tracks=%d), want ZZZ,1", album.Tracks[0].Title, len(album.Tracks))
+		album := NewTorrent().ClearTracks().AddTrack().WithTitle("ZZZ").Build().Build()
+		tracks := album.Tracks()
+		if len(tracks) != 1 {
+			t.Fatalf("builder produced %d tracks, want 1", len(tracks))
+		}
+		if tracks[0].Title != "ZZZ" {
+			t.Fatalf("builder produced title=%q, want ZZZ", tracks[0].Title)
 		}
 	})
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantErrors int
 	}{
 		{
 			Name:     "valid - proper UTF-8",
-			Actual:   NewAlbum().WithTitle("Beethoven - Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Beethoven - Symphony No. 5").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - proper accented characters",
-			Actual:   NewAlbum().WithTitle("Dvořák - String Quartet").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Dvořák - String Quartet").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - proper German umlauts",
-			Actual:   NewAlbum().WithTitle("Arnold Schönberg - Symphonies").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Arnold Schönberg - Symphonies").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:       "error - mojibake pattern Ã©",
-			Actual:     buildAlbumWithTrackTitle("ConcertÃ© in D"),
+			Actual:     buildTorrentWithTrackTitle("ConcertÃ© in D"),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - mojibake pattern â€™",
-			Actual:     buildAlbumWithTrackTitle("Donâ€™t Stop Believin"),
+			Actual:     buildTorrentWithTrackTitle("Donâ€™t Stop Believin"),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - replacement character",
-			Actual:     buildAlbumWithTrackTitle("Concert\uFFFD in D"),
+			Actual:     buildTorrentWithTrackTitle("Concert\uFFFD in D"),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:       "error - null byte",
-			Actual:     buildAlbumWithTrackTitle("Concert\x00 in D"),
+			Actual:     buildTorrentWithTrackTitle("Concert\x00 in D"),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 		{
 			Name:     "valid - proper Russian characters",
-			Actual:   NewAlbum().WithTitle("Tchaikovsky - Лебединое озеро").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
+			Actual:   NewTorrent().WithTitle("Tchaikovsky - Лебединое озеро").WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build(),
 			WantPass: true,
 		},
 		{
 			Name:       "error - encoding issue in artist name",
-			Actual:     buildAlbumWithArtistName("DvÃ¶rÃ¡k"),
+			Actual:     buildTorrentWithArtistName("DvÃ¶rÃ¡k"),
 			WantPass:   false,
 			WantErrors: 1,
 		},
 	}
 
 	for _, tt := range tests {
-		for _, track := range tt.Actual.Tracks {
+		tracks := tt.Actual.Tracks()
+		for _, track := range tracks {
 			t.Run(tt.Name, func(t *testing.T) {
-				t.Logf("debug tracks=%d firstTitle=%q trackTitle=%q filename=%q", len(tt.Actual.Tracks), tt.Actual.Tracks[0].Title, track.Title, track.Name)
+				t.Logf("debug tracks=%d firstTitle=%q trackTitle=%q filename=%q", len(tracks), tracks[0].Title, track.Title, track.File.Path)
 				result := rules.TrackCharacterEncoding(track, nil, nil, nil)
 
 				if result.Passed() != tt.WantPass {

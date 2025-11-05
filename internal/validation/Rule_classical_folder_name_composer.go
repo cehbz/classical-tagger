@@ -9,7 +9,7 @@ import (
 
 // ComposerInFolderName checks that folder name contains composer (classical.folder_name)
 // The album title should include the primary composer's name
-func (r *Rules) ComposerInFolderName(actual, _ *domain.Album) RuleResult {
+func (r *Rules) ComposerInFolderName(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.folder_name",
 		Name:   "Folder name should contain composer name",
@@ -24,7 +24,7 @@ func (r *Rules) ComposerInFolderName(actual, _ *domain.Album) RuleResult {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 
-	tracks := actual.Tracks
+	tracks := actual.Tracks()
 	if len(tracks) == 0 {
 		return RuleResult{Meta: meta, Issues: nil}
 	}

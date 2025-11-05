@@ -29,7 +29,6 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	}
 
 	result := &ExtractionResult{
-		Album:  data,
 		Source: "discogs",
 	}
 	parsingNotes := make(map[string]interface{})
@@ -96,7 +95,7 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 	// After parsing tracks and album-level performers, check for universal performers in tracks
 	// and merge with album-level performers if any exist. Do NOT remove from tracks; instead ensure inclusion.
 	if len(data.Tracks) > 0 {
-		universalTrackArtists := domain.DetermineAlbumArtist(data)
+		universalTrackArtists := domain.DetermineAlbumArtistFromAlbum(data)
 
 		if len(universalTrackArtists) > 0 {
 			if len(albumLevelPerformers) > 0 {
@@ -141,6 +140,9 @@ func (p *DiscogsParser) Parse(html string) (*ExtractionResult, error) {
 			result.Notes = append(result.Notes, fmt.Sprintf("%s: %v", key, value))
 		}
 	}
+
+	// Convert Album to Torrent before returning (use empty root path for web scrapers)
+	result.Torrent = data.ToTorrent("")
 
 	return result, nil
 }

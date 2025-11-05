@@ -18,7 +18,7 @@ type ValidationResult struct {
 }
 
 // RunAll executes all provided rules and aggregates the results
-func RunAllAlbumRules(actual, reference *domain.Album, rules []AlbumRuleFunc) *ValidationResult {
+func RunAllTorrentRules(actual, reference *domain.Torrent, rules []TorrentRuleFunc) *ValidationResult {
 	result := &ValidationResult{
 		EntityName:     actual.Title, // Use title as path for now
 		TotalRuleCount: len(rules),
@@ -50,15 +50,15 @@ func RunAllAlbumRules(actual, reference *domain.Album, rules []AlbumRuleFunc) *V
 }
 
 // RunAll executes all provided rules and aggregates the results
-func RunAllTrackRules(actualTrack, refTrack *domain.Track, actualAlbum, refAlbum *domain.Album, rules []TrackRuleFunc) *ValidationResult {
+func RunAllTrackRules(actualTrack, refTrack *domain.Track, actualTorrent, refTorrent *domain.Torrent, rules []TrackRuleFunc) *ValidationResult {
 	result := &ValidationResult{
-		EntityName:     fmt.Sprintf("%s/%s", actualAlbum.Title, actualTrack.Name),
+		EntityName:     fmt.Sprintf("%s/%s", actualTorrent.Title, actualTrack.File.Path),
 		TotalRuleCount: len(rules),
 		RuleResults:    make([]RuleResult, 0, len(rules)),
 	}
 
 	for _, ruleFunc := range rules {
-		ruleResult := ruleFunc(actualTrack, refTrack, actualAlbum, refAlbum)
+		ruleResult := ruleFunc(actualTrack, refTrack, actualTorrent, refTorrent)
 		result.RuleResults = append(result.RuleResults, ruleResult)
 
 		if ruleResult.Passed() {

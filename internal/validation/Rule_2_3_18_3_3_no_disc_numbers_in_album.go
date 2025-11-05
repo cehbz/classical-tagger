@@ -14,7 +14,7 @@ var discNumberPattern = regexp.MustCompile(`(?i)(disc|cd|disk|volume|vol\.?)\s*\
 
 // NoDiscNumbersInAlbumTag checks that disc numbers aren't in album title (rule 2.3.18.3.3)
 // Disc numbers should be in the DISC tag, not the album title
-func (r *Rules) NoDiscNumbersInAlbumTag(actual, _ *domain.Album) RuleResult {
+func (r *Rules) NoDiscNumbersInAlbumTag(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.3.3",
 		Name:   "Disc numbers should not be in album title",

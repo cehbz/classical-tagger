@@ -14,8 +14,9 @@ func TestValidateJSONFiles_ValidAlbum(t *testing.T) {
 	tmpDir := t.TempDir()
 	jsonFile := filepath.Join(tmpDir, "album.json")
 
-	// Create a valid album JSON
-	album := &domain.Album{
+	// Create a valid torrent JSON
+	torrent := &domain.Torrent{
+		RootPath:     "test-album",
 		Title:        "Test Album",
 		OriginalYear: 2013,
 		Edition: &domain.Edition{
@@ -23,8 +24,12 @@ func TestValidateJSONFiles_ValidAlbum(t *testing.T) {
 			CatalogNumber: "TL123",
 			Year:          2013,
 		},
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Track 1.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Track 1",
@@ -38,7 +43,7 @@ func TestValidateJSONFiles_ValidAlbum(t *testing.T) {
 
 	// Save to JSON file
 	repo := storage.NewRepository()
-	if err := repo.SaveToFile(album, jsonFile); err != nil {
+	if err := repo.SaveToFile(torrent, jsonFile); err != nil {
 		t.Fatalf("Failed to save test JSON: %v", err)
 	}
 
@@ -48,12 +53,12 @@ func TestValidateJSONFiles_ValidAlbum(t *testing.T) {
 		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	if report.Album == nil {
-		t.Fatal("Album should be loaded")
+	if report.Torrent == nil {
+		t.Fatal("Torrent should be loaded")
 	}
 
-	if report.Album.Title != album.Title {
-		t.Errorf("Album title = %q, want %q", report.Album.Title, album.Title)
+	if report.Torrent.Title != torrent.Title {
+		t.Errorf("Torrent title = %q, want %q", report.Torrent.Title, torrent.Title)
 	}
 
 	if len(report.LoadErrors) > 0 {
@@ -80,8 +85,8 @@ func TestValidateJSONFiles_InvalidJSON(t *testing.T) {
 		t.Error("Expected load error for invalid JSON")
 	}
 
-	if report.Album != nil {
-		t.Error("Album should not be loaded when JSON is invalid")
+	if report.Torrent != nil {
+		t.Error("Torrent should not be loaded when JSON is invalid")
 	}
 }
 
@@ -99,8 +104,8 @@ func TestValidateJSONFiles_MissingFile(t *testing.T) {
 		t.Error("Expected load error for missing file")
 	}
 
-	if report.Album != nil {
-		t.Error("Album should not be loaded when file is missing")
+	if report.Torrent != nil {
+		t.Error("Torrent should not be loaded when file is missing")
 	}
 }
 
@@ -109,12 +114,17 @@ func TestValidateJSONFiles_WithReference(t *testing.T) {
 	jsonFile := filepath.Join(tmpDir, "album.json")
 	refFile := filepath.Join(tmpDir, "reference.json")
 
-	// Create album JSON
-	album := &domain.Album{
+	// Create torrent JSON
+	torrent := &domain.Torrent{
+		RootPath:     "test-album",
 		Title:        "Test Album",
 		OriginalYear: 2013,
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Track 1.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Track 1",
@@ -126,11 +136,16 @@ func TestValidateJSONFiles_WithReference(t *testing.T) {
 	}
 
 	// Create reference JSON
-	reference := &domain.Album{
+	reference := &domain.Torrent{
+		RootPath:     "test-album",
 		Title:        "Test Album",
 		OriginalYear: 2013,
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Track 1.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Track 1",
@@ -142,8 +157,8 @@ func TestValidateJSONFiles_WithReference(t *testing.T) {
 	}
 
 	repo := storage.NewRepository()
-	if err := repo.SaveToFile(album, jsonFile); err != nil {
-		t.Fatalf("Failed to save album JSON: %v", err)
+	if err := repo.SaveToFile(torrent, jsonFile); err != nil {
+		t.Fatalf("Failed to save torrent JSON: %v", err)
 	}
 	if err := repo.SaveToFile(reference, refFile); err != nil {
 		t.Fatalf("Failed to save reference JSON: %v", err)
@@ -155,8 +170,8 @@ func TestValidateJSONFiles_WithReference(t *testing.T) {
 		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	if report.Album == nil {
-		t.Fatal("Album should be loaded")
+	if report.Torrent == nil {
+		t.Fatal("Torrent should be loaded")
 	}
 
 	if len(report.LoadErrors) > 0 {
@@ -169,12 +184,17 @@ func TestValidateJSONFiles_InvalidReference(t *testing.T) {
 	jsonFile := filepath.Join(tmpDir, "album.json")
 	refFile := filepath.Join(tmpDir, "invalid_ref.json")
 
-	// Create valid album JSON
-	album := &domain.Album{
+	// Create valid torrent JSON
+	torrent := &domain.Torrent{
+		RootPath:     "test-album",
 		Title:        "Test Album",
 		OriginalYear: 2013,
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Track 1.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Track 1",
@@ -191,8 +211,8 @@ func TestValidateJSONFiles_InvalidReference(t *testing.T) {
 	}
 
 	repo := storage.NewRepository()
-	if err := repo.SaveToFile(album, jsonFile); err != nil {
-		t.Fatalf("Failed to save album JSON: %v", err)
+	if err := repo.SaveToFile(torrent, jsonFile); err != nil {
+		t.Fatalf("Failed to save torrent JSON: %v", err)
 	}
 
 	// Validate with invalid reference
@@ -201,8 +221,8 @@ func TestValidateJSONFiles_InvalidReference(t *testing.T) {
 		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	if report.Album == nil {
-		t.Fatal("Album should be loaded")
+	if report.Torrent == nil {
+		t.Fatal("Torrent should be loaded")
 	}
 
 	// Should have load error for reference but continue validation
@@ -265,12 +285,17 @@ func TestValidateJSONFiles_ValidationIssues(t *testing.T) {
 	tmpDir := t.TempDir()
 	jsonFile := filepath.Join(tmpDir, "album.json")
 
-	// Create album with validation issues (missing composer, all caps title)
-	album := &domain.Album{
+	// Create torrent with validation issues (missing composer, all caps title)
+	torrent := &domain.Torrent{
+		RootPath:     "all-caps-album",
 		Title:        "ALL CAPS TITLE",
 		OriginalYear: 2013,
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - ALL CAPS TRACK.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "ALL CAPS TRACK",
@@ -282,7 +307,7 @@ func TestValidateJSONFiles_ValidationIssues(t *testing.T) {
 	}
 
 	repo := storage.NewRepository()
-	if err := repo.SaveToFile(album, jsonFile); err != nil {
+	if err := repo.SaveToFile(torrent, jsonFile); err != nil {
 		t.Fatalf("Failed to save test JSON: %v", err)
 	}
 
@@ -318,14 +343,14 @@ func TestValidateJSONFiles_EmptyJSON(t *testing.T) {
 		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	// Should load successfully (empty album is valid JSON)
-	if report.Album == nil {
-		t.Fatal("Album should be loaded even if empty")
+	// Should load successfully (empty torrent is valid JSON)
+	if report.Torrent == nil {
+		t.Fatal("Torrent should be loaded even if empty")
 	}
 
 	// Should have validation issues for missing required fields
 	if len(report.Issues) == 0 {
-		t.Error("Expected validation issues for empty album")
+		t.Error("Expected validation issues for empty torrent")
 	}
 }
 
@@ -360,8 +385,8 @@ func TestValidateJSONFiles_MalformedJSON(t *testing.T) {
 		t.Error("Expected load error for malformed JSON")
 	}
 
-	if report.Album != nil {
-		t.Error("Album should not be loaded when JSON is malformed")
+	if report.Torrent != nil {
+		t.Error("Torrent should not be loaded when JSON is malformed")
 	}
 }
 
@@ -369,12 +394,17 @@ func TestValidateJSONFiles_ValidMultiDiscAlbum(t *testing.T) {
 	tmpDir := t.TempDir()
 	jsonFile := filepath.Join(tmpDir, "album.json")
 
-	// Create valid multi-disc album
-	album := &domain.Album{
+	// Create valid multi-disc torrent
+	torrent := &domain.Torrent{
+		RootPath:     "multi-disc-album",
 		Title:        "Multi-Disc Album",
 		OriginalYear: 2013,
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "CD1/01 - Disc 1 Track 1.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Disc 1 Track 1",
@@ -383,7 +413,11 @@ func TestValidateJSONFiles_ValidMultiDiscAlbum(t *testing.T) {
 					{Name: "Ensemble", Role: domain.RoleEnsemble},
 				},
 			},
-			{
+			&domain.Track{
+				File: domain.File{
+					Path: "CD2/01 - Disc 2 Track 1.flac",
+					Size: 0,
+				},
 				Disc:  2,
 				Track: 1,
 				Title: "Disc 2 Track 1",
@@ -396,7 +430,7 @@ func TestValidateJSONFiles_ValidMultiDiscAlbum(t *testing.T) {
 	}
 
 	repo := storage.NewRepository()
-	if err := repo.SaveToFile(album, jsonFile); err != nil {
+	if err := repo.SaveToFile(torrent, jsonFile); err != nil {
 		t.Fatalf("Failed to save test JSON: %v", err)
 	}
 
@@ -406,12 +440,12 @@ func TestValidateJSONFiles_ValidMultiDiscAlbum(t *testing.T) {
 		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	if report.Album == nil {
-		t.Fatal("Album should be loaded")
+	if report.Torrent == nil {
+		t.Fatal("Torrent should be loaded")
 	}
 
-	if len(report.Album.Tracks) != 2 {
-		t.Errorf("Track count = %d, want 2", len(report.Album.Tracks))
+	if len(report.Torrent.Tracks()) != 2 {
+		t.Errorf("Track count = %d, want 2", len(report.Torrent.Tracks()))
 	}
 
 	if len(report.LoadErrors) > 0 {
@@ -423,8 +457,9 @@ func TestValidateJSONFiles_JSONSerialization(t *testing.T) {
 	tmpDir := t.TempDir()
 	jsonFile := filepath.Join(tmpDir, "album.json")
 
-	// Create album and save it
-	album := &domain.Album{
+	// Create torrent and save it
+	torrent := &domain.Torrent{
+		RootPath:     "test-album",
 		Title:        "Test Album",
 		OriginalYear: 2013,
 		Edition: &domain.Edition{
@@ -432,8 +467,12 @@ func TestValidateJSONFiles_JSONSerialization(t *testing.T) {
 			CatalogNumber: "TL123",
 			Year:          2013,
 		},
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Track 1.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Track 1",
@@ -445,7 +484,7 @@ func TestValidateJSONFiles_JSONSerialization(t *testing.T) {
 	}
 
 	repo := storage.NewRepository()
-	if err := repo.SaveToFile(album, jsonFile); err != nil {
+	if err := repo.SaveToFile(torrent, jsonFile); err != nil {
 		t.Fatalf("Failed to save test JSON: %v", err)
 	}
 
@@ -466,11 +505,11 @@ func TestValidateJSONFiles_JSONSerialization(t *testing.T) {
 		t.Fatalf("ValidateJSONFiles error: %v", err)
 	}
 
-	if report.Album == nil {
-		t.Fatal("Album should be loaded")
+	if report.Torrent == nil {
+		t.Fatal("Torrent should be loaded")
 	}
 
-	if report.Album.Title != album.Title {
-		t.Errorf("Album title = %q, want %q", report.Album.Title, album.Title)
+	if report.Torrent.Title != torrent.Title {
+		t.Errorf("Torrent title = %q, want %q", report.Torrent.Title, torrent.Title)
 	}
 }

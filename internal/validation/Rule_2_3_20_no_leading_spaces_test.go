@@ -10,13 +10,13 @@ func TestRules_AlbumNoLeadingSpaces(t *testing.T) {
 	rules := NewRules()
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name: "valid - no leading spaces",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
 			},
@@ -24,7 +24,7 @@ func TestRules_AlbumNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "album title with leading space",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        " Beethoven Symphonies",
 				OriginalYear: 1963,
 			},
@@ -33,20 +33,20 @@ func TestRules_AlbumNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "folder name with leading space",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				FolderName:   " Symphonies",
+				RootPath:     " Symphonies",
 			},
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name: "multiple violations",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        " Beethoven",
 				OriginalYear: 1963,
-				FolderName:   " Symphonies",
+				RootPath:     " Symphonies",
 			},
 			WantPass:   false,
 			WantIssues: 2, // Album title + folder name
@@ -75,33 +75,33 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 	rules := NewRules()
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name: "valid - no leading spaces",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: "01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony No. 1",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "01 - Symphony.flac",
 					},
-					{
+					&domain.Track{
+						File: domain.File{Path: "02 - Concerto.flac"},
 						Disc:  1,
 						Track: 2,
 						Title: "Symphony No. 2",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "02 - Concerto.flac",
 					},
 				},
 			},
@@ -109,18 +109,18 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 		},
 		{ // don't care about album failures in track validation
 			Name: "album title with leading space",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        " Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: "01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "01 - Symphony.flac",
 					},
 				},
 			},
@@ -129,18 +129,18 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "filename with leading space",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: " 01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: " 01 - Symphony.flac",
 					},
 				},
 			},
@@ -149,18 +149,18 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "track title with leading space",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: "01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: " Symphony No. 1",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "01 - Symphony.flac",
 					},
 				},
 			},
@@ -169,18 +169,18 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "folder name in path with leading space",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: " CD1/01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: " CD1/01 - Symphony.flac",
 					},
 				},
 			},
@@ -189,18 +189,18 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "artist name with leading space",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven Symphonies",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: "CD1/01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: " Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "CD1/01 - Symphony.flac",
 					},
 				},
 			},
@@ -209,27 +209,27 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "multiple violations",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        " Beethoven",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: " 01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: " Symphony No. 1",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: " 01 - Symphony.flac",
 					},
-					{
+					&domain.Track{
+						File: domain.File{Path: "02 - Concerto.flac"},
 						Disc:  1,
 						Track: 2,
 						Title: "Concerto",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "02 - Concerto.flac",
 					},
 				},
 			},
@@ -238,27 +238,27 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 		},
 		{
 			Name: "valid multi-disc with subfolders",
-			Actual: &domain.Album{
+			Actual: &domain.Torrent{
 				Title:        "Beethoven",
 				OriginalYear: 1963,
-				Tracks: []*domain.Track{
-					{
+				Files: []domain.FileLike{
+					&domain.Track{
+						File: domain.File{Path: "CD1/01 - Symphony.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Symphony",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "CD1/01 - Symphony.flac",
 					},
-					{
+					&domain.Track{
+						File: domain.File{Path: "CD2/01 - Concerto.flac"},
 						Disc:  2,
 						Track: 1,
 						Title: "Concerto",
 						Artists: []domain.Artist{
 							{Name: "Bach", Role: domain.RoleComposer},
 							{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}},
-						Name: "CD2/01 - Concerto.flac",
 					},
 				},
 			},
@@ -267,7 +267,7 @@ func TestRules_TrackNoLeadingSpaces(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		for i, track := range tt.Actual.Tracks {
+		for i, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
 				result := rules.TrackNoLeadingSpaces(track, nil, tt.Actual, nil)
 

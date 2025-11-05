@@ -11,13 +11,13 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name: "valid - single composer album (position irrelevant)",
-			Actual: buildSingleComposerAlbumWithFilenames(
+			Actual: buildSingleComposerTorrentWithFilenames(
 				"Beethoven",
 				"01 - Symphony No. 1.flac",
 				"02 - Symphony No. 2.flac",
@@ -26,7 +26,7 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 		},
 		{
 			Name: "valid - multi-composer, artist after track number",
-			Actual: buildMultiComposerAlbumWithFilenames(
+			Actual: buildMultiComposerTorrentWithFilenames(
 				[]composerTrack{{"Bach", 1, "01 - Bach - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "02 - Vivaldi - Concerto.flac"}},
 			),
@@ -34,7 +34,7 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 		},
 		{
 			Name: "invalid - multi-composer, artist before track number",
-			Actual: buildMultiComposerAlbumWithFilenames(
+			Actual: buildMultiComposerTorrentWithFilenames(
 				[]composerTrack{{"Bach", 1, "Bach - 01 - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "Vivaldi - 02 - Concerto.flac"}},
 			),
@@ -43,7 +43,7 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 		},
 		{
 			Name: "valid - multi-composer, no artist in filename",
-			Actual: buildMultiComposerAlbumWithFilenames(
+			Actual: buildMultiComposerTorrentWithFilenames(
 				[]composerTrack{{"Bach", 1, "01 - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "02 - Concerto.flac"}},
 			),
@@ -51,7 +51,7 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 		},
 		{
 			Name: "invalid - some tracks have artist before number",
-			Actual: buildMultiComposerAlbumWithFilenames(
+			Actual: buildMultiComposerTorrentWithFilenames(
 				[]composerTrack{{"Bach", 1, "01 - Prelude.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "Vivaldi - 02 - Concerto.flac"}},
 			),
@@ -63,7 +63,7 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			issues := []domain.ValidationIssue{}
-			for _, track := range tt.Actual.Tracks {
+			for _, track := range tt.Actual.Tracks() {
 				result := rules.ArtistPositionInFilename(track, nil, tt.Actual, nil)
 				issues = append(issues, result.Issues...)
 			}
@@ -81,17 +81,17 @@ func TestRules_ArtistPositionInFilename(t *testing.T) {
 func TestIsMultiComposerAlbum(t *testing.T) {
 	tests := []struct {
 		Name      string
-		Album     *domain.Album
+		Album     *domain.Torrent
 		WantMulti bool
 	}{
 		{
 			Name:      "single composer",
-			Album:     buildSingleComposerAlbumWithFilenames("Bach", "01.flac", "02.flac"),
+			Album:     buildSingleComposerTorrentWithFilenames("Bach", "01.flac", "02.flac"),
 			WantMulti: false,
 		},
 		{
 			Name: "multiple composers",
-			Album: buildMultiComposerAlbumWithFilenames(
+			Album: buildMultiComposerTorrentWithFilenames(
 				[]composerTrack{{"Bach", 1, "01.flac"}},
 				[]composerTrack{{"Vivaldi", 2, "02.flac"}},
 			),

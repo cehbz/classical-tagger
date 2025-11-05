@@ -8,7 +8,7 @@ import (
 )
 
 // PathLength checks that file paths don't exceed 180 characters (rule 2.3.12)
-func (r *Rules) PathLength(actualTrack, _ *domain.Track, actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) PathLength(actualTrack, _ *domain.Track, actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.12",
 		Name:   "Path length under 180 characters",
@@ -16,7 +16,7 @@ func (r *Rules) PathLength(actualTrack, _ *domain.Track, actualAlbum, _ *domain.
 		Weight: 1.0,
 	}
 
-	path := filepath.Join(actualAlbum.FolderName, actualTrack.Name)
+	path := filepath.Join(actualTorrent.RootPath, actualTrack.File.Path)
 	if len(path) > 180 {
 		return RuleResult{Meta: meta, Issues: []domain.ValidationIssue{
 			{

@@ -88,9 +88,8 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 		Tracks:       make([]*domain.Track, 0, len(files)),
 	}
 
-	// Start with empty result
+	// Start with empty result (will convert Album to Torrent at end)
 	result := &ExtractionResult{
-		Album:  data,
 		Source: "local_directory",
 	}
 	parsingNotes := make(map[string]interface{})
@@ -131,6 +130,8 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	// Validate we got tracks
 	if len(data.Tracks) == 0 {
 		result.Warnings = append(result.Warnings, "no tracks extracted")
+		// Convert Album to Torrent before returning
+		result.Torrent = data.ToTorrent(filepath.Base(dirPath))
 		return result, nil
 	}
 
@@ -170,7 +171,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	// If album artist is already set (from tags), refine roles using universal performers from tracks
 	// This ensures we have accurate roles based on actual track performers
 	if len(data.AlbumArtist) > 0 && len(data.Tracks) > 0 {
-		universalArtists := domain.DetermineAlbumArtist(data)
+		universalArtists := domain.DetermineAlbumArtistFromAlbum(data)
 		if len(universalArtists) > 0 {
 			// Use universal performers (they have correct roles from tracks)
 			// Compare names to ensure they match what we parsed from tags
@@ -207,7 +208,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 
 	// If album artist is empty but we have performers in all tracks, synthesize it
 	if len(data.AlbumArtist) == 0 && len(data.Tracks) > 0 {
-		universalArtists := domain.DetermineAlbumArtist(data)
+		universalArtists := domain.DetermineAlbumArtistFromAlbum(data)
 		if len(universalArtists) > 0 {
 			data.AlbumArtist = universalArtists
 			// Ensure AlbumArtist performers are present on each track (unless Various Artists)
@@ -239,6 +240,9 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	}
 
 	result.Notes = append(result.Notes, fmt.Sprintf("tracks extracted: %d", len(data.Tracks)))
+
+	// Convert Album to Torrent before returning
+	result.Torrent = data.ToTorrent(filepath.Base(dirPath))
 
 	return result, nil
 }
@@ -339,6 +343,10 @@ func (e *LocalExtractor) extractTrackMetadataWithAlbumArtist(filePath string, ba
 	}
 
 	track := &domain.Track{
+		File: domain.File{
+			Path: "", // Will be set below
+			Size: 0,  // Size not available from tags
+		},
 		Disc:    1, // Default
 		Track:   0,
 		Title:   "",
@@ -397,9 +405,9 @@ func (e *LocalExtractor) extractTrackMetadataWithAlbumArtist(filePath string, ba
 	relPath, err := filepath.Rel(baseDir, filePath)
 	if err == nil {
 		// Convert to forward slashes for consistency
-		track.Name = filepath.ToSlash(relPath)
+		track.File.Path = filepath.ToSlash(relPath)
 	} else {
-		track.Name = filepath.Base(filePath)
+		track.File.Path = filepath.Base(filePath)
 	}
 
 	return track, albumArtistValue, nil
@@ -468,33 +476,33 @@ func (e *LocalExtractor) extractTitleFromFilename(filePath string) string {
 // Handles formats like "Soloist; Orchestra; Conductor" or "Soloist, Orchestra, Conductor"
 // Returns immutable slice.
 func (e *LocalExtractor) parseArtistField(artistField string) []domain.Artist {
-    artists := make([]domain.Artist, 0)
+	artists := make([]domain.Artist, 0)
 
-    // Try semicolon separator first (more reliable)
-    var names []string
-    if strings.Contains(artistField, ";") {
-        names = strings.Split(artistField, ";")
-    } else if strings.Contains(artistField, ",") {
-        names = strings.Split(artistField, ",")
-    } else {
-        // Single artist
-        names = []string{artistField}
-    }
+	// Try semicolon separator first (more reliable)
+	var names []string
+	if strings.Contains(artistField, ";") {
+		names = strings.Split(artistField, ";")
+	} else if strings.Contains(artistField, ",") {
+		names = strings.Split(artistField, ",")
+	} else {
+		// Single artist
+		names = []string{artistField}
+	}
 
-    for _, name := range names {
-        name = strings.TrimSpace(name)
-        if name == "" {
-            continue
-        }
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
 
-        // Do not infer roles from names; preserve original order and mark as Unknown
-        artists = append(artists, domain.Artist{
-            Name: name,
-            Role: domain.RoleUnknown,
-        })
-    }
+		// Do not infer roles from names; preserve original order and mark as Unknown
+		artists = append(artists, domain.Artist{
+			Name: name,
+			Role: domain.RoleUnknown,
+		})
+	}
 
-    return artists
+	return artists
 }
 
 // inferRoleFromName attempts to infer artist role from their name.

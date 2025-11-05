@@ -14,7 +14,7 @@ func TestMetadataToVorbisComment(t *testing.T) {
 	tests := []struct {
 		Name     string
 		Track    *domain.Track
-		Album    *domain.Album
+		Torrent  *domain.Torrent
 		WantTags map[string]string
 	}{
 		{
@@ -29,8 +29,8 @@ func TestMetadataToVorbisComment(t *testing.T) {
 					Artists: []domain.Artist{composer, performer},
 				}
 			}(),
-			Album: func() *domain.Album {
-				return &domain.Album{Title: "Goldberg Variations", OriginalYear: 1981}
+			Torrent: func() *domain.Torrent {
+				return &domain.Torrent{RootPath: "goldberg", Title: "Goldberg Variations", OriginalYear: 1981}
 			}(),
 			WantTags: map[string]string{
 				"COMPOSER":     "Johann Sebastian Bach",
@@ -57,8 +57,8 @@ func TestMetadataToVorbisComment(t *testing.T) {
 					Artists: []domain.Artist{composer, soloist, ensemble, conductor},
 				}
 			}(),
-			Album: func() *domain.Album {
-				return &domain.Album{Title: "Brahms: Violin Concerto", OriginalYear: 1980}
+			Torrent: func() *domain.Torrent {
+				return &domain.Torrent{RootPath: "brahms", Title: "Brahms: Violin Concerto", OriginalYear: 1980}
 			}(),
 			WantTags: map[string]string{
 				"COMPOSER":     "Johannes Brahms",
@@ -85,8 +85,9 @@ func TestMetadataToVorbisComment(t *testing.T) {
 					Artists: []domain.Artist{composer, ensemble},
 				}
 			}(),
-			Album: func() *domain.Album {
-				return &domain.Album{
+			Torrent: func() *domain.Torrent {
+				return &domain.Torrent{
+					RootPath:     "christmas",
 					Title:        "Christmas Music",
 					OriginalYear: 2013,
 					Edition: &domain.Edition{
@@ -122,8 +123,9 @@ func TestMetadataToVorbisComment(t *testing.T) {
 					Artists: []domain.Artist{composer, performer},
 				}
 			}(),
-			Album: func() *domain.Album {
-				return &domain.Album{
+			Torrent: func() *domain.Torrent {
+				return &domain.Torrent{
+					RootPath:     "goldberg",
 					Title:        "Goldberg Variations",
 					OriginalYear: 1955, // Original recording
 					Edition: &domain.Edition{ // Remaster edition
@@ -151,7 +153,7 @@ func TestMetadataToVorbisComment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			tags := MetadataToVorbisComment(tt.Track, tt.Album)
+			tags := MetadataToVorbisComment(tt.Track, tt.Torrent)
 
 			for key, want := range tt.WantTags {
 				got, exists := tags[key]

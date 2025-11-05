@@ -8,7 +8,7 @@ import (
 
 // RecordingDateVsYear checks recording date vs year field usage (rule 2.3.4)
 // INFO level - suggests using recording date for original recordings
-func (r *Rules) RecordingDateVsYear(actual, reference *domain.Album) RuleResult {
+func (r *Rules) RecordingDateVsYear(actual, reference *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.4",
 		Name:   "Recording date vs release year - use recording year for originals",

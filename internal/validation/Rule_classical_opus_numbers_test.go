@@ -11,72 +11,75 @@ func TestRules_OpusNumbers(t *testing.T) {
 
 	tests := []struct {
 		Name      string
-		Actual    *domain.Album
-		Reference *domain.Album
+		Actual    *domain.Torrent
+		Reference *domain.Torrent
 		WantPass  bool
 		WantInfo  int
 	}{
 		{
 			Name:     "valid - has opus number",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "info - missing opus number for Beethoven",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "valid - has BWV number",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Fugue in D Minor, BWV 1080").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Fugue in D Minor, BWV 1080").ClearArtists().WithArtists(domain.Artist{Name: "Bach", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - has Köchel number",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 40, K. 550").ClearArtists().WithArtists(domain.Artist{Name: "Mozart", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 40, K. 550").ClearArtists().WithArtists(domain.Artist{Name: "Mozart", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - has Hoboken number",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Sonata, Hob. XVI:52").ClearArtists().WithArtists(domain.Artist{Name: "Haydn", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Sonata, Hob. XVI:52").ClearArtists().WithArtists(domain.Artist{Name: "Haydn", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - has Deutsch number",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Impromptu, D. 899").ClearArtists().WithArtists(domain.Artist{Name: "Schubert", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Impromptu, D. 899").ClearArtists().WithArtists(domain.Artist{Name: "Schubert", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "valid - has RV number",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Concerto, RV 315").ClearArtists().WithArtists(domain.Artist{Name: "Vivaldi", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Concerto, RV 315").ClearArtists().WithArtists(domain.Artist{Name: "Vivaldi", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "pass - no catalog system for this composer",
-			Actual:   NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Contemporary Composer", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony").ClearArtists().WithArtists(domain.Artist{Name: "Contemporary Composer", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:      "info - reference has opus but actual doesn't",
-			Actual:    NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
-			Reference: NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:    NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Reference: NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass:  false,
 			WantInfo:  1,
 		},
 		{
 			Name:      "pass - both have opus",
-			Actual:    NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
-			Reference: NewAlbum().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Actual:    NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
+			Reference: NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 5, Op. 67").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass:  true,
 		},
 	}
 
 	for _, tt := range tests {
-		for i, track := range tt.Actual.Tracks {
+		for i, track := range tt.Actual.Tracks() {
 			var refTrack *domain.Track
 			if tt.Reference != nil {
-				refTrack = tt.Reference.Tracks[i]
+				refTracks := tt.Reference.Tracks()
+				if i < len(refTracks) {
+					refTrack = refTracks[i]
+				}
 			}
 			t.Run(tt.Name, func(t *testing.T) {
 				result := rules.OpusNumbers(track, refTrack, nil, nil)

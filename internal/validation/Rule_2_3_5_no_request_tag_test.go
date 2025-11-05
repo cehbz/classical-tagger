@@ -77,7 +77,7 @@ func TestRules_NoRequestTagInTitle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			actual := NewAlbum().WithTitle(tt.AlbumTitle).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
+			actual := NewTorrent().WithTitle(tt.AlbumTitle).WithEdition("Deutsche Grammophon", "DG-479-0334", 1990).Build()
 			result := rules.NoRequestTagInTitle(actual, actual)
 
 			if result.Passed() != tt.WantPass {
@@ -89,7 +89,7 @@ func TestRules_NoRequestTagInTitle(t *testing.T) {
 				warningCount := 0
 				for _, issue := range result.Issues {
 					switch issue.Level {
-case domain.LevelError:
+					case domain.LevelError:
 						errorCount++
 					case domain.LevelWarning:
 						warningCount++

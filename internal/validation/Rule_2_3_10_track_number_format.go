@@ -8,7 +8,7 @@ import (
 
 // TrackNumberFormat checks track number format consistency (rule 2.3.10)
 // INFO level - suggests using consistent track numbering format
-func (r *Rules) TrackNumberFormat(actual, _ *domain.Album) RuleResult {
+func (r *Rules) TrackNumberFormat(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.10",
 		Name:   "Track numbers should use consistent format",
@@ -18,7 +18,7 @@ func (r *Rules) TrackNumberFormat(actual, _ *domain.Album) RuleResult {
 
 	var issues []domain.ValidationIssue
 
-	tracks := actual.Tracks
+	tracks := actual.Tracks()
 	if len(tracks) == 0 {
 		return RuleResult{Meta: meta, Issues: nil}
 	}

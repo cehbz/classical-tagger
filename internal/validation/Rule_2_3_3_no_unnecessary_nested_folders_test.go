@@ -11,68 +11,68 @@ func TestRules_NoUnnecessaryNestedFolders(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name:       "valid - no folders",
-			Actual:     buildAlbumWithFilenames("01 - Track.flac"),
+			Actual:     buildTorrentWithFilenames("01 - Track.flac"),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - single disc folder",
-			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"CD1/01 - Track.flac"}, []int{1}),
+			Actual:     buildTorrentWithFilenamesAndDiscs([]string{"CD1/01 - Track.flac"}, []int{1}),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "valid - Disc folder naming",
-			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"Disc1/01 - Track.flac", "Disc2/01 - Track.flac"}, []int{1, 2}),
+			Actual:     buildTorrentWithFilenamesAndDiscs([]string{"Disc1/01 - Track.flac", "Disc2/01 - Track.flac"}, []int{1, 2}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - Disk folder naming",
-			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"Disk1/01 - Track.flac", "Disk2/01 - Track.flac"}, []int{1, 2}),
+			Actual:     buildTorrentWithFilenamesAndDiscs([]string{"Disk1/01 - Track.flac", "Disk2/01 - Track.flac"}, []int{1, 2}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "invalid - artist/album nesting",
-			Actual:     buildAlbumWithFilenames("Beethoven/Symphonies/01 - Track.flac"),
+			Actual:     buildTorrentWithFilenames("Beethoven/Symphonies/01 - Track.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - extra nested folder",
-			Actual:     buildAlbumWithFilenames("Extra/CD1/01 - Track.flac"),
+			Actual:     buildTorrentWithFilenames("Extra/CD1/01 - Track.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - year folder",
-			Actual:     buildAlbumWithFilenames("1963/01 - Track.flac"),
+			Actual:     buildTorrentWithFilenames("1963/01 - Track.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "valid - DVD folder",
-			Actual:     buildAlbumWithFilenamesAndDiscs([]string{"DVD1/01 - Track.flac", "DVD2/01 - Track.flac"}, []int{1, 2}),
+			Actual:     buildTorrentWithFilenamesAndDiscs([]string{"DVD1/01 - Track.flac", "DVD2/01 - Track.flac"}, []int{1, 2}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "invalid - artist folder nesting",
-			Actual:     buildAlbumWithFilenames("Artist/02 - Track.flac"),
+			Actual:     buildTorrentWithFilenames("Artist/02 - Track.flac"),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 	}
 
 	for _, tt := range tests {
-		for _, track := range tt.Actual.Tracks {
+		for _, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
 				result := rules.NoUnnecessaryNestedFolders(track, nil, tt.Actual, nil)
 

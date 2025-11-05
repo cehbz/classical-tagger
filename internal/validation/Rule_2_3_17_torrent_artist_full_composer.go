@@ -9,7 +9,7 @@ import (
 
 // TorrentArtistFullComposerName checks that the torrent artist uses full composer name (rule 2.3.17)
 // For classical works, the main album artist should be the composer with full name
-func (r *Rules) TorrentArtistFullComposerName(actual, _ *domain.Album) RuleResult {
+func (r *Rules) TorrentArtistFullComposerName(actual, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.17",
 		Name:   "Torrent artist should use full composer name",
@@ -22,7 +22,7 @@ func (r *Rules) TorrentArtistFullComposerName(actual, _ *domain.Album) RuleResul
 	// For classical music, we need to determine the primary composer(s) across the album
 	// This is typically reflected in the album title or the dominant composer in tracks
 
-	tracks := actual.Tracks
+	tracks := actual.Tracks()
 	if len(tracks) == 0 {
 		return RuleResult{Meta: meta, Issues: nil}
 	}

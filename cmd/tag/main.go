@@ -33,26 +33,27 @@ func main() {
 
 	// Load metadata JSON
 	fmt.Printf("Loading metadata from %s...\n", *metadataFile)
-	album, err := LoadMetadataJSON(*metadataFile)
+	torrent, err := LoadMetadataJSON(*metadataFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading metadata: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Loaded album: %s (%d)\n", album.Title, album.OriginalYear)
-	fmt.Printf("  Tracks: %d\n\n", len(album.Tracks))
+	fmt.Printf("✓ Loaded torrent: %s (%d)\n", torrent.Title, torrent.OriginalYear)
+	fmt.Printf("  Tracks: %d\n\n", len(torrent.Tracks()))
 
 	// Validate metadata unless --force
 	if !*force {
 		fmt.Println("Validating metadata...")
-		issues := validation.Check(album, nil)
+		issues := validation.Check(torrent, nil)
 
 		hasErrors := false
 		for _, issue := range issues {
-			if issue.Level == domain.LevelError {
+			switch issue.Level {
+			case domain.LevelError:
 				hasErrors = true
 				fmt.Printf("❌ %s\n", issue)
-			} else if issue.Level == domain.LevelWarning {
+			case domain.LevelWarning:
 				fmt.Printf("⚠️  %s\n", issue)
 			}
 		}
@@ -86,7 +87,7 @@ func main() {
 
 	// Match tracks to files
 	fmt.Println("Matching tracks to files...")
-	matches := MatchTracksToFiles(album, files)
+	matches := MatchTracksToFiles(torrent, files)
 
 	unmatchedTracks := 0
 	for track, file := range matches {
@@ -157,7 +158,7 @@ func main() {
 		destPath := filepath.Join(outDir, filepath.Base(file))
 
 		// Write tags
-		err := writer.WriteTrack(file, destPath, track, album)
+		err := writer.WriteTrack(file, destPath, track, torrent)
 		if err != nil {
 			fmt.Printf("❌ Failed to write %s: %v\n", filepath.Base(file), err)
 			errorCount++
@@ -182,20 +183,20 @@ func main() {
 	}
 }
 
-// LoadMetadataJSON loads album metadata from a JSON file.
-func LoadMetadataJSON(path string) (*domain.Album, error) {
+// LoadMetadataJSON loads torrent metadata from a JSON file.
+func LoadMetadataJSON(path string) (*domain.Torrent, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	repo := storage.NewRepository()
-	album, err := repo.LoadFromJSON(data)
+	torrent, err := repo.LoadFromJSON(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	return album, nil
+	return torrent, nil
 }
 
 // FindFLACFiles recursively finds all FLAC files in a directory.
@@ -219,10 +220,10 @@ func FindFLACFiles(dir string) ([]string, error) {
 
 // MatchTracksToFiles matches tracks to files based on track number in filename.
 // Returns a map of track -> file path (empty string if no match found).
-func MatchTracksToFiles(album *domain.Album, files []string) map[*domain.Track]string {
+func MatchTracksToFiles(torrent *domain.Torrent, files []string) map[*domain.Track]string {
 	matches := make(map[*domain.Track]string)
 
-	for _, track := range album.Tracks {
+	for _, track := range torrent.Tracks() {
 		matches[track] = ""
 
 		// Try to find file by track number prefix

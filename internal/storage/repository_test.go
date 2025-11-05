@@ -10,8 +10,9 @@ import (
 func TestRepository_SaveAndLoad(t *testing.T) {
 	repo := NewRepository()
 
-	// Create album directly (no constructors needed)
-	album := &domain.Album{
+	// Create torrent directly (no constructors needed)
+	torrent := &domain.Torrent{
+		RootPath:     "test-album",
 		Title:        "Test Album",
 		OriginalYear: 2013,
 		Edition: &domain.Edition{
@@ -19,8 +20,12 @@ func TestRepository_SaveAndLoad(t *testing.T) {
 			CatalogNumber: "TL123",
 			Year:          2013,
 		},
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Ave Maria.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Ave Maria",
@@ -32,7 +37,7 @@ func TestRepository_SaveAndLoad(t *testing.T) {
 	}
 
 	// Save
-	data, err := repo.SaveToJSON(album)
+	data, err := repo.SaveToJSON(torrent)
 	if err != nil {
 		t.Fatalf("SaveToJSON error: %v", err)
 	}
@@ -44,25 +49,30 @@ func TestRepository_SaveAndLoad(t *testing.T) {
 	}
 
 	// Verify (direct field access)
-	if loaded.Title != album.Title {
-		t.Errorf("Title = %v, want %v", loaded.Title, album.Title)
+	if loaded.Title != torrent.Title {
+		t.Errorf("Title = %v, want %v", loaded.Title, torrent.Title)
 	}
-	if loaded.OriginalYear != album.OriginalYear {
-		t.Errorf("OriginalYear = %v, want %v", loaded.OriginalYear, album.OriginalYear)
+	if loaded.OriginalYear != torrent.OriginalYear {
+		t.Errorf("OriginalYear = %v, want %v", loaded.OriginalYear, torrent.OriginalYear)
 	}
-	if len(loaded.Tracks) != len(album.Tracks) {
-		t.Errorf("Track count = %d, want %d", len(loaded.Tracks), len(album.Tracks))
+	if len(loaded.Tracks()) != len(torrent.Tracks()) {
+		t.Errorf("Track count = %d, want %d", len(loaded.Tracks()), len(torrent.Tracks()))
 	}
 }
 
 func TestRepository_JSONFormat(t *testing.T) {
 	repo := NewRepository()
 
-	album := &domain.Album{
+	torrent := &domain.Torrent{
+		RootPath:     "simple-album",
 		Title:        "Simple Album",
 		OriginalYear: 2013,
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Work.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Work",
@@ -73,7 +83,7 @@ func TestRepository_JSONFormat(t *testing.T) {
 		},
 	}
 
-	data, err := repo.SaveToJSON(album)
+	data, err := repo.SaveToJSON(torrent)
 	if err != nil {
 		t.Fatalf("SaveToJSON error: %v", err)
 	}
@@ -91,8 +101,8 @@ func TestRepository_JSONFormat(t *testing.T) {
 	if _, ok := decoded["original_year"]; !ok {
 		t.Error("JSON missing 'original_year' field")
 	}
-	if _, ok := decoded["tracks"]; !ok {
-		t.Error("JSON missing 'tracks' field")
+	if _, ok := decoded["files"]; !ok {
+		t.Error("JSON missing 'files' field")
 	}
 }
 
@@ -100,11 +110,16 @@ func TestRepository_RoleJSON(t *testing.T) {
 	// Test that Role enum serializes correctly
 	repo := NewRepository()
 
-	album := &domain.Album{
+	torrent := &domain.Torrent{
+		RootPath:     "role-test",
 		Title:        "Role Test",
 		OriginalYear: 2013,
-		Tracks: []*domain.Track{
-			{
+		Files: []domain.FileLike{
+			&domain.Track{
+				File: domain.File{
+					Path: "01 - Test.flac",
+					Size: 0,
+				},
 				Disc:  1,
 				Track: 1,
 				Title: "Test",
@@ -119,7 +134,7 @@ func TestRepository_RoleJSON(t *testing.T) {
 	}
 
 	// Marshal
-	data, err := repo.SaveToJSON(album)
+	data, err := repo.SaveToJSON(torrent)
 	if err != nil {
 		t.Fatalf("SaveToJSON error: %v", err)
 	}
@@ -131,10 +146,11 @@ func TestRepository_RoleJSON(t *testing.T) {
 	}
 
 	// Verify roles round-trip correctly
-	if len(loaded.Tracks) != 1 {
+	tracks := loaded.Tracks()
+	if len(tracks) != 1 {
 		t.Fatal("Expected 1 track")
 	}
-	artists := loaded.Tracks[0].Artists
+	artists := tracks[0].Artists
 	if len(artists) != 4 {
 		t.Fatalf("Expected 4 artists, got %d", len(artists))
 	}

@@ -11,28 +11,28 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		Actual       *domain.Album
+		Actual *domain.Torrent
 		WantPass     bool
 		WantErrors   int
 		WantWarnings int
 	}{
 		{
 			Name: "valid - single disc",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{{1, 1}, {1, 2}, {1, 3}},
 			),
 			WantPass: true,
 		},
 		{
 			Name: "valid - two discs, both start at 1",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{{1, 1}, {1, 2}, {2, 1}, {2, 2}},
 			),
 			WantPass: true,
 		},
 		{
 			Name: "valid - three discs, all start at 1",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{
 					{1, 1}, {1, 2},
 					{2, 1}, {2, 2}, {2, 3},
@@ -43,7 +43,7 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 		},
 		{
 			Name: "invalid - disc 2 doesn't start at 1",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{{1, 1}, {1, 2}, {2, 3}, {2, 4}},
 			),
 			WantPass:   false,
@@ -51,7 +51,7 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 		},
 		{
 			Name: "invalid - disc 1 doesn't start at 1",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{{1, 2}, {1, 3}, {2, 1}, {2, 2}},
 			),
 			WantPass:   false,
@@ -59,7 +59,7 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 		},
 		{
 			Name: "invalid - both discs don't start at 1",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{{1, 5}, {1, 6}, {2, 10}, {2, 11}},
 			),
 			WantPass:   false,
@@ -67,7 +67,7 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 		},
 		{
 			Name: "warning - gap in track numbering",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{{1, 1}, {1, 2}, {1, 4}}, // Missing track 3
 			),
 			WantPass:     false,
@@ -75,7 +75,7 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 		},
 		{
 			Name: "invalid - missing disc in sequence",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{{1, 1}, {1, 2}, {3, 1}, {3, 2}}, // No disc 2
 			),
 			WantPass:   false,
@@ -83,7 +83,7 @@ func TestRules_MultiDiscTrackNumbering(t *testing.T) {
 		},
 		{
 			Name: "valid - large multi-disc set",
-			Actual: buildAlbumWithDiscTracks(
+			Actual: buildTorrentWithDiscTracks(
 				[]discTrack{
 					{1, 1}, {1, 2}, {1, 3},
 					{2, 1}, {2, 2},

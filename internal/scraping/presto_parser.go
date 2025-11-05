@@ -28,7 +28,6 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 	}
 
 	result := &ExtractionResult{
-		Album:  data,
 		Source: "presto",
 	}
 	parsingNotes := make(map[string]interface{})
@@ -86,7 +85,7 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 	// After parsing tracks, check for universal performers and synthesize AlbumArtist.
 	// Do NOT remove from tracks; instead ensure they are included on each track (unless Various Artists).
 	if len(data.Tracks) > 0 {
-		universalArtists := domain.DetermineAlbumArtist(data)
+		universalArtists := domain.DetermineAlbumArtistFromAlbum(data)
 		if len(universalArtists) > 0 {
 			data.AlbumArtist = universalArtists
 			if !strings.EqualFold(strings.TrimSpace(domain.FormatArtists(data.AlbumArtist)), "Various Artists") {
@@ -114,6 +113,9 @@ func (p *PrestoParser) Parse(html string) (*ExtractionResult, error) {
 	for key, value := range parsingNotes {
 		result.Notes = append(result.Notes, fmt.Sprintf("%s: %v", key, value))
 	}
+
+	// Convert Album to Torrent before returning (use empty root path for web scrapers)
+	result.Torrent = data.ToTorrent("")
 
 	return result, nil
 }

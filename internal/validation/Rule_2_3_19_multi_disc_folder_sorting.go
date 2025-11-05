@@ -11,7 +11,7 @@ import (
 
 // MultiDiscFolderSorting checks multi-disc folder naming for proper sorting (rule 2.3.14.2)
 // INFO level - suggests folder names that sort properly
-func (r *Rules) MultiDiscFolderSorting(actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) MultiDiscFolderSorting(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.19",
 		Name:   "Multi-disc folders should sort properly (CD1, CD2, not CD1, CD10, CD2)",
@@ -21,7 +21,7 @@ func (r *Rules) MultiDiscFolderSorting(actualAlbum, _ *domain.Album) RuleResult 
 
 	var issues []domain.ValidationIssue
 
-	if actualAlbum == nil || !actualAlbum.IsMultiDisc() {
+	if actualTorrent == nil || !actualTorrent.IsMultiDisc() {
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 
@@ -33,13 +33,13 @@ func (r *Rules) MultiDiscFolderSorting(actualAlbum, _ *domain.Album) RuleResult 
 	seen := make(map[folderDisc]struct{})
 	var tuples []folderDisc
 
-	for _, track := range actualAlbum.Tracks {
-		if track == nil || track.Name == "" {
+	for _, track := range actualTorrent.Tracks() {
+		if track == nil || track.File.Path == "" {
 			continue
 		}
 
 		// Convert to slash-separated, clean canonical path, extract first dir
-		cleanPath := filepath.Clean(track.Name)
+		cleanPath := filepath.Clean(track.File.Path)
 		components := strings.Split(cleanPath, string(filepath.Separator))
 		if components[0] == "" {
 			components = components[1:]

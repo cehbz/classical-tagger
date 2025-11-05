@@ -30,11 +30,12 @@ func (a *Album) IsMultiDisc() bool {
 	return maxDisc > 1 || len(discSet) > 1
 }
 
-// DetermineAlbumArtist finds performers that appear in all tracks.
+// DetermineAlbumArtistFromAlbum finds performers that appear in all tracks of an Album.
+// This is a compatibility function that will be deprecated in favor of DetermineAlbumArtist(torrent *Torrent).
 // Returns the list of universal artists.
 // Per classical music guide: "When the performer(s) do not remain the same throughout
 // all tracks, this tag is used to credit the one who does appear in all tracks."
-func DetermineAlbumArtist(album *Album) []Artist {
+func DetermineAlbumArtistFromAlbum(album *Album) []Artist {
 	tracks := album.Tracks
 	if len(tracks) == 0 {
 		return nil
@@ -72,4 +73,28 @@ func DetermineAlbumArtist(album *Album) []Artist {
 	}
 
 	return universal
+}
+
+// ToTorrent converts an Album to a Torrent.
+// The rootPath parameter should be the relative path to the torrent directory.
+// For each track, the Path field will be set from the track's Name field if present.
+func (a *Album) ToTorrent(rootPath string) *Torrent {
+	if a == nil {
+		return nil
+	}
+
+	fs := make([]FileLike, len(a.Tracks))
+	for i, tr := range a.Tracks {
+		fs[i] = tr
+	}
+
+	return &Torrent{
+		RootPath:     rootPath,
+		Title:        a.Title,
+		OriginalYear: a.OriginalYear,
+		Edition:      a.Edition,
+		AlbumArtist:  a.AlbumArtist,
+		Files:        fs,
+		SiteMetadata: nil, // Not available from Album
+	}
 }

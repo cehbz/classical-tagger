@@ -11,62 +11,62 @@ func TestRules_FilenamesMatchTitles(t *testing.T) {
 
 	tests := []struct {
 		Name       string
-		Actual     *domain.Album
+		Actual     *domain.Torrent
 		WantPass   bool
 		WantIssues int
 	}{
 		{
 			Name:       "valid - exact match",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Symphony No. 5.flac"}}),
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Symphony No. 5.flac"}}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - minor punctuation differences",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5 in C Minor", "01 - Symphony No 5 in C Minor.flac"}}),
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5 in C Minor", "01 - Symphony No 5 in C Minor.flac"}}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - filename is abbreviation of title",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5 in C Minor, Op. 67", "01 - Symphony No. 5.flac"}}),
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5 in C Minor, Op. 67", "01 - Symphony No. 5.flac"}}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - minor typo (edit distance ≤ 3)",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Sympony No. 5.flac"}}), // 1 char difference
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Sympony No. 5.flac"}}), // 1 char difference
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "invalid - completely different title",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Concerto in D.flac"}}),
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Concerto in D.flac"}}),
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "invalid - major misspelling",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Symphonieee No. 5.flac"}}), // Too many differences
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - Symphonieee No. 5.flac"}}), // Too many differences
 			WantPass:   false,
 			WantIssues: 1,
 		},
 		{
 			Name:       "valid - case differences",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - SYMPHONY NO. 5.flac"}}),
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01 - SYMPHONY NO. 5.flac"}}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 		{
 			Name:       "valid - different separators",
-			Actual:     buildAlbumWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01. Symphony No. 5.flac"}}),
+			Actual:     buildTorrentWithTitlesAndFilenames([]titleFile{{"Symphony No. 5", "01. Symphony No. 5.flac"}}),
 			WantPass:   true,
 			WantIssues: 0,
 		},
 	}
 
 	for _, tt := range tests {
-		for _, track := range tt.Actual.Tracks {
+		for _, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
 				result := rules.FilenamesMatchTitles(track, nil, nil, nil)
 

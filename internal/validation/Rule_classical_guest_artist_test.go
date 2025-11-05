@@ -11,34 +11,34 @@ func TestRules_GuestArtistIdentification(t *testing.T) {
 
 	tests := []struct {
 		Name     string
-		Actual   *domain.Album
+		Actual   *domain.Torrent
 		WantPass bool
 		WantInfo int
 	}{
 		{
 			Name:     "pass - single track",
-			Actual:   NewAlbum().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}).Build().Build(),
+			Actual:   NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}).Build().Build(),
 			WantPass: true,
 		},
 		{
 			Name:     "pass - all tracks have same soloist",
-			Actual:   buildAlbumWithConsistentSoloist("Pollini", 5),
+			Actual:   buildTorrentWithConsistentSoloist("Pollini", 5),
 			WantPass: true,
 		},
 		{
 			Name:     "info - infrequent soloist",
-			Actual:   buildAlbumWithGuestSoloist("Pollini", "Guest Artist", 5),
+			Actual:   buildTorrentWithGuestSoloist("Pollini", "Guest Artist", 5),
 			WantPass: false,
 			WantInfo: 1,
 		},
 		{
 			Name:     "pass - guest indicated in title",
-			Actual:   buildAlbumWithGuestInTitle("Pollini", "Guest Artist", 5),
+			Actual:   buildTorrentWithGuestInTitle("Pollini", "Guest Artist", 5),
 			WantPass: true,
 		},
 		{
 			Name:     "pass - too few tracks to determine",
-			Actual:   buildAlbumWithConsistentSoloist("Pollini", 2),
+			Actual:   buildTorrentWithConsistentSoloist("Pollini", 2),
 			WantPass: true,
 		},
 	}

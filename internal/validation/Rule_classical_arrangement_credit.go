@@ -9,7 +9,7 @@ import (
 
 // ArrangerCredit checks that arrangements are properly credited (classical.arrangement)
 // Arranger should be in track title if arrangement is significant
-func (r *Rules) ArrangerCredit(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) ArrangerCredit(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "classical.arrangement",
 		Name:   "Arrangements should credit arranger in track title",

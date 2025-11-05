@@ -11,7 +11,7 @@ import (
 
 // CharacterEncoding checks for proper UTF-8 encoding (album: 2.3.18.1-album, track: 2.3.18.1)
 // Ensures no mojibake or encoding issues across album title/folder and track tags
-func (r *Rules) AlbumCharacterEncoding(actualAlbum, _ *domain.Album) RuleResult {
+func (r *Rules) AlbumCharacterEncoding(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.1-album",
 		Name:   "Character encoding must be correct (UTF-8)",
@@ -22,29 +22,29 @@ func (r *Rules) AlbumCharacterEncoding(actualAlbum, _ *domain.Album) RuleResult 
 	var issues []domain.ValidationIssue
 
 	// Check album title
-	if hasEncodingIssues(actualAlbum.Title) {
+	if hasEncodingIssues(actualTorrent.Title) {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
 			Track:   0,
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album title has character encoding issues: '%s'", actualAlbum.Title),
+			Message: fmt.Sprintf("Album title has character encoding issues: '%s'", actualTorrent.Title),
 		})
 	}
 
 	// Check album folder name
-	if hasEncodingIssues(actualAlbum.FolderName) {
+	if hasEncodingIssues(actualTorrent.RootPath) {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
 			Track:   0,
 			Rule:    meta.ID,
-			Message: fmt.Sprintf("Album folder name has character encoding issues: '%s'", actualAlbum.FolderName),
+			Message: fmt.Sprintf("Album folder name has character encoding issues: '%s'", actualTorrent.RootPath),
 		})
 	}
 
 	return RuleResult{Meta: meta, Issues: issues}
 }
 
-func (r *Rules) TrackCharacterEncoding(actualTrack, _ *domain.Track, _, _ *domain.Album) RuleResult {
+func (r *Rules) TrackCharacterEncoding(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.1",
 		Name:   "Character encoding must be correct (UTF-8)",
@@ -78,13 +78,13 @@ func (r *Rules) TrackCharacterEncoding(actualTrack, _ *domain.Track, _, _ *domai
 	}
 
 	// Check filename
-	if hasEncodingIssues(actualTrack.Name) {
+	if hasEncodingIssues(actualTrack.File.Path) {
 		issues = append(issues, domain.ValidationIssue{
 			Level: domain.LevelError,
 			Track: actualTrack.Track,
 			Rule:  meta.ID,
 			Message: fmt.Sprintf("Track %s: Filename has character encoding issues: '%s'",
-				formatTrackNumber(actualTrack), actualTrack.Name),
+				formatTrackNumber(actualTrack), actualTrack.File.Path),
 		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
