@@ -11,6 +11,8 @@ import (
 
 	"github.com/cehbz/classical-tagger/internal/domain"
 	"github.com/dhowden/tag"
+	"github.com/go-flac/flacvorbis"
+	"github.com/go-flac/go-flac"
 )
 
 // LocalExtractor extracts metadata from existing FLAC files in a directory.
@@ -280,8 +282,13 @@ func (e *LocalExtractor) extractAlbumMetadata(filePath string) (albumMetadata, s
 		meta.Title = album
 	}
 
-	// Extract year
-	if year := metadata.Year(); year > 0 {
+	// Extract year - prioritize ORIGINALDATE tag, fall back to standard YEAR tag
+	vorbisTags := e.readVorbisCommentTags(filePath)
+	if originalDate := vorbisTags["ORIGINALDATE"]; originalDate != "" {
+		if year, err := strconv.Atoi(originalDate); err == nil && year > 0 {
+			meta.OriginalYear = year
+		}
+	} else if year := metadata.Year(); year > 0 {
 		meta.OriginalYear = year
 	}
 
@@ -291,15 +298,86 @@ func (e *LocalExtractor) extractAlbumMetadata(filePath string) (albumMetadata, s
 		meta.AlbumArtist = e.parseArtistField(albumArtistStr)
 	}
 
-	// Extract edition info if present in comments
-	if comment := metadata.Comment(); comment != "" {
-		edition := e.extractEditionFromComment(comment)
-		if edition != nil {
-			meta.Edition = edition
+	// Extract edition info - prioritize direct tags, fall back to COMMENT parsing
+	edition := e.extractEditionFromTags(vorbisTags)
+	if edition == nil {
+		// Fall back to COMMENT field parsing
+		if comment := metadata.Comment(); comment != "" {
+			edition = e.extractEditionFromComment(comment)
 		}
+	}
+	if edition != nil {
+		meta.Edition = edition
 	}
 
 	return meta, ""
+}
+
+// readVorbisCommentTags reads all Vorbis comment tags from a FLAC file.
+// Returns a map of tag names (uppercase) to values.
+func (e *LocalExtractor) readVorbisCommentTags(filePath string) map[string]string {
+	tags := make(map[string]string)
+
+	flacFile, err := flac.ParseFile(filePath)
+	if err != nil {
+		return tags
+	}
+
+	// Find VorbisComment block
+	for _, metaBlock := range flacFile.Meta {
+		if metaBlock.Type == flac.VorbisComment {
+			cmtBlock, err := flacvorbis.ParseFromMetaDataBlock(*metaBlock)
+			if err != nil {
+				continue
+			}
+
+			// Extract all comments
+			for _, comment := range cmtBlock.Comments {
+				parts := strings.SplitN(comment, "=", 2)
+				if len(parts) == 2 {
+					tagName := strings.ToUpper(parts[0])
+					tagValue := parts[1]
+					tags[tagName] = tagValue
+				}
+			}
+			break
+		}
+	}
+
+	return tags
+}
+
+// extractEditionFromTags extracts edition information from Vorbis comment tags.
+// Returns nil if no edition data found.
+func (e *LocalExtractor) extractEditionFromTags(tags map[string]string) *domain.Edition {
+	edition := &domain.Edition{}
+	found := false
+
+	// Read LABEL tag
+	if label := tags["LABEL"]; label != "" {
+		edition.Label = strings.TrimSpace(label)
+		found = true
+	}
+
+	// Read CATALOGNUMBER tag
+	if catalog := tags["CATALOGNUMBER"]; catalog != "" {
+		edition.CatalogNumber = strings.TrimSpace(catalog)
+		found = true
+	}
+
+	// Read DATE tag (edition year)
+	if dateStr := tags["DATE"]; dateStr != "" {
+		if year, err := strconv.Atoi(strings.TrimSpace(dateStr)); err == nil && year > 0 {
+			edition.Year = year
+			found = true
+		}
+	}
+
+	if !found {
+		return nil
+	}
+
+	return edition
 }
 
 // extractEditionFromComment attempts to extract label/catalog from comment field.

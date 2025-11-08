@@ -17,46 +17,18 @@ func TestRules_NoCombinedTags(t *testing.T) {
 		WantInfo     int
 	}{
 		{
-			Name:     "valid - separate artist entries",
+			Name:     "valid - normal title",
 			Actual:   NewTorrent().WithTitle("Classical Album").ClearTracks().AddTrack().WithTitle("Symphony No. 5").ClearArtists().WithArtists(domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}, domain.Artist{Name: "Maurizio Pollini", Role: domain.RoleSoloist}, domain.Artist{Name: "Berlin Philharmonic", Role: domain.RoleEnsemble}).Build().Build(),
 			WantPass: true,
 		},
 		{
-			Name:         "warning - combined artist names with semicolon",
-			Actual:       NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Pollini; Arrau", domain.RoleSoloist).Build().Build(),
-			WantPass:     false,
-			WantWarnings: 1,
-		},
-		{
-			Name:         "warning - combined artist names with slash",
-			Actual:       NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Martha Argerich / Nelson Freire", domain.RoleSoloist).Build().Build(),
-			WantPass:     false,
-			WantWarnings: 1,
-		},
-		{
-			Name:         "warning - combined artist names with ampersand",
-			Actual:       NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Perlman & Ashkenazy", domain.RoleSoloist).Build().Build(),
-			WantPass:     false,
-			WantWarnings: 1,
+			Name:     "valid - comma-separated artists in ARTIST tag (allowed)",
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Pollini, Arrau, Orchestra", domain.RoleSoloist).Build().Build(),
+			WantPass: true, // Multiple artists in single tag is now allowed
 		},
 		{
 			Name:     "valid - ensemble name with 'and'",
 			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("London Symphony Orchestra and Chorus", domain.RoleEnsemble).Build().Build(),
-			WantPass: true,
-		},
-		{
-			Name:     "valid - orchestra name with 'of'",
-			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Orchestra of the Age of Enlightenment", domain.RoleEnsemble).Build().Build(),
-			WantPass: true,
-		},
-		{
-			Name:     "valid - quartet name",
-			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Emerson String Quartet", domain.RoleEnsemble).Build().Build(),
-			WantPass: true,
-		},
-		{
-			Name:     "valid - compound last name",
-			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Work").ClearArtists().WithArtist("Mendelssohn-Bartholdy", domain.RoleComposer).Build().Build(),
 			WantPass: true,
 		},
 		{
@@ -70,12 +42,46 @@ func TestRules_NoCombinedTags(t *testing.T) {
 			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Allegro / Fast").Build().Build(),
 			WantPass: true, // Short parts, not multiple works
 		},
+		{
+			Name:         "warning - track number in title",
+			Actual:       NewTorrent().ClearTracks().AddTrack().WithTrack(1).WithTitle("01 - Symphony No. 5").Build().Build(),
+			WantPass:     false,
+			WantWarnings: 1,
+		},
+		{
+			Name:         "warning - track number prefix in title",
+			Actual:       NewTorrent().ClearTracks().AddTrack().WithTrack(5).WithTitle("05. Allegro con brio").Build().Build(),
+			WantPass:     false,
+			WantWarnings: 1,
+		},
+		{
+			Name:         "warning - track number with 'Track' prefix in title",
+			Actual:       NewTorrent().ClearTracks().AddTrack().WithTrack(3).WithTitle("Track 3: Finale").Build().Build(),
+			WantPass:     false,
+			WantWarnings: 1,
+		},
+		{
+			Name:     "valid - number in title that's not a track number",
+			Actual:   NewTorrent().ClearTracks().AddTrack().WithTitle("Symphony No. 5").Build().Build(),
+			WantPass: true, // "No. 5" is part of the work title, not a track number
+		},
+		{
+			Name:         "warning - disc number in album title without subtitle",
+			Actual:       NewTorrent().WithTitle("Album Disc 1").ClearTracks().AddTrack().WithTitle("Track 1").Build().Build(),
+			WantPass:     false,
+			WantWarnings: 1,
+		},
+		{
+			Name:     "valid - disc number in album title with meaningful subtitle",
+			Actual:   NewTorrent().WithTitle("The Fragile - Left Disc 1").ClearTracks().AddTrack().WithTitle("Track 1").Build().Build(),
+			WantPass: true, // Has meaningful subtitle "Left"
+		},
 	}
 
 	for _, tt := range tests {
 		for _, track := range tt.Actual.Tracks() {
 			t.Run(tt.Name, func(t *testing.T) {
-				result := rules.NoCombinedTags(track, nil, nil, nil)
+				result := rules.NoCombinedTags(track, nil, tt.Actual, nil)
 
 				if result.Passed() != tt.WantPass {
 					t.Errorf("Passed = %v, want %v", result.Passed(), tt.WantPass)
@@ -106,33 +112,5 @@ func TestRules_NoCombinedTags(t *testing.T) {
 				}
 			})
 		}
-	}
-}
-
-func TestIsMultipleArtists(t *testing.T) {
-	tests := []struct {
-		Name       string
-		ArtistName string
-		Separator  string
-		Want       bool
-	}{
-		{"multiple with semicolon", "Pollini; Arrau", ";", true},
-		{"multiple with slash", "Martha Argerich / Nelson Freire", " / ", true},
-		{"orchestra with 'and'", "London Symphony Orchestra and Chorus", " and ", false},
-		{"orchestra with 'of'", "Orchestra of the Age of Enlightenment", " of ", false},
-		{"compound last name", "Mendelssohn-Bartholdy", ", ", false},
-		{"quartet name", "Emerson String Quartet", " & ", false},
-		{"two soloists", "Anne-Sophie Mutter & Yo-Yo Ma", " & ", true},
-		{"initials only", "J.S. & C.P.E.", " & ", false}, // Too short
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got := isMultipleArtists(tt.ArtistName, tt.Separator)
-			if got != tt.Want {
-				t.Errorf("isMultipleArtists(%q, %q) = %v, want %v",
-					tt.ArtistName, tt.Separator, got, tt.Want)
-			}
-		})
 	}
 }

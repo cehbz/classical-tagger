@@ -246,6 +246,134 @@ func TestLocalExtractor_ParseArtistField(t *testing.T) {
 	}
 }
 
+func TestLocalExtractor_ExtractEditionFromTags(t *testing.T) {
+	extractor := NewLocalExtractor()
+
+	tests := []struct {
+		Name        string
+		Tags        map[string]string
+		WantLabel   string
+		WantCatalog string
+		WantYear    int
+		WantNil     bool
+	}{
+		{
+			Name: "label, catalog, and date",
+			Tags: map[string]string{
+				"LABEL":         "Deutsche Grammophon",
+				"CATALOGNUMBER": "479 1234",
+				"DATE":          "1992",
+			},
+			WantLabel:   "Deutsche Grammophon",
+			WantCatalog: "479 1234",
+			WantYear:    1992,
+			WantNil:     false,
+		},
+		{
+			Name: "label only",
+			Tags: map[string]string{
+				"LABEL": "Harmonia Mundi",
+			},
+			WantLabel:   "Harmonia Mundi",
+			WantCatalog: "",
+			WantYear:    0,
+			WantNil:     false,
+		},
+		{
+			Name: "catalog only",
+			Tags: map[string]string{
+				"CATALOGNUMBER": "HMC902170",
+			},
+			WantLabel:   "",
+			WantCatalog: "HMC902170",
+			WantYear:    0,
+			WantNil:     false,
+		},
+		{
+			Name: "date only",
+			Tags: map[string]string{
+				"DATE": "2013",
+			},
+			WantLabel:   "",
+			WantCatalog: "",
+			WantYear:    2013,
+			WantNil:     false,
+		},
+		{
+			Name: "label and date",
+			Tags: map[string]string{
+				"LABEL": "Sony Classical",
+				"DATE":  "1992",
+			},
+			WantLabel:   "Sony Classical",
+			WantCatalog: "",
+			WantYear:    1992,
+			WantNil:     false,
+		},
+		{
+			Name: "no edition tags",
+			Tags: map[string]string{
+				"TITLE": "Some Title",
+				"ARTIST": "Some Artist",
+			},
+			WantNil: true,
+		},
+		{
+			Name:        "empty tags",
+			Tags:        map[string]string{},
+			WantNil:     true,
+		},
+		{
+			Name: "invalid date",
+			Tags: map[string]string{
+				"LABEL": "Test Label",
+				"DATE":  "invalid",
+			},
+			WantLabel:   "Test Label",
+			WantCatalog: "",
+			WantYear:    0,
+			WantNil:     false,
+		},
+		{
+			Name: "date with whitespace",
+			Tags: map[string]string{
+				"DATE": "  2013  ",
+			},
+			WantLabel:   "",
+			WantCatalog: "",
+			WantYear:    2013,
+			WantNil:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := extractor.extractEditionFromTags(tt.Tags)
+
+			if tt.WantNil {
+				if got != nil {
+					t.Error("extractEditionFromTags() should return nil, got non-nil")
+				}
+				return
+			}
+
+			if got == nil {
+				t.Fatal("extractEditionFromTags() returned nil, want non-nil")
+			}
+
+			if got.Label != tt.WantLabel {
+				t.Errorf("Label = %v, want %v", got.Label, tt.WantLabel)
+			}
+			if got.CatalogNumber != tt.WantCatalog {
+				t.Errorf("CatalogNumber = %v, want %v", got.CatalogNumber, tt.WantCatalog)
+			}
+			if got.Year != tt.WantYear {
+				t.Errorf("Year = %v, want %v", got.Year, tt.WantYear)
+			}
+		})
+	}
+}
+
 func TestLocalExtractor_ExtractEditionFromComment(t *testing.T) {
 	extractor := NewLocalExtractor()
 

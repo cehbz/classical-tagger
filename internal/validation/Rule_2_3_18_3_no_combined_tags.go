@@ -2,27 +2,24 @@ package validation
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// separatorPatterns are indicators of combined/multiple values in a single tag
-var separatorPatterns = []string{";", " / ", " & ", ", ", " and "}
-
-// NoCombinedTags checks that tags don't combine multiple values (rule 2.3.18.3)
-// Each artist/performer should have separate tag entries
-func (r *Rules) NoCombinedTags(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
+// NoCombinedTags checks that tags don't combine different types of information (rule 2.3.18.3)
+// Tags should not combine different field types (e.g., track number and title in title tag)
+func (r *Rules) NoCombinedTags(actualTrack, _ *domain.Track, actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.3",
-		Name:   "No combined tags - use separate entries for multiple artists",
+		Name:   "No combined tags - each tag should contain only one type of information",
 		Level:  domain.LevelWarning,
 		Weight: 0.5,
 	}
 
 	var issues []domain.ValidationIssue
 
-	// Check track titles for combined info that should be separate
 	title := actualTrack.Title
 
 	// Check for multiple works in title (should be separate tracks)
@@ -44,31 +41,50 @@ func (r *Rules) NoCombinedTags(actualTrack, _ *domain.Track, _, _ *domain.Torren
 		}
 	}
 
-	// Check artists for combined names exactly once (avoid duplicate warnings)
-	// Note: The domain model already handles multiple artists as separate entries
-	// This check is for cases where a single artist entry contains multiple names
-	for _, artist := range actualTrack.Artists {
-		name := artist.Name
+	// Check if title contains track number (combining track number with title)
+	// Patterns: "01 - Title", "Track 1: Title", "1. Title", etc.
+	// But NOT "Symphony No. 5" (that's part of the work title)
+	trackNumPattern := regexp.MustCompile(`(?i)^\s*(\d{1,3})[\s\-._:]+|^\s*track\s*(\d{1,3})[\s\-._:]+`)
+	if matches := trackNumPattern.FindStringSubmatch(title); len(matches) > 0 {
+		// Check if the matched number matches the actual track number
+		matchedNum := ""
+		for i := 1; i < len(matches); i++ {
+			if matches[i] != "" {
+				matchedNum = matches[i]
+				break
+			}
+		}
+		if matchedNum != "" {
+			issues = append(issues, domain.ValidationIssue{
+				Level: domain.LevelWarning,
+				Track: actualTrack.Track,
+				Rule:  meta.ID,
+				Message: fmt.Sprintf("Track %s: Title contains track number '%s' (track number should be in separate tag)",
+					formatTrackNumber(actualTrack), matchedNum),
+			})
+		}
+	}
 
-		// Check for obvious combined names
-		for _, sep := range separatorPatterns {
-			if strings.Contains(name, sep) {
-				// Some exceptions are valid:
-				// - "Orchestra of the Age of Enlightenment" (has " of ", " the ")
-				// - "London Symphony Orchestra and Chorus" (ensemble names can have "and")
-				// - Compound last names: "Mendelssohn-Bartholdy"
-
-				// Check if this looks like multiple people
-				if isMultipleArtists(name, sep) {
-					issues = append(issues, domain.ValidationIssue{
-						Level: domain.LevelWarning,
-						Track: actualTrack.Track,
-						Rule:  meta.ID,
-						Message: fmt.Sprintf("Track %s: Artist '%s' may contain multiple names (use separate entries)",
-							formatTrackNumber(actualTrack), name),
-					})
-					break
-				}
+	// Check album title for disc number without meaningful subtitle
+	if actualTorrent != nil {
+		albumTitle := actualTorrent.Title
+		// Pattern: "[Album Name] Disc n" or "[Album Name] (Disc n)" without meaningful subtitle
+		discPattern := regexp.MustCompile(`(?i)\s*(?:\(|\[)?\s*disc\s*(\d+)\s*(?:\)|\])?\s*$`)
+		if matches := discPattern.FindStringSubmatch(albumTitle); len(matches) > 0 {
+			// Check if there's a meaningful subtitle before the disc number
+			// A meaningful subtitle should have a separator (dash, colon) or be substantial
+			beforeDisc := strings.TrimSpace(discPattern.ReplaceAllString(albumTitle, ""))
+			hasSeparator := strings.Contains(beforeDisc, " - ") || strings.Contains(beforeDisc, ": ")
+			isSubstantial := len(beforeDisc) > 10
+			
+			if beforeDisc == "" || (!hasSeparator && !isSubstantial) {
+				issues = append(issues, domain.ValidationIssue{
+					Level: domain.LevelWarning,
+					Track: 0, // Album-level issue
+					Rule:  meta.ID,
+					Message: fmt.Sprintf("Album title contains disc number without meaningful subtitle: '%s'",
+						albumTitle),
+				})
 			}
 		}
 	}
@@ -76,63 +92,3 @@ func (r *Rules) NoCombinedTags(actualTrack, _ *domain.Track, _, _ *domain.Torren
 	return RuleResult{Meta: meta, Issues: issues}
 }
 
-// isMultipleArtists checks if a name string contains multiple distinct artists
-func isMultipleArtists(name, separator string) bool {
-	// Skip if it's a known ensemble pattern
-	lowerName := strings.ToLower(name)
-
-	// Orchestra/Choir names often contain separators
-	if strings.Contains(lowerName, "orchestra") ||
-		strings.Contains(lowerName, "choir") ||
-		strings.Contains(lowerName, "chorus") ||
-		strings.Contains(lowerName, "ensemble") ||
-		strings.Contains(lowerName, "quartet") ||
-		strings.Contains(lowerName, "trio") {
-		return false
-	}
-
-	// Titles in names
-	if strings.Contains(lowerName, " of ") ||
-		strings.Contains(lowerName, " the ") ||
-		strings.Contains(lowerName, " de ") ||
-		strings.Contains(lowerName, " la ") {
-		return false
-	}
-
-	// Compound last names with hyphen
-	if separator == ", " && strings.Contains(name, "-") {
-		return false
-	}
-
-	// If we have a separator and none of the exceptions apply,
-	// it's likely multiple artists
-	parts := strings.Split(name, separator)
-	if len(parts) >= 2 {
-		// If either side is initials-only (e.g., "J.S."), do not treat as multiple artists
-		left := strings.TrimSpace(parts[0])
-		right := strings.TrimSpace(parts[1])
-		if isInitialsOnly(left) || isInitialsOnly(right) {
-			return false
-		}
-		// Both parts should be substantial (not just initials)
-		if len(strings.TrimSpace(parts[0])) > 3 && len(strings.TrimSpace(parts[1])) > 3 {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isInitialsOnly returns true if the string looks like initials (e.g., "J.S.", "C.P.E.")
-func isInitialsOnly(s string) bool {
-	t := strings.TrimSpace(s)
-	if !strings.Contains(t, ".") {
-		return false
-	}
-	cleaned := strings.ReplaceAll(strings.ReplaceAll(t, ".", ""), " ", "")
-	if cleaned == "" {
-		return false
-	}
-	// Consider initials if, after removing dots/spaces, length <= 3
-	return len(cleaned) <= 3
-}
