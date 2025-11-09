@@ -598,6 +598,54 @@ func TestDiscogsParser_ParseTracks_NoDuplicateComposers(t *testing.T) {
 	}
 }
 
+// TestDiscogsParser_ParseTracks_NoEmptyComposers tests the bug where empty composer names
+// were output.
+func TestDiscogsParser_ParseTracks_NoEmptyComposers(t *testing.T) {
+	html := `
+	<html>
+	<head>
+		<script type="application/ld+json" id="release_schema">
+		{
+			"@context":"http://schema.org",
+			"@type":"MusicRelease",
+			"name":"Test Album",
+			"datePublished":2013
+		}
+		</script>
+	</head>
+	<body>
+		<table class="tracklist_ZdQ0I">
+			<tbody>
+				<tr data-track-position="1">
+					<td class="trackPos_n8vad">1</td>
+					<td class="trackTitle_loyWF">
+						<span>Frohlocket, Ihr Völker Auf Erden (op.79/1)</span>
+					</td>
+					<td class="duration_GhhxK">1:38</td>
+				</tr>
+			</tbody>
+		</table>
+	</body>
+	</html>
+	`
+
+	parser := NewDiscogsParser()
+	result, err := parser.Parse(html)
+
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	tracks := result.Torrent.Tracks()
+	if len(tracks) != 1 {
+		t.Fatalf("Expected 1 track, got %d", len(tracks))
+	}
+
+	if len(tracks[0].Composers()) != 0 {
+		t.Fatalf("Track 1 has %d composers, want 0", len(tracks[0].Composers()))
+	}
+}
+
 // TestDiscogsParser_ParseTracks_MultiMovementWork tests that movement tracks
 // include the parent work name in their title, matching the behavior of PrestoParser.
 // Rule reference: Movement tracks of multi-movement works should include the work name.

@@ -742,10 +742,12 @@ func (p *DiscogsParser) ParseTracks(html string) ([]*domain.Track, error) {
 
 		if title != "" {
 			track := &domain.Track{
-				Disc:    1,
-				Track:   trackNum,
-				Title:   title,
-				Artists: []domain.Artist{domain.Artist{Name: composer, Role: domain.RoleComposer}},
+				Disc:  1,
+				Track: trackNum,
+				Title: title,
+			}
+			if composer != "" {
+				track.Artists = append(track.Artists, domain.Artist{Name: composer, Role: domain.RoleComposer})
 			}
 			tracks = append(tracks, track)
 		}
