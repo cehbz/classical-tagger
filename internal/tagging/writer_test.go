@@ -149,6 +149,32 @@ func TestMetadataToVorbisComment(t *testing.T) {
 				"CATALOGNUMBER": "SK 52594",
 			},
 		},
+		{
+			Name: "empty composer name should not write COMPOSER tag",
+			Track: func() *domain.Track {
+				composer := domain.Artist{Name: "", Role: domain.RoleComposer}
+				performer := domain.Artist{Name: "Glenn Gould", Role: domain.RoleSoloist}
+				return &domain.Track{
+					Disc:    1,
+					Track:   1,
+					Title:   "Goldberg Variations, BWV 988: Aria",
+					Artists: []domain.Artist{composer, performer},
+				}
+			}(),
+			Torrent: func() *domain.Torrent {
+				return &domain.Torrent{RootPath: "goldberg", Title: "Goldberg Variations", OriginalYear: 1981}
+			}(),
+			WantTags: map[string]string{
+				// COMPOSER tag should NOT be present
+				"ARTIST":       "Glenn Gould",
+				"PERFORMER":    "Glenn Gould",
+				"TITLE":        "Goldberg Variations, BWV 988: Aria",
+				"ALBUM":        "Goldberg Variations",
+				"TRACKNUMBER":  "1",
+				"DISCNUMBER":   "1",
+				"ORIGINALDATE": "1981",
+			},
+		},
 	}
 
 	for _, tt := range tests {

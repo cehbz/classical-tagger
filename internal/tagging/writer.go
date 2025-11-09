@@ -110,7 +110,8 @@ func MetadataToVorbisComment(track *domain.Track, torrent *domain.Torrent) map[s
 	}
 
 	// COMPOSER tag (required for classical)
-	if composer != nil {
+	// Only write if composer exists and name is non-empty
+	if composer != nil && composer.Name != "" {
 		tags["COMPOSER"] = composer.Name
 	}
 

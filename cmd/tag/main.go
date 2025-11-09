@@ -110,15 +110,33 @@ func main() {
 	// Determine output directory
 	outDir := *outputDir
 	if outDir == "" {
-		outDir = *targetDir + "_tagged"
+		// Use parent directory of targetDir as base, or current directory
+		baseDir := filepath.Dir(*targetDir)
+		if baseDir == "." || baseDir == *targetDir {
+			baseDir = "."
+		}
+		// Generate directory name from torrent metadata
+		dirName := tagging.GenerateDirectoryName(torrent)
+		dir := filepath.Base(*targetDir)
+		if dir == dirName {
+			dirName = dirName + "_tagged"
+		}
+		outDir = filepath.Join(baseDir, dirName)
 	}
 
 	fmt.Println()
+
+	// Check if multi-disc album
+	isMultiDisc := torrent.IsMultiDisc()
+	totalTracks := len(torrent.Tracks())
 
 	// Apply tags
 	if *dryRun {
 		fmt.Println("=== DRY RUN MODE ===")
 		fmt.Printf("Would write tagged files to: %s\n", outDir)
+		if isMultiDisc {
+			fmt.Println("Multi-disc album detected - will create disc subdirectories")
+		}
 		fmt.Println("Would apply tags to the following files:")
 		for track, file := range matches {
 			composers := track.Composers()
@@ -127,7 +145,9 @@ func main() {
 				composerName = composers[0].Name
 			}
 			if file != "" {
-				destPath := filepath.Join(outDir, filepath.Base(file))
+				// Generate new filename
+				newFilename := tagging.GenerateFilename(track, totalTracks)
+				destPath := buildDestinationPath(outDir, track, newFilename, isMultiDisc)
 				fmt.Printf("  %s -> %s\n", filepath.Base(file), destPath)
 				fmt.Printf("    Title: %s\n", track.Title)
 				fmt.Printf("    Composer: %s\n", composerName)
@@ -144,6 +164,9 @@ func main() {
 	}
 
 	fmt.Printf("Writing tagged files to: %s\n", outDir)
+	if isMultiDisc {
+		fmt.Println("Multi-disc album detected - creating disc subdirectories")
+	}
 	writer := tagging.NewFLACWriter()
 
 	successCount := 0
@@ -154,18 +177,29 @@ func main() {
 			continue
 		}
 
-		// Determine destination path
-		destPath := filepath.Join(outDir, filepath.Base(file))
+		// Generate new filename
+		newFilename := tagging.GenerateFilename(track, totalTracks)
+		destPath := buildDestinationPath(outDir, track, newFilename, isMultiDisc)
+
+		// Create disc subdirectory if needed
+		if isMultiDisc {
+			discDir := filepath.Dir(destPath)
+			if err := os.MkdirAll(discDir, 0755); err != nil {
+				fmt.Printf("❌ Failed to create disc directory %s: %v\n", discDir, err)
+				errorCount++
+				continue
+			}
+		}
 
 		// Write tags
 		err := writer.WriteTrack(file, destPath, track, torrent)
 		if err != nil {
-			fmt.Printf("❌ Failed to write %s: %v\n", filepath.Base(file), err)
+			fmt.Printf("❌ Failed to write %s: %v\n", newFilename, err)
 			errorCount++
 			continue
 		}
 
-		fmt.Printf("✓ Updated %s\n", filepath.Base(file))
+		fmt.Printf("✓ Created %s\n", destPath)
 		successCount++
 	}
 
@@ -239,4 +273,15 @@ func MatchTracksToFiles(torrent *domain.Torrent, files []string) map[*domain.Tra
 	}
 
 	return matches
+}
+
+// buildDestinationPath builds the destination path for a track file.
+// Handles multi-disc albums by creating subdirectories.
+func buildDestinationPath(baseDir string, track *domain.Track, filename string, isMultiDisc bool) string {
+	if isMultiDisc {
+		// Create disc subdirectory for all discs in multi-disc albums
+		discSubdir := tagging.GenerateDiscSubdirectoryName(track.Disc, "")
+		return filepath.Join(baseDir, discSubdir, filename)
+	}
+	return filepath.Join(baseDir, filename)
 }
