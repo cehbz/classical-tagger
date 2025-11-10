@@ -57,11 +57,23 @@ func TestRules_TorrentArtistFullComposerName(t *testing.T) {
 			WantInfo:   1,
 		},
 		{
-			Name:         "valid - multiple composers, full names",
-			AlbumTitle:   "Bach & Vivaldi - Baroque Masterpieces",
-			Composers:    []string{"Johann Sebastian Bach", "Antonio Vivaldi"},
-			WantPass:     false, // Bach without initials
-			WantWarnings: 1,     // Only one warning, Vivaldi is just last name which is acceptable here
+			Name:       "valid - multiple composers, last names",
+			AlbumTitle: "Bach & Vivaldi - Baroque Masterpieces",
+			Composers:  []string{"Johann Sebastian Bach", "Antonio Vivaldi"},
+			WantPass:   true, // No primary composer (>50% threshold), so rule doesn't apply
+		},
+		{
+			Name:       "valid - one dominant composer, last name",
+			AlbumTitle: "Vivaldi - Baroque Masterpieces",
+			Composers:  []string{"Johann Sebastian Bach", "Antonio Vivaldi", "Antonio Vivaldi"},
+			WantPass:   true,
+		},
+		{
+			Name:       "info - one dominant composer, name missing",
+			AlbumTitle: "Bach - Baroque Masterpieces",
+			Composers:  []string{"Johann Sebastian Bach", "Antonio Vivaldi", "Antonio Vivaldi"},
+			WantPass:   false,
+			WantInfo:   1,
 		},
 		{
 			Name:         "valid - performer-focused title (acceptable)",

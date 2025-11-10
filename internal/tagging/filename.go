@@ -76,44 +76,10 @@ func SanitizeFilename(name string) string {
 // Format: "Disc N" or disc title if available.
 func GenerateDiscSubdirectoryName(discNum int, discTitle string) string {
 	if discTitle != "" {
-		sanitized := SanitizeDirectoryName(discTitle)
+		sanitized := domain.SanitizeDirectoryName(discTitle)
 		if sanitized != "" {
 			return sanitized
 		}
 	}
 	return fmt.Sprintf("Disc %d", discNum)
-}
-
-// SanitizeDirectoryName sanitizes a string for use as a directory name.
-// Similar to filename sanitization but allows some additional characters.
-func SanitizeDirectoryName(name string) string {
-	if name == "" {
-		return ""
-	}
-
-	// Remove invalid filesystem characters: / \ : * ? " < > |
-	invalidChars := regexp.MustCompile(`[<>:"/\\|?*]`)
-	name = invalidChars.ReplaceAllString(name, "")
-
-	// Remove leading/trailing spaces and dots
-	name = strings.Trim(name, " .")
-
-	// Replace multiple spaces with single space
-	spacePattern := regexp.MustCompile(`\s+`)
-	name = spacePattern.ReplaceAllString(name, " ")
-
-	// Windows reserved names
-	reservedNames := map[string]bool{
-		"CON": true, "PRN": true, "AUX": true, "NUL": true,
-		"COM1": true, "COM2": true, "COM3": true, "COM4": true, "COM5": true,
-		"COM6": true, "COM7": true, "COM8": true, "COM9": true,
-		"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true, "LPT5": true,
-		"LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
-	}
-	upperName := strings.ToUpper(name)
-	if reservedNames[upperName] || strings.HasPrefix(upperName, "COM") || strings.HasPrefix(upperName, "LPT") {
-		name = "_" + name
-	}
-
-	return name
 }

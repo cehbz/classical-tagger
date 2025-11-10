@@ -1,39 +1,37 @@
-package tagging
+package domain
 
 import (
 	"testing"
-
-	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 func TestGenerateDirectoryName(t *testing.T) {
 	tests := []struct {
 		Name            string
-		Torrent         *domain.Torrent
+		Torrent         *Torrent
 		Want            string // We'll check that it contains expected parts rather than exact match
 		WantContains    []string
 		WantNotContains []string
 	}{
 		{
 			Name: "full format with composer, performers, and year",
-			Torrent: &domain.Torrent{
+			Torrent: &Torrent{
 				Title:        "Goldberg Variations",
 				OriginalYear: 1981,
-				Files: []domain.FileLike{
-					&domain.Track{
+				Files: []FileLike{
+					&Track{
 						Track: 1,
 						Title: "Aria",
-						Artists: []domain.Artist{
-							{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
-							{Name: "Glenn Gould", Role: domain.RoleSoloist},
+						Artists: []Artist{
+							{Name: "Johann Sebastian Bach", Role: RoleComposer},
+							{Name: "Glenn Gould", Role: RoleSoloist},
 						},
 					},
-					&domain.Track{
+					&Track{
 						Track: 2,
 						Title: "Variation 1",
-						Artists: []domain.Artist{
-							{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
-							{Name: "Glenn Gould", Role: domain.RoleSoloist},
+						Artists: []Artist{
+							{Name: "Johann Sebastian Bach", Role: RoleComposer},
+							{Name: "Glenn Gould", Role: RoleSoloist},
 						},
 					},
 				},
@@ -42,15 +40,15 @@ func TestGenerateDirectoryName(t *testing.T) {
 		},
 		{
 			Name: "composer and year without performers",
-			Torrent: &domain.Torrent{
+			Torrent: &Torrent{
 				Title:        "Symphony No. 5",
 				OriginalYear: 1970,
-				Files: []domain.FileLike{
-					&domain.Track{
+				Files: []FileLike{
+					&Track{
 						Track: 1,
 						Title: "Allegro",
-						Artists: []domain.Artist{
-							{Name: "Ludwig van Beethoven", Role: domain.RoleComposer},
+						Artists: []Artist{
+							{Name: "Ludwig van Beethoven", Role: RoleComposer},
 						},
 					},
 				},
@@ -60,15 +58,15 @@ func TestGenerateDirectoryName(t *testing.T) {
 		},
 		{
 			Name: "no composer",
-			Torrent: &domain.Torrent{
+			Torrent: &Torrent{
 				Title:        "Unknown Album",
 				OriginalYear: 2000,
-				Files: []domain.FileLike{
-					&domain.Track{
+				Files: []FileLike{
+					&Track{
 						Track: 1,
 						Title: "Track 1",
-						Artists: []domain.Artist{
-							{Name: "Performer", Role: domain.RoleSoloist},
+						Artists: []Artist{
+							{Name: "Performer", Role: RoleSoloist},
 						},
 					},
 				},
@@ -77,14 +75,14 @@ func TestGenerateDirectoryName(t *testing.T) {
 		},
 		{
 			Name: "no year",
-			Torrent: &domain.Torrent{
+			Torrent: &Torrent{
 				Title: "Album Without Year",
-				Files: []domain.FileLike{
-					&domain.Track{
+				Files: []FileLike{
+					&Track{
 						Track: 1,
 						Title: "Track 1",
-						Artists: []domain.Artist{
-							{Name: "Composer", Role: domain.RoleComposer},
+						Artists: []Artist{
+							{Name: "Composer", Role: RoleComposer},
 						},
 					},
 				},
@@ -93,30 +91,30 @@ func TestGenerateDirectoryName(t *testing.T) {
 		},
 		{
 			Name: "empty torrent",
-			Torrent: &domain.Torrent{
+			Torrent: &Torrent{
 				Title: "Empty Album",
-				Files: []domain.FileLike{},
+				Files: []FileLike{},
 			},
 			WantContains: []string{"Empty Album", "[FLAC]"},
 		},
 		{
 			Name: "multiple composers",
-			Torrent: &domain.Torrent{
+			Torrent: &Torrent{
 				Title:        "Mixed Composers",
 				OriginalYear: 1990,
-				Files: []domain.FileLike{
-					&domain.Track{
+				Files: []FileLike{
+					&Track{
 						Track: 1,
 						Title: "Track 1",
-						Artists: []domain.Artist{
-							{Name: "Johann Sebastian Bach", Role: domain.RoleComposer},
+						Artists: []Artist{
+							{Name: "Johann Sebastian Bach", Role: RoleComposer},
 						},
 					},
-					&domain.Track{
+					&Track{
 						Track: 2,
 						Title: "Track 2",
-						Artists: []domain.Artist{
-							{Name: "Wolfgang Amadeus Mozart", Role: domain.RoleComposer},
+						Artists: []Artist{
+							{Name: "Wolfgang Amadeus Mozart", Role: RoleComposer},
 						},
 					},
 				},

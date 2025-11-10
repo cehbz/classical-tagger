@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"os"
 )
 
 // Torrent represents a torrent directory with associated metadata and files.
@@ -21,6 +22,49 @@ type Torrent struct {
 
 	// Site-specific metadata (optional, for upload)
 	SiteMetadata *SiteMetadata `json:"site_metadata,omitempty"`
+}
+
+// MarshalJSON implements custom JSON marshaling for Torrent.
+// This is needed because Files contains FileLike interface values which need to be
+// marshaled as their concrete types (File or Track).
+func (t *Torrent) MarshalJSON() ([]byte, error) {
+	type torrentJSON struct {
+		RootPath     string        `json:"root_path"`
+		Title        string        `json:"title"`
+		OriginalYear int           `json:"original_year"`
+		Edition      *Edition      `json:"edition,omitempty"`
+		AlbumArtist  []Artist      `json:"album_artist,omitempty"`
+		Files        any           `json:"files"`
+		SiteMetadata *SiteMetadata `json:"site_metadata,omitempty"`
+	}
+
+	// Marshal Files array by converting each FileLike to its concrete type
+	filesData := make([]any, 0, len(t.Files))
+	for _, fileLike := range t.Files {
+		// Check concrete type and add the concrete value
+		// FileLike interface is only satisfied by pointer types (*File, *Track)
+		switch v := fileLike.(type) {
+		case *Track:
+			filesData = append(filesData, v)
+		case *File:
+			filesData = append(filesData, v)
+		default:
+			// Fallback: try to marshal as-is
+			filesData = append(filesData, fileLike)
+		}
+	}
+
+	tj := torrentJSON{
+		RootPath:     t.RootPath,
+		Title:        t.Title,
+		OriginalYear: t.OriginalYear,
+		Edition:      t.Edition,
+		AlbumArtist:  t.AlbumArtist,
+		Files:        filesData,
+		SiteMetadata: t.SiteMetadata,
+	}
+
+	return json.Marshal(tj)
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling for Torrent.
@@ -83,6 +127,20 @@ func (t *Torrent) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// SaveToFile saves the torrent to a file.
+func (t *Torrent) Save(filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	encoder.SetEscapeHTML(false)
+	return encoder.Encode(t)
 }
 
 // IsMultiDisc returns true if the torrent contains tracks from multiple discs.

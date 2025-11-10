@@ -42,20 +42,27 @@ func (r *Rules) TorrentArtistFullComposerName(actual, _ *domain.Torrent) RuleRes
 		}
 	}
 
-	// Find the dominant composer(s) - appearing in most tracks
+	// Find the dominant composer(s) - only consider composers that appear on more than half the tracks
+	totalTracks := len(tracks)
+	halfTracks := totalTracks / 2
+
 	var dominantComposers []string
 	maxCount := 0
 	for lastName, count := range composerCounts {
-		if count > maxCount {
-			maxCount = count
-			dominantComposers = []string{lastName}
-		} else if count == maxCount {
-			dominantComposers = append(dominantComposers, lastName)
+		// Only consider composers that appear on more than half the tracks (>50%)
+		if count > halfTracks {
+			if count > maxCount {
+				maxCount = count
+				dominantComposers = []string{lastName}
+			} else if count == maxCount {
+				dominantComposers = append(dominantComposers, lastName)
+			}
 		}
 	}
 
 	if len(dominantComposers) == 0 {
-		// No composers found - will be caught by other rules
+		// No primary composer found (no composer appears on >50% of tracks)
+		// This is expected for compilation albums - skip the warning
 		return RuleResult{Meta: meta, Issues: nil}
 	}
 

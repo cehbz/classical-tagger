@@ -7,10 +7,10 @@ import (
 )
 
 type ArtistInference struct {
-	OriginalText string
-	Artist domain.Artist
-	Reason string
-	Confidence string
+	OriginalText   string
+	Artist         domain.Artist
+	Reason         string
+	Confidence     string
 	AlternateRoles []domain.Role
 }
 
@@ -59,7 +59,7 @@ func InferArtistRoleWithContext(text string, afterEnsemble bool) ArtistInference
 					Name: text,
 					Role: domain.RoleEnsemble,
 				},
-				Reason: "keyword: '" + origKeyword + "' indicates ensemble",
+				Reason:     "keyword: '" + origKeyword + "' indicates ensemble",
 				Confidence: confidence,
 			}
 		}
@@ -74,8 +74,8 @@ func InferArtistRoleWithContext(text string, afterEnsemble bool) ArtistInference
 					Name: text,
 					Role: domain.RoleConductor,
 				},
-				Reason: "title '" + title + "' suggests conductor or notable performer",
-				Confidence: "medium",
+				Reason:         "title '" + title + "' suggests conductor or notable performer",
+				Confidence:     "medium",
 				AlternateRoles: []domain.Role{domain.RoleSoloist},
 			}
 		}
@@ -89,7 +89,7 @@ func InferArtistRoleWithContext(text string, afterEnsemble bool) ArtistInference
 				Name: text,
 				Role: domain.RoleConductor,
 			},
-			Reason: "positioned after ensemble; typical conductor position",
+			Reason:     "positioned after ensemble; typical conductor position",
 			Confidence: "high",
 		}
 	}
@@ -101,8 +101,8 @@ func InferArtistRoleWithContext(text string, afterEnsemble bool) ArtistInference
 			Name: text,
 			Role: domain.RoleSoloist,
 		},
-		Reason: "default assumption for individual name",
-		Confidence: "medium",
+		Reason:         "default assumption for individual name",
+		Confidence:     "medium",
 		AlternateRoles: []domain.Role{domain.RoleConductor},
 	}
 }
@@ -161,8 +161,8 @@ func IsLowConfidence(inference ArtistInference) bool {
 }
 
 // FormatInferenceForJSON formats an ArtistInference for JSON parsing notes.
-func FormatInferenceForJSON(inference ArtistInference) map[string]interface{} {
-	result := map[string]interface{}{
+func FormatInferenceForJSON(inference ArtistInference) map[string]any {
+	result := map[string]any{
 		"text":       inference.OriginalText,
 		"name":       inference.Artist.Name,
 		"role":       inference.Artist.Role,

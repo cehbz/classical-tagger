@@ -87,7 +87,7 @@ func TestRepository_JSONFormat(t *testing.T) {
 	}
 
 	// Verify it's valid JSON
-	var decoded map[string]interface{}
+	var decoded map[string]any
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("Invalid JSON: %v", err)
 	}

@@ -116,7 +116,7 @@ func main() {
 			baseDir = "."
 		}
 		// Generate directory name from torrent metadata
-		dirName := tagging.GenerateDirectoryName(torrent)
+		dirName := domain.GenerateDirectoryName(torrent)
 		dir := filepath.Base(*targetDir)
 		if dir == dirName {
 			dirName = dirName + "_tagged"

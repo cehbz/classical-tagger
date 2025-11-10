@@ -94,7 +94,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	result := &ExtractionResult{
 		Source: "local_directory",
 	}
-	parsingNotes := make(map[string]interface{})
+	parsingNotes := make(map[string]any)
 	parsingNotes["source"] = "local_directory"
 	parsingNotes["directory"] = dirPath
 	parsingNotes["file_count"] = len(files)

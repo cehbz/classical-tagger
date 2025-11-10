@@ -1,17 +1,16 @@
-package tagging
+package domain
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
-
-	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
 // GenerateDirectoryName generates a directory name for a torrent following classical music conventions.
 // Format: "Composer - Album Title (Performers) - Year [FLAC]"
 // Falls back to simpler formats if too long.
 // Minimum: "Album Title" (rule 2.3.2)
-func GenerateDirectoryName(torrent *domain.Torrent) string {
+func GenerateDirectoryName(torrent *Torrent) string {
 	tracks := torrent.Tracks()
 
 	// Get album title
@@ -59,14 +58,14 @@ func GenerateDirectoryName(torrent *domain.Torrent) string {
 }
 
 // getPrimaryComposers extracts the primary composer(s) from tracks.
-// Returns the most frequent composer, or first composer if tied.
-func getPrimaryComposers(tracks []*domain.Track) []string {
+// Returns the most frequent composer, or all composers if no single composer appears on more than half the tracks.
+func getPrimaryComposers(tracks []*Track) []string {
 	composerCounts := make(map[string]int)
 	composerOrder := make([]string, 0)
 
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
-			if artist.Role == domain.RoleComposer && artist.Name != "" {
+			if artist.Role == RoleComposer && artist.Name != "" {
 				if composerCounts[artist.Name] == 0 {
 					composerOrder = append(composerOrder, artist.Name)
 				}
@@ -89,10 +88,11 @@ func getPrimaryComposers(tracks []*domain.Track) []string {
 		}
 	}
 
-	// Return primary composer, or all if multiple composers appear frequently
+	// Return primary composer only if they appear on more than half the tracks
+	// Otherwise return all composers
 	var result []string
 	if maxCount > len(tracks)/2 {
-		// Single dominant composer
+		// Single dominant composer (>50% of tracks)
 		result = []string{primaryComposer}
 	} else {
 		// Multiple composers - return all
@@ -135,13 +135,13 @@ func formatComposersForDirectory(composers []string) string {
 
 // getPrimaryPerformers extracts primary performers (non-composers) from tracks.
 // Returns performers that appear in most tracks.
-func getPrimaryPerformers(tracks []*domain.Track) []string {
+func getPrimaryPerformers(tracks []*Track) []string {
 	performerCounts := make(map[string]int)
 	performerOrder := make([]string, 0)
 
 	for _, track := range tracks {
 		for _, artist := range track.Artists {
-			if artist.Role != domain.RoleComposer && artist.Name != "" {
+			if artist.Role != RoleComposer && artist.Name != "" {
 				if performerCounts[artist.Name] == 0 {
 					performerOrder = append(performerOrder, artist.Name)
 				}
@@ -202,4 +202,38 @@ func formatPerformersForDirectory(performers []string) string {
 	}
 
 	return result
+}
+
+// SanitizeDirectoryName sanitizes a string for use as a directory name.
+// Similar to filename sanitization but allows some additional characters.
+func SanitizeDirectoryName(name string) string {
+	if name == "" {
+		return ""
+	}
+
+	// Remove invalid filesystem characters: / \ : * ? " < > |
+	invalidChars := regexp.MustCompile(`[<>:"/\\|?*]`)
+	name = invalidChars.ReplaceAllString(name, "")
+
+	// Remove leading/trailing spaces and dots
+	name = strings.Trim(name, " .")
+
+	// Replace multiple spaces with single space
+	spacePattern := regexp.MustCompile(`\s+`)
+	name = spacePattern.ReplaceAllString(name, " ")
+
+	// Windows reserved names
+	reservedNames := map[string]bool{
+		"CON": true, "PRN": true, "AUX": true, "NUL": true,
+		"COM1": true, "COM2": true, "COM3": true, "COM4": true, "COM5": true,
+		"COM6": true, "COM7": true, "COM8": true, "COM9": true,
+		"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true, "LPT5": true,
+		"LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
+	}
+	upperName := strings.ToUpper(name)
+	if reservedNames[upperName] || strings.HasPrefix(upperName, "COM") || strings.HasPrefix(upperName, "LPT") {
+		name = "_" + name
+	}
+
+	return name
 }
