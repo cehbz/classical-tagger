@@ -5,3 +5,4 @@ validate
 extract_*.json
 *.diff
 outputs/
+.vscode/
