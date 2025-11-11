@@ -66,8 +66,8 @@ func (r *Rules) ArtistFieldFormat(actualTrack, refTrack *domain.Track, actualTor
 	}
 
 	// Compare performer lists
-	actualPerformers := getPerformers(actualTrack.Artists)
-	refPerformers := getPerformers(refTrack.Artists)
+	actualPerformers := actualTrack.Performers()
+	refPerformers := refTrack.Performers()
 
 	if len(actualPerformers) != len(refPerformers) {
 		issues = append(issues, domain.ValidationIssue{
@@ -79,15 +79,4 @@ func (r *Rules) ArtistFieldFormat(actualTrack, refTrack *domain.Track, actualTor
 		})
 	}
 	return RuleResult{Meta: meta, Issues: issues}
-}
-
-// getPerformers extracts performer names (non-composer, non-arranger)
-func getPerformers(artists []domain.Artist) []string {
-	var performers []string
-	for _, artist := range artists {
-		if artist.Role != domain.RoleComposer && artist.Role != domain.RoleArranger {
-			performers = append(performers, artist.Name)
-		}
-	}
-	return performers
 }

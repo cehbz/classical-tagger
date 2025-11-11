@@ -100,49 +100,49 @@ func TestRules_ArtistFieldFormat(t *testing.T) {
 	}
 }
 
-func TestGetPerformers(t *testing.T) {
+func TestTrack_Performers(t *testing.T) {
 	composer := domain.Artist{Name: "Beethoven", Role: domain.RoleComposer}
 	soloist := domain.Artist{Name: "Pollini", Role: domain.RoleSoloist}
 	ensemble := domain.Artist{Name: "Orchestra", Role: domain.RoleEnsemble}
 	arranger := domain.Artist{Name: "Mahler", Role: domain.RoleArranger}
 
 	tests := []struct {
-		Name    string
-		Artists []domain.Artist
-		Want    []string
+		Name  string
+		Track domain.Track
+		Want  []string
 	}{
 		{
-			Name:    "all roles",
-			Artists: []domain.Artist{composer, soloist, ensemble, arranger},
-			Want:    []string{"Pollini", "Orchestra"},
+			Name:  "all roles",
+			Track: domain.Track{Artists: []domain.Artist{composer, soloist, ensemble, arranger}},
+			Want:  []string{"Pollini", "Orchestra"},
 		},
 		{
-			Name:    "only composer",
-			Artists: []domain.Artist{composer},
-			Want:    []string{},
+			Name:  "only composer",
+			Track: domain.Track{Artists: []domain.Artist{composer}},
+			Want:  []string{},
 		},
 		{
-			Name:    "only performers",
-			Artists: []domain.Artist{soloist, ensemble},
-			Want:    []string{"Pollini", "Orchestra"},
+			Name:  "only performers",
+			Track: domain.Track{Artists: []domain.Artist{soloist, ensemble}},
+			Want:  []string{"Pollini", "Orchestra"},
 		},
 		{
-			Name:    "empty",
-			Artists: []domain.Artist{},
-			Want:    []string{},
+			Name:  "empty",
+			Track: domain.Track{Artists: []domain.Artist{}},
+			Want:  []string{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := getPerformers(tt.Artists)
+			got := tt.Track.Performers()
 			if len(got) != len(tt.Want) {
-				t.Errorf("getPerformers() count = %d, want %d", len(got), len(tt.Want))
+				t.Errorf("Track.Performers() count = %d, want %d", len(got), len(tt.Want))
 				return
 			}
 			for i := range got {
 				if got[i] != tt.Want[i] {
-					t.Errorf("getPerformers()[%d] = %q, want %q", i, got[i], tt.Want[i])
+					t.Errorf("Track.Performers()[%d] = %q, want %q", i, got[i], tt.Want[i])
 				}
 			}
 		})

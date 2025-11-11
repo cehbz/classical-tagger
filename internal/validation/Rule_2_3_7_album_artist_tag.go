@@ -119,7 +119,7 @@ func (r *Rules) AlbumArtistTag(actualTorrent, _ *domain.Torrent) RuleResult {
 	// If there are exactly two distinct composers, do not suggest dominance
 	composers := make(map[string]bool)
 	for _, track := range actualTorrent.Tracks() {
-		c := getComposer(track.Artists)
+		c := track.Composer()
 		if c != "" {
 			composers[c] = true
 		}

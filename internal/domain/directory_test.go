@@ -125,7 +125,7 @@ func TestGenerateDirectoryName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := GenerateDirectoryName(tt.Torrent)
+			got := tt.Torrent.DirectoryName()
 
 			// Check length constraint (rule 2.3.12)
 			if len(got) > 180 {

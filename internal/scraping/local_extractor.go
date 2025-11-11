@@ -173,7 +173,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 	// If album artist is already set (from tags), refine roles using universal performers from tracks
 	// This ensures we have accurate roles based on actual track performers
 	if len(data.AlbumArtist) > 0 && len(data.Tracks) > 0 {
-		universalArtists := domain.DetermineAlbumArtistFromAlbum(data)
+		universalArtists := data.AlbumArtists()
 		if len(universalArtists) > 0 {
 			// Use universal performers (they have correct roles from tracks)
 			// Compare names to ensure they match what we parsed from tags
@@ -210,7 +210,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 
 	// If album artist is empty but we have performers in all tracks, synthesize it
 	if len(data.AlbumArtist) == 0 && len(data.Tracks) > 0 {
-		universalArtists := domain.DetermineAlbumArtistFromAlbum(data)
+		universalArtists := data.AlbumArtists()
 		if len(universalArtists) > 0 {
 			data.AlbumArtist = universalArtists
 			// Ensure AlbumArtist performers are present on each track (unless Various Artists)

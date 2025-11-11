@@ -85,8 +85,8 @@ func (r *Rules) TagAccuracyVsReference(actual, reference *domain.Torrent) RuleRe
 		}
 
 		// Compare composers
-		actualComposer := getComposer(actualTrack.Artists)
-		refComposer := getComposer(refTrack.Artists)
+		actualComposer := actualTrack.Composer()
+		refComposer := refTrack.Composer()
 
 		if actualComposer != "" && refComposer != "" && actualComposer != refComposer {
 			issues = append(issues, domain.ValidationIssue{
@@ -115,14 +115,4 @@ func differentWorkNumber(a, b string) bool {
 	na := workNumber(a)
 	nb := workNumber(b)
 	return na != "" && nb != "" && na != nb
-}
-
-// getComposer extracts composer name from artist list
-func getComposer(artists []domain.Artist) string {
-	for _, artist := range artists {
-		if artist.Role == domain.RoleComposer {
-			return artist.Name
-		}
-	}
-	return ""
 }

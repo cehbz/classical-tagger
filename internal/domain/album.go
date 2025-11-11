@@ -12,8 +12,8 @@ type Album struct {
 
 // IsMultiDisc returns true if the album contains tracks from multiple discs.
 // An album is considered multi-disc if any track has Disc > 1 or if there are multiple distinct disc numbers.
-func (a *Album) IsMultiDisc() bool {
-	if a == nil || len(a.Tracks) == 0 {
+func (a Album) IsMultiDisc() bool {
+	if len(a.Tracks) == 0 {
 		return false
 	}
 
@@ -35,7 +35,7 @@ func (a *Album) IsMultiDisc() bool {
 // Returns the list of universal artists.
 // Per classical music guide: "When the performer(s) do not remain the same throughout
 // all tracks, this tag is used to credit the one who does appear in all tracks."
-func DetermineAlbumArtistFromAlbum(album *Album) []Artist {
+func (album Album) AlbumArtists() []Artist {
 	tracks := album.Tracks
 	if len(tracks) == 0 {
 		return nil

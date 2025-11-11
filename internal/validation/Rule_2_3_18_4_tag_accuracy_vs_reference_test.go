@@ -123,31 +123,31 @@ func TestGetComposer(t *testing.T) {
 
 	tests := []struct {
 		Name    string
-		Artists []domain.Artist
+		Track   domain.Track
 		Want    string
 	}{
 		{
 			Name:    "has composer",
-			Artists: []domain.Artist{composer, soloist, ensemble},
+			Track: domain.Track{Artists: []domain.Artist{composer, soloist, ensemble}},
 			Want:    "Beethoven",
 		},
 		{
 			Name:    "no composer",
-			Artists: []domain.Artist{soloist, ensemble},
+			Track: domain.Track{Artists: []domain.Artist{soloist, ensemble}},
 			Want:    "",
 		},
 		{
 			Name:    "empty list",
-			Artists: []domain.Artist{},
+			Track: domain.Track{Artists: []domain.Artist{}},
 			Want:    "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := getComposer(tt.Artists)
+			got := tt.Track.Composer()
 			if got != tt.Want {
-				t.Errorf("getComposer() = %q, want %q", got, tt.Want)
+				t.Errorf("Track.Composer() = %q, want %q", got, tt.Want)
 			}
 		})
 	}

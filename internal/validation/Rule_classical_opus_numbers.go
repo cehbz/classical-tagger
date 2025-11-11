@@ -30,7 +30,7 @@ func (r *Rules) OpusNumbers(actualTrack, refTrack *domain.Track, _, _ *domain.To
 			return RuleResult{Meta: meta, Issues: nil}
 		}
 		// Only suggest for composers known to have catalog systems
-		composer := getComposer(actualTrack.Artists)
+		composer := actualTrack.Composer()
 		if !needsCatalogNumber(composer) {
 			return RuleResult{Meta: meta, Issues: nil}
 		}

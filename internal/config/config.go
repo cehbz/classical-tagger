@@ -18,7 +18,7 @@ type Config struct {
 // LoadDiscogsToken loads the Discogs personal access token from the config file.
 func LoadDiscogsToken() (string, error) {
 	configPath := getConfigPath()
-	
+
 	// Read config file
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -63,7 +63,7 @@ func getConfigPath() string {
 // CreateSampleConfig creates a sample config file at the appropriate location.
 func CreateSampleConfig() error {
 	configPath := getConfigPath()
-	
+
 	// Create directory if it doesn't exist
 	configDir := filepath.Dir(configPath)
 	if err := os.MkdirAll(configDir, 0755); err != nil {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -344,7 +345,6 @@ func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
 	}
 
 	torrent := &domain.Torrent{
-		RootPath:     rootPath,
 		Title:        release.Title,
 		OriginalYear: release.Year,
 		Edition:      edition,
@@ -354,7 +354,7 @@ func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
 	}
 
 	// Generate root_path using the same logic as directory naming
-	torrent.RootPath = domain.GenerateDirectoryName(torrent)
+	torrent.RootPath = path.Join(rootPath, torrent.DirectoryName())
 
 	return torrent
 }

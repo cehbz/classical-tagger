@@ -23,3 +23,25 @@ func (t *Track) Composers() []*Artist {
 	}
 	return composers
 }
+
+// Performers extracts performer names (non-composer, non-arranger)
+func (t *Track) Performers() []string {
+	var performers []string
+	for _, artist := range t.Artists {
+		if artist.Role != RoleComposer && artist.Role != RoleArranger {
+			performers = append(performers, artist.Name)
+		}
+	}
+	return performers	
+}
+
+
+// Composer extracts composer name from artist list
+func (t *Track) Composer() string {
+	for _, artist := range t.Artists {
+		if artist.Role == RoleComposer {
+			return artist.Name
+		}
+	}
+	return ""
+}
