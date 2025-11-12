@@ -7,6 +7,7 @@ import (
 )
 
 // AlbumTagCapitalization checks that album tags use proper Title Case (album: 2.3.18.2-album)
+// TODO: Foreign language titles may have different capitalization rules (e.g., German nouns are capitalized)
 func (r *Rules) AlbumTagCapitalization(actualTorrent, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.2-album",
@@ -18,6 +19,7 @@ func (r *Rules) AlbumTagCapitalization(actualTorrent, _ *domain.Torrent) RuleRes
 	var issues []domain.ValidationIssue
 
 	// Check album title
+	// TODO: Foreign language titles may have different capitalization rules
 	if capIssue := checkCapitalization(actualTorrent.Title); capIssue != "" {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,
@@ -30,6 +32,7 @@ func (r *Rules) AlbumTagCapitalization(actualTorrent, _ *domain.Torrent) RuleRes
 }
 
 // TrackTagCapitalization checks that track tags use proper Title Case (track: 2.3.18.2)
+// TODO: Foreign language titles may have different capitalization rules (e.g., German nouns are capitalized)
 func (r *Rules) TrackTagCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.18.2",
@@ -41,6 +44,7 @@ func (r *Rules) TrackTagCapitalization(actualTrack, _ *domain.Track, _, _ *domai
 	var issues []domain.ValidationIssue
 
 	// Check track title
+	// TODO: Foreign language titles may have different capitalization rules
 	if capIssue := checkCapitalization(actualTrack.Title); capIssue != "" {
 		issues = append(issues, domain.ValidationIssue{
 			Level:   domain.LevelError,

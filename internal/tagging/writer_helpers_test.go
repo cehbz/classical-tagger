@@ -81,7 +81,7 @@ func TestDetermineAlbumArtist(t *testing.T) {
 		Name               string
 		Torrent            *domain.Torrent
 		WantArtist         string
-		WantUniversalCount int
+		WantAlbumArtistCount int
 	}{
 		{
 			Name: "single performer across all tracks",
@@ -100,7 +100,7 @@ func TestDetermineAlbumArtist(t *testing.T) {
 				}
 			}(),
 			WantArtist:         "Glenn Gould",
-			WantUniversalCount: 1,
+			WantAlbumArtistCount: 1,
 		},
 		{
 			Name: "single ensemble across all tracks",
@@ -119,7 +119,7 @@ func TestDetermineAlbumArtist(t *testing.T) {
 				}
 			}(),
 			WantArtist:         "Vienna Philharmonic, Herbert von Karajan",
-			WantUniversalCount: 2,
+			WantAlbumArtistCount: 2,
 		},
 		{
 			Name: "varying performers - returns empty",
@@ -138,25 +138,25 @@ func TestDetermineAlbumArtist(t *testing.T) {
 				}
 			}(),
 			WantArtist:         "",
-			WantUniversalCount: 0,
+			WantAlbumArtistCount: 0,
 		},
 		{
 			Name:               "empty torrent",
 			Torrent:            &domain.Torrent{RootPath: "empty", Title: "Empty", OriginalYear: 2020},
 			WantArtist:         "",
-			WantUniversalCount: 0,
+			WantAlbumArtistCount: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			gotUniversal := domain.DetermineAlbumArtist(tt.Torrent)
-			gotArtist := domain.FormatArtists(gotUniversal)
+			gotAlbumArtists := tt.Torrent.AlbumArtists()
+			gotArtist := domain.FormatArtists(gotAlbumArtists)
 			if gotArtist != tt.WantArtist {
 				t.Errorf("DetermineAlbumArtist() artist = %q, want %q", gotArtist, tt.WantArtist)
 			}
-			if len(gotUniversal) != tt.WantUniversalCount {
-				t.Errorf("DetermineAlbumArtist() universal count = %d, want %d", len(gotUniversal), tt.WantUniversalCount)
+			if len(gotAlbumArtists) != tt.WantAlbumArtistCount {
+				t.Errorf("DetermineAlbumArtist() album artist count = %d, want %d", len(gotAlbumArtists), tt.WantAlbumArtistCount)
 			}
 		})
 	}

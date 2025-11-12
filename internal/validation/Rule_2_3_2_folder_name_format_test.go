@@ -11,7 +11,7 @@ func TestRules_FolderNameFormat(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		AlbumTitle   string
+		RootPath   string
 		AlbumYear    int
 		WantPass     bool
 		WantWarnings int
@@ -19,85 +19,91 @@ func TestRules_FolderNameFormat(t *testing.T) {
 	}{
 		{
 			Name:       "valid - full format with FLAC",
-			AlbumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC]",
+			RootPath: "Beethoven - Symphony No. 5 [1963] [FLAC]",
 			AlbumYear:  1963,
 			WantPass:   true,
 		},
 		{
 			Name:       "valid - full format with MP3",
-			AlbumTitle: "Bach - Brandenburg Concertos [1982] [MP3]",
+			RootPath: "Bach - Brandenburg Concertos [1982] [MP3]",
 			AlbumYear:  1982,
 			WantPass:   true,
 		},
 		{
 			Name:       "info - missing format indicator",
-			AlbumTitle: "Mozart - Piano Concertos [1990]",
+			RootPath: "Mozart - Piano Concertos [1990]",
 			AlbumYear:  1990,
 			WantPass:   false,
 			WantInfo:   1,
 		},
 		{
 			Name:         "warning - missing year",
-			AlbumTitle:   "Vivaldi - The Four Seasons [FLAC]",
+			RootPath:   "Vivaldi - The Four Seasons [FLAC]",
 			AlbumYear:    1980,
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - missing separator",
-			AlbumTitle:   "Beethoven Symphony No. 5 [1963] [FLAC]",
+			RootPath:   "Beethoven Symphony No. 5 [1963] [FLAC]",
 			AlbumYear:    1963,
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "warning - year mismatch",
-			AlbumTitle:   "Bach - Cello Suites [1990] [FLAC]",
+			RootPath:   "Bach - Cello Suites [1990] [FLAC]",
 			AlbumYear:    1985,
 			WantPass:     false,
 			WantWarnings: 1,
 		},
 		{
 			Name:         "multiple issues",
-			AlbumTitle:   "Beethoven Symphony No. 5",
+			RootPath:   "Beethoven Symphony No. 5",
 			AlbumYear:    1963,
 			WantPass:     false,
 			WantWarnings: 2, // No separator, no year
 		},
 		{
 			Name:       "valid - with extra info",
-			AlbumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC] [24-96]",
+			RootPath: "Beethoven - Symphony No. 5 [1963] [FLAC] [24-96]",
 			AlbumYear:  1963,
 			WantPass:   true,
 		},
 		{
 			Name:       "valid - various artist format",
-			AlbumTitle: "Various Artists - Classical Favorites [2000] [FLAC]",
+			RootPath: "Various Artists - Classical Favorites [2000] [FLAC]",
 			AlbumYear:  2000,
 			WantPass:   true,
 		},
 		{
 			Name:       "valid - WAV format",
-			AlbumTitle: "Mahler - Symphony No. 2 [1991] [WAV]",
+			RootPath: "Mahler - Symphony No. 2 [1991] [WAV]",
 			AlbumYear:  1991,
 			WantPass:   true,
 		},
 		{
 			Name:       "valid - FLAC with quality info",
-			AlbumTitle: "Beethoven - Symphony No. 5 [1963] [FLAC 96-24]",
+			RootPath: "Beethoven - Symphony No. 5 [1963] [FLAC 96-24]",
 			AlbumYear:  1963,
 			WantPass:   true,
 		},
 		{
 			Name:       "valid - MP3 with quality",
-			AlbumTitle: "Bach - Brandenburg Concertos [1982] [MP3 V0]",
+			RootPath: "Bach - Brandenburg Concertos [1982] [MP3 V0]",
 			AlbumYear:  1982,
 			WantPass:   true,
 		},
 		{
 			Name:       "valid - ALAC format",
-			AlbumTitle: "Debussy - Préludes [1985] [ALAC]",
+			RootPath: "Debussy - Préludes [1985] [ALAC]",
 			AlbumYear:  1985,
+			WantPass:   true,
+		},
+		{
+			Name:       "valid - year without brackets",
+			RootPath: "Noël! Christmas! Weihnachten! (RIAS-Kammerchor, Rademann) - 2013 [FLAC]",
+			AlbumYear:  2013,
 			WantPass:   true,
 		},
 	}
@@ -105,7 +111,7 @@ func TestRules_FolderNameFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			actual := &domain.Torrent{
-				Title:        tt.AlbumTitle,
+				RootPath:     tt.RootPath, // Use RootPath (directory name) instead of Title
 				OriginalYear: tt.AlbumYear,
 				Files: []domain.FileLike{
 					&domain.Track{

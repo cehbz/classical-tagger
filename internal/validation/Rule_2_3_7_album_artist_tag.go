@@ -71,12 +71,12 @@ func (r *Rules) AlbumArtistTag(actualTorrent, _ *domain.Torrent) RuleResult {
 		return RuleResult{Meta: meta, Issues: issues}
 	}
 
-	// Count primary performers/ensembles across tracks (exclude composers/arrangers)
+	// Count primary performers/ensembles across tracks
 	primaryArtists := make(map[string]int)
 	for _, track := range actualTorrent.Tracks() {
 		for _, artist := range track.Artists {
 			// Count non-composers (performers, ensembles, conductors)
-			if artist.Role != domain.RoleComposer && artist.Role != domain.RoleArranger {
+			if artist.Role.IsPerformer() {
 				primaryArtists[artist.Name]++
 			}
 		}

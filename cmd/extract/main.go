@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/cehbz/classical-tagger/internal/config"
 	"github.com/cehbz/classical-tagger/internal/discogs"
@@ -86,99 +87,50 @@ func main() {
 
 	client := discogs.NewClient(token)
 
-	// If release ID provided, fetch directly
+	// get release(s)
+	releases := []discogs.Release{}
 	if *releaseID != 0 {
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "Fetching Discogs release #%d\n", *releaseID)
-		}
-
 		release, err := client.GetRelease(*releaseID)
-		if err != nil {
+		if err != nil || release == nil {
 			fmt.Fprintf(os.Stderr, "Error fetching release: %v\n", err)
 			os.Exit(1)
 		}
-
-		discogsFile := baseName + "_discogs.json"
-		if err := release.SaveToFile(discogsFile, baseName); err != nil {
-			fmt.Fprintf(os.Stderr, "Error saving Discogs data: %v\n", err)
-			os.Exit(1)
+		releases = append(releases, *release)
+	} else {
+		// Search using extracted metadata
+		artist := extractArtist(localResult.Torrent)
+		album := localResult.Torrent.Title
+		
+		if artist == "" || album == "" {
+			fmt.Fprintf(os.Stderr, "Warning: Cannot search Discogs without artist and album information\n")
+			return
 		}
-
-		fmt.Fprintf(os.Stderr, "✓ Discogs metadata saved to: %s\n", discogsFile)
-		return
-	}
-
-	// Search using extracted metadata
-	artist := extractArtist(localResult.Torrent)
-	album := localResult.Torrent.Title
-
-	if artist == "" || album == "" {
-		fmt.Fprintf(os.Stderr, "Warning: Cannot search Discogs without artist and album information\n")
-		return
-	}
-
-	if *verbose {
-		fmt.Fprintf(os.Stderr, "Searching Discogs for: artist=%q album=%q\n", artist, album)
-	}
-
-	releases, err := client.Search(artist, album)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Discogs search failed: %v\n", err)
-		return
+		
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "Searching Discogs for: artist=%q album=%q\n", artist, album)
+		}
+		
+		releases, err = client.Search(artist, album)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Discogs search failed: %v\n", err)
+			return
+		}
+		if len(releases) == 0 {
+			fmt.Fprintf(os.Stderr, "No Discogs releases found for: %s - %s\n", artist, album)
+			return
+		}
 	}
 
 	// Handle search results
-	switch len(releases) {
-	case 0:
-		fmt.Fprintf(os.Stderr, "No Discogs releases found for: %s - %s\n", artist, album)
-
-	case 1:
-		// Single match - fetch automatically
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "Found single match: %s - %s [%d]\n",
-				releases[0].Label, releases[0].CatalogNumber, releases[0].ID)
-		}
-
-		release, err := client.GetRelease(releases[0].ID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error fetching release details: %v\n", err)
-			os.Exit(1)
-		}
-
-		discogsFile := baseName + "_discogs.json"
-		if err := release.SaveToFile(discogsFile, baseName); err != nil {
-			fmt.Fprintf(os.Stderr, "Error saving Discogs data: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Fprintf(os.Stderr, "✓ Discogs metadata saved to: %s\n", discogsFile)
-
-	default:
+	if len(releases) > 1 {
 		// Multiple matches - display and exit
 		fmt.Fprintf(os.Stderr, "\nMultiple Discogs releases found:\n\n")
 
-		for i, release := range releases {
-			fmt.Fprintf(os.Stderr, "  [%d] %s", release.ID, release.Title)
-
-			if release.Label != "" {
-				fmt.Fprintf(os.Stderr, " - %s", release.Label)
-			}
-			if release.CatalogNumber != "" {
-				fmt.Fprintf(os.Stderr, " %s", release.CatalogNumber)
-			}
-			if release.Year > 0 {
-				fmt.Fprintf(os.Stderr, " (%d)", release.Year)
-			}
-			if release.Country != "" {
-				fmt.Fprintf(os.Stderr, ", %s", release.Country)
-			}
-
-			fmt.Fprintln(os.Stderr)
-
-			// Limit display to first 10
-			if i >= 9 && len(releases) > 10 {
-				fmt.Fprintf(os.Stderr, "  ... and %d more\n", len(releases)-10)
-				break
+		releaseTemplate := `  [{{.ID}}] {{.Title}}{{if .Label}} - {{.Label}}{{end}}{{if .CatalogNumber}} {{.CatalogNumber}}{{end}}{{if gt .Year 0}} ({{.Year}}){{end}}{{if .Country}}, {{.Country}}{{end}}\n`
+		tmpl := template.Must(template.New("release").Parse(releaseTemplate))
+		for _, release := range releases {
+			if err := tmpl.Execute(os.Stderr, release); err != nil {
+				fmt.Fprintf(os.Stderr, "Error rendering template: %v\n", err)
 			}
 		}
 
@@ -186,6 +138,28 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  extract -dir %q --release-id XXXXXX\n\n", *dir)
 		os.Exit(1)
 	}
+
+	// Single match - fetch automatically
+	if *verbose {
+		fmt.Fprintf(os.Stderr, "Found single match: %s - %s [%d]\n",
+			releases[0].Label, releases[0].CatalogNumber, releases[0].ID)
+	}
+
+	release, err := client.GetRelease(releases[0].ID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error fetching release details: %v\n", err)
+		os.Exit(1)
+	}
+
+	discogsFile := baseName + "_discogs.json"
+	// Use parent directory as rootPath so generated directory is a sibling of local directory
+	parentDir := filepath.Dir(*dir)
+	if err := release.SaveToFile(discogsFile, parentDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error saving Discogs data: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Fprintf(os.Stderr, "✓ Discogs metadata saved to: %s\n", discogsFile)
 }
 
 func usage() {

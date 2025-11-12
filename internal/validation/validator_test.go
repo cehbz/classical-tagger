@@ -9,7 +9,7 @@ import (
 func TestCheck(t *testing.T) {
 	tests := []struct {
 		Name           string
-		SetupTorrent *domain.Torrent
+		SetupTorrent   *domain.Torrent
 		WantErrorCount int
 		WantWarnCount  int
 	}{
@@ -17,6 +17,7 @@ func TestCheck(t *testing.T) {
 			Name: "valid complete album",
 			SetupTorrent: &domain.Torrent{
 				Title:        "Test Album",
+				RootPath:     "Test Album", // Directory name without proper format
 				OriginalYear: 2013,
 				Edition: &domain.Edition{
 					Label:         "test label",
@@ -25,7 +26,7 @@ func TestCheck(t *testing.T) {
 				},
 				Files: []domain.FileLike{
 					&domain.Track{
-						File: domain.File{Path: "01 Frohlocket, Op. 79-1.flac"},
+						File:  domain.File{Path: "01 Frohlocket, Op. 79-1.flac"},
 						Disc:  1,
 						Track: 1,
 						Title: "Frohlocket, Op. 79/1",
@@ -37,12 +38,13 @@ func TestCheck(t *testing.T) {
 				},
 			},
 			WantErrorCount: 0, // No errors - RIAS is now recognized as acronym
-			WantWarnCount:  3,
+			WantWarnCount:  3, // Rule 2.3.2: missing separator and year (2 warnings) + other warnings
 		},
 		{
 			Name: "missing edition",
 			SetupTorrent: &domain.Torrent{
 				Title:        "Test Album",
+				RootPath:     "Test Album", // Directory name without proper format
 				OriginalYear: 2013,
 				Files: []domain.FileLike{
 					&domain.Track{
@@ -56,12 +58,13 @@ func TestCheck(t *testing.T) {
 				},
 			},
 			WantErrorCount: 2,
-			WantWarnCount:  5,
+			WantWarnCount:  5, // Rule 2.3.2: missing separator and year (2 warnings) + other warnings
 		},
 		{
 			Name: "composer in title",
 			SetupTorrent: &domain.Torrent{
 				Title:        "Test Album",
+				RootPath:     "Test Album", // Directory name without proper format
 				OriginalYear: 2013,
 				Files: []domain.FileLike{
 					&domain.Track{
@@ -75,7 +78,7 @@ func TestCheck(t *testing.T) {
 				},
 			},
 			WantErrorCount: 3,
-			WantWarnCount:  5,
+			WantWarnCount:  5, // Rule 2.3.2: missing separator and year (2 warnings) + other warnings
 		},
 	}
 
@@ -88,7 +91,7 @@ func TestCheck(t *testing.T) {
 			warnCount := 0
 			for _, issue := range issues {
 				switch issue.Level {
-case domain.LevelError:
+				case domain.LevelError:
 					errorCount++
 				case domain.LevelWarning:
 					warnCount++

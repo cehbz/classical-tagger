@@ -28,7 +28,7 @@ func (t *Track) Composers() []*Artist {
 func (t *Track) Performers() []string {
 	var performers []string
 	for _, artist := range t.Artists {
-		if artist.Role != RoleComposer && artist.Role != RoleArranger {
+		if artist.Role.IsPerformer() {
 			performers = append(performers, artist.Name)
 		}
 	}

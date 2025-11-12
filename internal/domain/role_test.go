@@ -25,6 +25,29 @@ func TestRole_String(t *testing.T) {
 	}
 }
 
+func TestRole_IsPerformer(t *testing.T) {
+	tests := []struct {
+		Name string
+		Role Role
+		Want bool
+	}{
+		{"composer", RoleComposer, false},
+		{"soloist", RoleSoloist, true},
+		{"ensemble", RoleEnsemble, true},
+		{"conductor", RoleConductor, true},
+		{"arranger", RoleArranger, false},
+		{"guest", RoleGuest, true},
+		{"unknown", RoleUnknown, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			if got := tt.Role.IsPerformer(); got != tt.Want {
+				t.Errorf("Role.IsPerformer() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
+}
+
 func TestParseRole(t *testing.T) {
 	tests := []struct {
 		Name    string

@@ -177,48 +177,37 @@ func (t *Torrent) Tracks() []*Track {
 	return tracks
 }
 
-// DetermineAlbumArtist finds performers that appear in all tracks.
+// AlbumArtists finds performers that appear in all tracks.
 // Returns the list of universal artists.
 // Per classical music guide: "When the performer(s) do not remain the same throughout
 // all tracks, this tag is used to credit the one who does appear in all tracks."
-func DetermineAlbumArtist(torrent *Torrent) []Artist {
-	tracks := torrent.Tracks()
-	if len(tracks) == 0 {
-		return nil
-	}
-
-	// Build set of all non-composer artists from first track
-	firstTrack := tracks[0]
-	var candidates []Artist
-	for _, artist := range firstTrack.Artists {
-		if artist.Role != RoleComposer {
-			candidates = append(candidates, artist)
-		}
-	}
-
-	// Filter to only those appearing in ALL tracks
-	var universal []Artist
-	for _, candidate := range candidates {
-		appearsInAll := true
-		for _, track := range tracks[1:] {
-			found := false
-			for _, artist := range track.Artists {
-				if artist.Name == candidate.Name && artist.Role == candidate.Role {
-					found = true
-					break
-				}
+func (torrent Torrent) AlbumArtists() []Artist {
+	artistCounts := make(map[string]int)
+	artistOrder := make([]Artist, 0)
+	for _, track := range torrent.Tracks() {
+		trackArtists := make(map[string]struct{})
+		for _, artist := range track.Artists {
+			if !artist.Role.IsPerformer() {
+				continue
 			}
-			if !found {
-				appearsInAll = false
-				break
+			if _, ok := trackArtists[artist.Name]; ok {
+				continue
 			}
-		}
-		if appearsInAll {
-			universal = append(universal, candidate)
+			trackArtists[artist.Name] = struct{}{}
+			if artistCounts[artist.Name] == 0 {
+				artistOrder = append(artistOrder, artist)
+			}
+			artistCounts[artist.Name]++
 		}
 	}
 
-	return universal
+	var albumArtists []Artist
+	for _, artist := range artistOrder {
+		if artistCounts[artist.Name] == len(torrent.Tracks()) {
+			albumArtists = append(albumArtists, artist)
+		}
+	}
+	return albumArtists
 }
 
 // DirectoryName generates a directory name for a torrent following classical music conventions.
@@ -249,17 +238,22 @@ func (torrent Torrent) DirectoryName() string {
 	}
 	dirNameLen += len(yearStr)
 
-	// Get primary composer(s) - prefer AlbumArtist, fall back to tracks
+	// Get primary composer(s) - prefer AlbumArtist, fall back to tracks only if AlbumArtist is empty
+	// If AlbumArtist is set but has no composers, skip composer prefix (for Discogs releases with only performers)
 	composers := torrent.Composers()
-	if len(composers) == 0 {
+	if len(composers) == 0 && len(torrent.AlbumArtist) == 0 {
+		// Only fall back to tracks if AlbumArtist is completely empty (local extraction)
 		composers = torrent.PrimaryComposers()
 	}
-	composerStr := formatComposersForDirectory(composers) + " - "
-	if dirNameLen+len(composerStr) > 180 {
-		return dirName + yearStr + formatIndicator
+	composerStr := ""
+	if len(composers) > 0 {
+		composerStr = formatComposersForDirectory(composers) + " - "
+		if dirNameLen+len(composerStr) > 180 {
+			return dirName + yearStr + formatIndicator
+		}
+		dirName = composerStr + dirName
+		dirNameLen += len(composerStr)
 	}
-	dirName = composerStr + dirName
-	dirNameLen += len(composerStr)
 
 	// Get performers (for optional inclusion) - prefer AlbumArtist, fall back to tracks
 	performers := torrent.Performers()
@@ -298,8 +292,8 @@ func (t Torrent) Performers() []string {
 	return performers
 }
 
-// PrimaryComposers extracts the primary composer(s) from tracks.
-// Returns the most frequent composer, or all composers if no single composer appears on more than half the tracks.
+// PrimaryComposers extracts the primary composer from tracks.
+// Returns the most frequent composer, or empty string if no single composer appears on more than half the tracks.
 func (t Torrent) PrimaryComposers() []string {
 	composerCounts := make(map[string]int)
 	composerOrder := make([]string, 0)
@@ -315,32 +309,14 @@ func (t Torrent) PrimaryComposers() []string {
 		}
 	}
 
-	if len(composerCounts) == 0 {
-		return nil
-	}
-
-	// Find most frequent composer
-	maxCount := 0
-	var primaryComposer string
-	for name, count := range composerCounts {
-		if count > maxCount {
-			maxCount = count
-			primaryComposer = name
+	// Find most frequent composers
+	var primaryComposers []string
+	for _, name := range composerOrder {
+		if composerCounts[name] > len(t.Tracks())/2 {
+			primaryComposers = append(primaryComposers, name)
 		}
 	}
-
-	// Return primary composer only if they appear on more than half the tracks
-	// Otherwise return all composers
-	var result []string
-	if maxCount > len(t.Tracks())/2 {
-		// Single dominant composer (>50% of tracks)
-		result = []string{primaryComposer}
-	} else {
-		// Multiple composers - return all
-		result = composerOrder
-	}
-
-	return result
+	return primaryComposers
 }
 
 // PrimaryPerformers extracts primary performers (non-composers) from tracks.
@@ -351,7 +327,7 @@ func (t Torrent) PrimaryPerformers() []string {
 
 	for _, track := range t.Tracks() {
 		for _, artist := range track.Artists {
-			if artist.Role != RoleComposer && artist.Name != "" {
+			if artist.Role.IsPerformer() && artist.Name != "" {
 				if performerCounts[artist.Name] == 0 {
 					performerOrder = append(performerOrder, artist.Name)
 				}
@@ -360,28 +336,13 @@ func (t Torrent) PrimaryPerformers() []string {
 		}
 	}
 
-	if len(performerCounts) == 0 {
-		return nil
-	}
-
 	// Return performers that appear in at least 50% of tracks
 	var result []string
-	threshold := len(t.Tracks()) / 2
-	if threshold == 0 {
-		threshold = 1
-	}
-
 	for _, name := range performerOrder {
-		if performerCounts[name] >= threshold {
+		if performerCounts[name] > len(t.Tracks())/2 {
 			result = append(result, name)
 		}
 	}
 
-	// Limit to 3 performers to keep directory name reasonable
-	if len(result) > 3 {
-		result = result[:3]
-	}
-
 	return result
 }
-

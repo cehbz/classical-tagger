@@ -11,6 +11,7 @@ import (
 )
 
 // FilenameCapitalization checks that filenames use proper Title Case (rule 2.3.11.1)
+// TODO: Foreign language titles may have different capitalization rules (e.g., German nouns are capitalized)
 func (r *Rules) FilenameCapitalization(actualTrack, _ *domain.Track, _, _ *domain.Torrent) RuleResult {
 	meta := RuleMetadata{
 		ID:     "2.3.11.1",
@@ -47,6 +48,7 @@ func (r *Rules) FilenameCapitalization(actualTrack, _ *domain.Track, _, _ *domai
 	fileTitle := matches[1]
 
 	// Check capitalization
+	// TODO: Foreign language titles may have different capitalization rules
 	capIssue := checkCapitalization(fileTitle)
 	if capIssue != "" {
 		issues = append(issues, domain.ValidationIssue{
@@ -61,6 +63,7 @@ func (r *Rules) FilenameCapitalization(actualTrack, _ *domain.Track, _, _ *domai
 }
 
 // checkCapitalization returns an error message if capitalization is wrong, empty string if OK
+// TODO: Foreign language titles may have different capitalization rules (e.g., German nouns are capitalized)
 func checkCapitalization(title string) string {
 	// Ignore bracketed segments like [1963], [FLAC]
 	title = regexp.MustCompile(`\[[^\]]*\]`).ReplaceAllString(title, "")

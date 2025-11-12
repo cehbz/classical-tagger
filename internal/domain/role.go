@@ -18,6 +18,10 @@ const (
 	RoleGuest
 )
 
+func (r Role) IsPerformer() bool {
+	return r != RoleComposer && r != RoleArranger && r != RoleUnknown
+}
+
 // String returns the lowercase string representation of the role.
 func (r Role) String() string {
 	switch r {

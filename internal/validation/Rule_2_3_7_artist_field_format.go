@@ -35,7 +35,8 @@ func (r *Rules) ArtistFieldFormat(actualTrack, refTrack *domain.Track, actualTor
 	for _, artist := range artists {
 		if artist.Role == domain.RoleComposer {
 			composer = &artist
-		} else if artist.Role != domain.RoleArranger {
+		}
+		if artist.Role.IsPerformer() {
 			hasPerformer = true
 		}
 	}

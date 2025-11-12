@@ -260,9 +260,17 @@ func TestRelease_DomainTorrent(t *testing.T) {
 				CatalogNumber: "CAT-123",
 				Artists:       []Artist{{Name: "Ludwig von Beethoven", Role: "Composer"}},
 				Tracklist: []Track{
-					{Position: "1", Title: "Track 1", Duration: "3:45"},
+					{Position: "1", Title: "Track 1",
+						Artists: []Artist{
+							{Name: "E Power Biggs", Role: "Soloist"},
+							{Name: "J. S. Bach", Role: "Composer"}},
+						Duration: "3:45",
+					},
 					{Position: "", Title: "Parent Track",
-						SubTracks: []Track{{Position: "2", Title: "Subtrack 1", Artists: []Artist{{Name: "E Power Biggs", Role: "Soloist"}, {Name: "J. S. Bach", Role: "Composer"}}}}},
+						SubTracks: []Track{{Position: "2", Title: "Subtrack 1", Artists: []Artist{
+							{Name: "E Power Biggs", Role: "Soloist"},
+							{Name: "J. S. Bach", Role: "Composer"},
+						}}}},
 				},
 			},
 			want: &domain.Torrent{
@@ -272,9 +280,17 @@ func TestRelease_DomainTorrent(t *testing.T) {
 				Edition:      &domain.Edition{Label: "Test Label", CatalogNumber: "CAT-123", Year: 2020},
 				AlbumArtist:  []domain.Artist{{Name: "Ludwig von Beethoven", Role: domain.RoleComposer}},
 				Files: []domain.FileLike{
-					&domain.Track{Disc: 1, Track: 1, Title: "Track 1"},
+					&domain.Track{Disc: 1, Track: 1, Title: "Track 1",
+						Artists: []domain.Artist{
+							{Name: "E Power Biggs", Role: domain.RoleSoloist},
+							{Name: "J. S. Bach", Role: domain.RoleComposer},
+						},
+					},
 					&domain.Track{Disc: 1, Track: 2, Title: "Parent Track: Subtrack 1",
-						Artists: []domain.Artist{{Name: "E Power Biggs", Role: domain.RoleSoloist}, {Name: "J. S. Bach", Role: domain.RoleComposer}},
+						Artists: []domain.Artist{
+							{Name: "E Power Biggs", Role: domain.RoleSoloist},
+							{Name: "J. S. Bach", Role: domain.RoleComposer},
+						},
 					},
 				},
 			},
