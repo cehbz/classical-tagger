@@ -1,0 +1,511 @@
+// internal/uploader/uploader_test.go
+package uploader
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/cehbz/classical-tagger/internal/domain"
+)
+
+func TestRedactedClient_GetTorrent(t *testing.T) {
+	tests := []struct {
+		name         string
+		torrentID    int
+		response     string
+		statusCode   int
+		wantErr      bool
+		validateFunc func(*testing.T, *TorrentMetadata)
+	}{
+		{
+			name:      "successful fetch",
+			torrentID: 123456,
+			statusCode: http.StatusOK,
+			response: `{
+				"status": "success",
+				"response": {
+					"group": {
+						"groupId": 98765,
+						"groupName": "Christmas Album",
+						"groupYear": 2013,
+						"artists": [
+							{"name": "RIAS Kammerchor", "id": 1},
+							{"name": "Hans-Christoph Rademann", "id": 2}
+						],
+						"tags": ["classical", "choral", "sacred"]
+					},
+					"torrent": {
+						"id": 123456,
+						"format": "FLAC",
+						"encoding": "Lossless",
+						"media": "CD",
+						"remastered": false,
+						"description": "Original upload notes here",
+						"fileList": "01-Track.flac{{{123456}}}02-Track.flac{{{234567}}}"
+					}
+				}
+			}`,
+			validateFunc: func(t *testing.T, tm *TorrentMetadata) {
+				if tm.GroupID != 98765 {
+					t.Errorf("expected GroupID 98765, got %d", tm.GroupID)
+				}
+				if tm.Format != "FLAC" {
+					t.Errorf("expected format FLAC, got %s", tm.Format)
+				}
+				if tm.Description != "Original upload notes here" {
+					t.Errorf("unexpected description: %s", tm.Description)
+				}
+				if len(tm.Tags) != 3 {
+					t.Errorf("expected 3 tags, got %d", len(tm.Tags))
+				}
+			},
+		},
+		{
+			name:       "torrent not found",
+			torrentID:  999999,
+			statusCode: http.StatusNotFound,
+			response:   `{"status": "failure", "error": "bad id parameter"}`,
+			wantErr:    true,
+		},
+		{
+			name:       "rate limited",
+			torrentID:  123456,
+			statusCode: http.StatusTooManyRequests,
+			response:   "",
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Verify auth header
+				auth := r.Header.Get("Authorization")
+				if auth == "" {
+					t.Error("missing Authorization header")
+				}
+
+				// Verify endpoint
+				expectedPath := fmt.Sprintf("/ajax.php")
+				if r.URL.Path != expectedPath {
+					t.Errorf("expected path %s, got %s", expectedPath, r.URL.Path)
+				}
+
+				// Verify query params
+				if r.URL.Query().Get("action") != "torrent" {
+					t.Errorf("expected action=torrent, got %s", r.URL.Query().Get("action"))
+				}
+
+				w.WriteHeader(tt.statusCode)
+				if tt.statusCode == http.StatusTooManyRequests {
+					w.Header().Set("Retry-After", "5")
+				}
+				w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+
+			client := &RedactedClient{
+				baseURL:    server.URL,
+				apiKey:     "test-key",
+				httpClient: &http.Client{Timeout: 10 * time.Second},
+				rateLimiter: NewRateLimiter(10, 10*time.Second),
+			}
+
+			result, err := client.GetTorrent(context.Background(), tt.torrentID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTorrent() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && tt.validateFunc != nil {
+				tt.validateFunc(t, result)
+			}
+		})
+	}
+}
+
+func TestRedactedClient_GetTorrentGroup(t *testing.T) {
+	tests := []struct {
+		name         string
+		groupID      int
+		response     string
+		statusCode   int
+		wantErr      bool
+		validateFunc func(*testing.T, *GroupMetadata)
+	}{
+		{
+			name:    "successful fetch with detailed artists",
+			groupID: 98765,
+			statusCode: http.StatusOK,
+			response: `{
+				"status": "success",
+				"response": {
+					"group": {
+						"id": 98765,
+						"name": "Christmas Album",
+						"year": 2013,
+						"musicInfo": {
+							"composers": [
+								{"id": 10, "name": "Felix Mendelssohn"},
+								{"id": 11, "name": "Johannes Brahms"}
+							],
+							"conductor": [
+								{"id": 2, "name": "Hans-Christoph Rademann"}
+							],
+							"artists": [
+								{"id": 1, "name": "RIAS Kammerchor"}
+							]
+						},
+						"tags": ["classical", "choral"],
+						"wikiBody": "Full wiki text here"
+					},
+					"torrents": [
+						{
+							"id": 123456,
+							"format": "FLAC",
+							"encoding": "Lossless",
+							"media": "CD",
+							"remastered": false
+						}
+					]
+				}
+			}`,
+			validateFunc: func(t *testing.T, gm *GroupMetadata) {
+				if len(gm.Composers) != 2 {
+					t.Errorf("expected 2 composers, got %d", len(gm.Composers))
+				}
+				if len(gm.Conductors) != 1 {
+					t.Errorf("expected 1 conductor, got %d", len(gm.Conductors))
+				}
+				if gm.Conductors[0].Name != "Hans-Christoph Rademann" {
+					t.Errorf("unexpected conductor: %s", gm.Conductors[0].Name)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+
+			client := &RedactedClient{
+				baseURL:     server.URL,
+				apiKey:      "test-key",
+				httpClient:  &http.Client{Timeout: 10 * time.Second},
+				rateLimiter: NewRateLimiter(10, 10*time.Second),
+			}
+
+			result, err := client.GetTorrentGroup(context.Background(), tt.groupID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTorrentGroup() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && tt.validateFunc != nil {
+				tt.validateFunc(t, result)
+			}
+		})
+	}
+}
+
+func TestUploadCommand_ValidateArtists(t *testing.T) {
+	tests := []struct {
+		name            string
+		redactedArtists []ArtistCredit
+		taggedArtists   []domain.Artist
+		wantErrors      int
+	}{
+		{
+			name: "exact match",
+			redactedArtists: []ArtistCredit{
+				{Name: "RIAS Kammerchor", Role: "artists"},
+				{Name: "Hans-Christoph Rademann", Role: "conductor"},
+				{Name: "Felix Mendelssohn", Role: "composer"},
+			},
+			taggedArtists: []domain.Artist{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+				{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor},
+				{Name: "Felix Mendelssohn", Role: domain.RoleComposer},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "role conflict",
+			redactedArtists: []ArtistCredit{
+				{Name: "Hans-Christoph Rademann", Role: "conductor"},
+			},
+			taggedArtists: []domain.Artist{
+				{Name: "Hans-Christoph Rademann", Role: domain.RoleComposer}, // Wrong role
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "missing artist in tags",
+			redactedArtists: []ArtistCredit{
+				{Name: "RIAS Kammerchor", Role: "artists"},
+				{Name: "Missing Artist", Role: "conductor"},
+			},
+			taggedArtists: []domain.Artist{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "extra artist in tags",
+			redactedArtists: []ArtistCredit{
+				{Name: "RIAS Kammerchor", Role: "artists"},
+			},
+			taggedArtists: []domain.Artist{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+				{Name: "Extra Artist", Role: domain.RoleConductor}, // Not in Redacted
+			},
+			wantErrors: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &UploadCommand{}
+			errors := cmd.validateArtists(tt.redactedArtists, tt.taggedArtists)
+			
+			if len(errors) != tt.wantErrors {
+				t.Errorf("expected %d errors, got %d: %v", tt.wantErrors, len(errors), errors)
+			}
+		})
+	}
+}
+
+func TestUploadCommand_MergeMetadata(t *testing.T) {
+	torrentMeta := &TorrentMetadata{
+		GroupID:     98765,
+		Format:      "FLAC",
+		Encoding:    "Lossless",
+		Media:       "CD",
+		Description: "Original description",
+		Tags:        []string{"classical", "choral"},
+	}
+
+	groupMeta := &GroupMetadata{
+		Composers: []ArtistCredit{
+			{Name: "Felix Mendelssohn", Role: "composer"},
+		},
+		Conductors: []ArtistCredit{
+			{Name: "Hans-Christoph Rademann", Role: "conductor"},
+		},
+		Artists: []ArtistCredit{
+			{Name: "RIAS Kammerchor", Role: "artists"},
+		},
+	}
+
+	localTorrent := &domain.Torrent{
+		Title:        "Christmas Album",
+		OriginalYear: 2013,
+		Edition: &domain.Edition{
+			Label:         "Harmonia Mundi",
+			CatalogNumber: "HMC 902170",
+			Year:          2013,
+		},
+		Files: []domain.FileLike{
+			&domain.Track{
+				File:  domain.File{Path: "01-Track.flac"},
+				Track: 1,
+				Title: "First Track",
+			},
+		},
+	}
+
+	trumpReason := "Fixed incorrect composer tags"
+
+	cmd := &UploadCommand{}
+	result := cmd.mergeMetadata(torrentMeta, groupMeta, localTorrent, trumpReason)
+
+	// Verify description was appended
+	expectedDesc := "Original description\n\n[Trump Upload] Fixed: Fixed incorrect composer tags"
+	if result.Description != expectedDesc {
+		t.Errorf("expected description:\n%s\ngot:\n%s", expectedDesc, result.Description)
+	}
+
+	// Verify artists were merged
+	if len(result.Artists) != 1 {
+		t.Errorf("expected 1 artist, got %d", len(result.Artists))
+	}
+
+	// Verify format info preserved
+	if result.Format != "FLAC" {
+		t.Errorf("expected FLAC format, got %s", result.Format)
+	}
+}
+
+func TestUploadCommand_CreateTorrentFile(t *testing.T) {
+	// Create temp directory with test files
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "01-Track.flac")
+	if err := os.WriteFile(testFile, []byte("fake flac data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := &UploadCommand{
+		cacheDir: t.TempDir(),
+	}
+
+	torrentPath, err := cmd.createTorrentFile(context.Background(), tmpDir, "http://tracker.example.com/announce")
+	if err != nil {
+		// We expect this to fail without mktorrent installed
+		if strings.Contains(err.Error(), "executable file not found") {
+			t.Skip("mktorrent not installed, skipping torrent creation test")
+		}
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify torrent file was created
+	if _, err := os.Stat(torrentPath); os.IsNotExist(err) {
+		t.Error("torrent file was not created")
+	}
+}
+
+func TestCache_LoadAndSave(t *testing.T) {
+	cacheDir := t.TempDir()
+	cache := &Cache{dir: cacheDir, ttl: 24 * time.Hour}
+
+	testData := &TorrentMetadata{
+		GroupID:  12345,
+		Format:   "FLAC",
+		Tags:     []string{"classical"},
+		Description: "Test description",
+	}
+
+	// Test save
+	key := "test_123"
+	if err := cache.save(key, testData); err != nil {
+		t.Fatalf("failed to save cache: %v", err)
+	}
+
+	// Test load - should succeed
+	var loaded TorrentMetadata
+	ok, err := cache.load(key, &loaded)
+	if err != nil {
+		t.Fatalf("failed to load cache: %v", err)
+	}
+	if !ok {
+		t.Error("cache load returned false for fresh data")
+	}
+	if loaded.GroupID != testData.GroupID {
+		t.Errorf("loaded data doesn't match: got GroupID %d, want %d", loaded.GroupID, testData.GroupID)
+	}
+
+	// Test expired cache
+	cache.ttl = -1 * time.Hour // Set TTL to past
+	ok, err = cache.load(key, &loaded)
+	if err != nil {
+		t.Fatalf("failed to check expired cache: %v", err)
+	}
+	if ok {
+		t.Error("cache should have been expired")
+	}
+}
+
+func TestUploadCommand_ValidateRequiredFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		meta    *MergedMetadata
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "all fields present",
+			meta: &MergedMetadata{
+				Title:       "Album Title",
+				Year:        2013,
+				Format:      "FLAC",
+				Encoding:    "Lossless",
+				Media:       "CD",
+				Tags:        []string{"classical"},
+				Artists:     []ArtistCredit{{Name: "Artist", Role: "artists"}},
+				Description: "Description",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing title",
+			meta: &MergedMetadata{
+				Year:     2013,
+				Format:   "FLAC",
+				Encoding: "Lossless",
+				Media:    "CD",
+				Tags:     []string{"classical"},
+			},
+			wantErr: true,
+			errMsg:  "title",
+		},
+		{
+			name: "missing tags",
+			meta: &MergedMetadata{
+				Title:    "Album",
+				Year:     2013,
+				Format:   "FLAC",
+				Encoding: "Lossless",
+				Media:    "CD",
+				Tags:     []string{}, // Empty
+			},
+			wantErr: true,
+			errMsg:  "tags",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &UploadCommand{}
+			err := cmd.validateRequiredFields(tt.meta)
+			
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateRequiredFields() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			
+			if err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("error should contain %q, got %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+// Test for rate limiter integration
+func TestRateLimiter_Integration(t *testing.T) {
+	limiter := NewRateLimiter(2, 2*time.Second) // 2 tokens, refill every 2 seconds
+	
+	ctx := context.Background()
+	
+	// Should allow first two requests immediately
+	for i := 0; i < 2; i++ {
+		start := time.Now()
+		if err := limiter.Wait(ctx); err != nil {
+			t.Fatalf("request %d failed: %v", i, err)
+		}
+		elapsed := time.Since(start)
+		if elapsed > 100*time.Millisecond {
+			t.Errorf("request %d took too long: %v", i, elapsed)
+		}
+		limiter.OnResponse() // Simulate response received
+	}
+	
+	// Third request should wait
+	start := time.Now()
+	if err := limiter.Wait(ctx); err != nil {
+		t.Fatalf("third request failed: %v", err)
+	}
+	elapsed := time.Since(start)
+	if elapsed < 1*time.Second {
+		t.Errorf("third request didn't wait long enough: %v", elapsed)
+	}
+}

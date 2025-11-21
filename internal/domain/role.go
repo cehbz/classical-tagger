@@ -16,6 +16,8 @@ const (
 	RoleConductor
 	RoleArranger
 	RoleGuest
+	RoleProducer
+	RolePerformer
 )
 
 func (r Role) IsPerformer() bool {
@@ -57,8 +59,8 @@ func ParseRole(s string) (Role, error) {
 		return RoleArranger, nil
 	case "guest":
 		return RoleGuest, nil
-    case "unknown":
-        return RoleUnknown, nil
+	case "unknown":
+		return RoleUnknown, nil
 	default:
 		return RoleUnknown, fmt.Errorf("invalid role: %q", s)
 	}
