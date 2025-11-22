@@ -88,14 +88,14 @@ func main() {
 	client := discogs.NewClient(token)
 
 	// get release(s)
-	releases := []discogs.Release{}
+	releases := []*discogs.Release{}
 	if *releaseID != 0 {
 		release, err := client.GetRelease(*releaseID)
 		if err != nil || release == nil {
 			fmt.Fprintf(os.Stderr, "Error fetching release: %v\n", err)
 			os.Exit(1)
 		}
-		releases = append(releases, *release)
+		releases = append(releases, release)
 	} else {
 		// Search using extracted metadata
 		artist := extractArtist(localResult.Torrent)

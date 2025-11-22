@@ -9,7 +9,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/cehbz/classical-tagger/internal/cache"
 	"github.com/cehbz/classical-tagger/internal/uploader"
 )
 
@@ -123,32 +125,26 @@ Cache:
 		fmt.Fprintf(os.Stderr, "Error: %s is not a directory\n", absDir)
 		os.Exit(1)
 	}
-	
+
 	// Create upload command
 	cmd := uploader.NewUploadCommand(*apiKey, absDir, *torrentID)
 	
 	// Configure options
 	if *trumpReason != "" {
-		cmd.SetTrumpReason(*trumpReason)
+		cmd.TrumpReason = *trumpReason
 	}
-	cmd.SetDryRun(*dryRun)
-	cmd.SetVerbose(*verbose)
+	cmd.DryRun = *dryRun
+	cmd.Verbose = *verbose
+
 	
 	// Clear cache if requested
 	if *clearCache {
 		if *verbose {
 			fmt.Println("Clearing cache...")
 		}
-		// Get cache directory
-		cacheDir := os.Getenv("XDG_CACHE_HOME")
-		if cacheDir == "" {
-			home, _ := os.UserHomeDir()
-			cacheDir = filepath.Join(home, ".cache")
-		}
-		cacheDir = filepath.Join(cacheDir, "redacted-uploader")
-		
-		cache := &uploader.Cache{}
-		if err := cache.ClearCache(); err != nil {
+
+		c := cache.NewCache(24 * time.Hour)
+		if err := c.Clear("redacted-uploader"); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to clear cache: %v\n", err)
 		}
 	}

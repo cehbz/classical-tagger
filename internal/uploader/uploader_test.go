@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cehbz/classical-tagger/internal/domain"
+	"github.com/cehbz/classical-tagger/internal/ratelimit"
 )
 
 func TestRedactedClient_GetTorrent(t *testing.T) {
@@ -22,11 +23,11 @@ func TestRedactedClient_GetTorrent(t *testing.T) {
 		response     string
 		statusCode   int
 		wantErr      bool
-		validateFunc func(*testing.T, *TorrentMetadata)
+		validateFunc func(*testing.T, *Torrent)
 	}{
 		{
-			name:      "successful fetch",
-			torrentID: 123456,
+			name:       "successful fetch",
+			torrentID:  123456,
 			statusCode: http.StatusOK,
 			response: `{
 				"status": "success",
@@ -52,7 +53,7 @@ func TestRedactedClient_GetTorrent(t *testing.T) {
 					}
 				}
 			}`,
-			validateFunc: func(t *testing.T, tm *TorrentMetadata) {
+			validateFunc: func(t *testing.T, tm *Torrent) {
 				if tm.GroupID != 98765 {
 					t.Errorf("expected GroupID 98765, got %d", tm.GroupID)
 				}
@@ -112,10 +113,10 @@ func TestRedactedClient_GetTorrent(t *testing.T) {
 			defer server.Close()
 
 			client := &RedactedClient{
-				baseURL:    server.URL,
-				apiKey:     "test-key",
-				httpClient: &http.Client{Timeout: 10 * time.Second},
-				rateLimiter: NewRateLimiter(10, 10*time.Second),
+				BaseURL:     server.URL,
+				APIKey:      "test-key",
+				HTTPClient:  &http.Client{Timeout: 10 * time.Second},
+				RateLimiter: ratelimit.NewRateLimiter(10, 10*time.Second),
 			}
 
 			result, err := client.GetTorrent(context.Background(), tt.torrentID)
@@ -138,11 +139,11 @@ func TestRedactedClient_GetTorrentGroup(t *testing.T) {
 		response     string
 		statusCode   int
 		wantErr      bool
-		validateFunc func(*testing.T, *GroupMetadata)
+		validateFunc func(*testing.T, *TorrentGroup)
 	}{
 		{
-			name:    "successful fetch with detailed artists",
-			groupID: 98765,
+			name:       "successful fetch with detailed artists",
+			groupID:    98765,
 			statusCode: http.StatusOK,
 			response: `{
 				"status": "success",
@@ -177,7 +178,7 @@ func TestRedactedClient_GetTorrentGroup(t *testing.T) {
 					]
 				}
 			}`,
-			validateFunc: func(t *testing.T, gm *GroupMetadata) {
+			validateFunc: func(t *testing.T, gm *TorrentGroup) {
 				if len(gm.Composers) != 2 {
 					t.Errorf("expected 2 composers, got %d", len(gm.Composers))
 				}
@@ -200,10 +201,10 @@ func TestRedactedClient_GetTorrentGroup(t *testing.T) {
 			defer server.Close()
 
 			client := &RedactedClient{
-				baseURL:     server.URL,
-				apiKey:      "test-key",
-				httpClient:  &http.Client{Timeout: 10 * time.Second},
-				rateLimiter: NewRateLimiter(10, 10*time.Second),
+				BaseURL:     server.URL,
+				APIKey:      "test-key",
+				HTTPClient:  &http.Client{Timeout: 10 * time.Second},
+				RateLimiter: ratelimit.NewRateLimiter(10, 10*time.Second),
 			}
 
 			result, err := client.GetTorrentGroup(context.Background(), tt.groupID)
@@ -278,7 +279,7 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &UploadCommand{}
 			errors := cmd.validateArtists(tt.redactedArtists, tt.taggedArtists)
-			
+
 			if len(errors) != tt.wantErrors {
 				t.Errorf("expected %d errors, got %d: %v", tt.wantErrors, len(errors), errors)
 			}
@@ -287,7 +288,7 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 }
 
 func TestUploadCommand_MergeMetadata(t *testing.T) {
-	torrentMeta := &TorrentMetadata{
+	torrentMeta := &Torrent{
 		GroupID:     98765,
 		Format:      "FLAC",
 		Encoding:    "Lossless",
@@ -296,7 +297,7 @@ func TestUploadCommand_MergeMetadata(t *testing.T) {
 		Tags:        []string{"classical", "choral"},
 	}
 
-	groupMeta := &GroupMetadata{
+	groupMeta := &TorrentGroup{
 		Composers: []ArtistCredit{
 			{Name: "Felix Mendelssohn", Role: "composer"},
 		},
@@ -356,7 +357,7 @@ func TestUploadCommand_CreateTorrentFile(t *testing.T) {
 	}
 
 	cmd := &UploadCommand{
-		cacheDir: t.TempDir(),
+		CacheDir: t.TempDir(),
 	}
 
 	torrentPath, err := cmd.createTorrentFile(context.Background(), tmpDir, "http://tracker.example.com/announce")
@@ -374,57 +375,16 @@ func TestUploadCommand_CreateTorrentFile(t *testing.T) {
 	}
 }
 
-func TestCache_LoadAndSave(t *testing.T) {
-	cacheDir := t.TempDir()
-	cache := &Cache{dir: cacheDir, ttl: 24 * time.Hour}
-
-	testData := &TorrentMetadata{
-		GroupID:  12345,
-		Format:   "FLAC",
-		Tags:     []string{"classical"},
-		Description: "Test description",
-	}
-
-	// Test save
-	key := "test_123"
-	if err := cache.save(key, testData); err != nil {
-		t.Fatalf("failed to save cache: %v", err)
-	}
-
-	// Test load - should succeed
-	var loaded TorrentMetadata
-	ok, err := cache.load(key, &loaded)
-	if err != nil {
-		t.Fatalf("failed to load cache: %v", err)
-	}
-	if !ok {
-		t.Error("cache load returned false for fresh data")
-	}
-	if loaded.GroupID != testData.GroupID {
-		t.Errorf("loaded data doesn't match: got GroupID %d, want %d", loaded.GroupID, testData.GroupID)
-	}
-
-	// Test expired cache
-	cache.ttl = -1 * time.Hour // Set TTL to past
-	ok, err = cache.load(key, &loaded)
-	if err != nil {
-		t.Fatalf("failed to check expired cache: %v", err)
-	}
-	if ok {
-		t.Error("cache should have been expired")
-	}
-}
-
 func TestUploadCommand_ValidateRequiredFields(t *testing.T) {
 	tests := []struct {
 		name    string
-		meta    *MergedMetadata
+		meta    *Metadata
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "all fields present",
-			meta: &MergedMetadata{
+			meta: &Metadata{
 				Title:       "Album Title",
 				Year:        2013,
 				Format:      "FLAC",
@@ -438,7 +398,7 @@ func TestUploadCommand_ValidateRequiredFields(t *testing.T) {
 		},
 		{
 			name: "missing title",
-			meta: &MergedMetadata{
+			meta: &Metadata{
 				Year:     2013,
 				Format:   "FLAC",
 				Encoding: "Lossless",
@@ -450,7 +410,7 @@ func TestUploadCommand_ValidateRequiredFields(t *testing.T) {
 		},
 		{
 			name: "missing tags",
-			meta: &MergedMetadata{
+			meta: &Metadata{
 				Title:    "Album",
 				Year:     2013,
 				Format:   "FLAC",
@@ -467,12 +427,12 @@ func TestUploadCommand_ValidateRequiredFields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &UploadCommand{}
 			err := cmd.validateRequiredFields(tt.meta)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateRequiredFields() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 				t.Errorf("error should contain %q, got %v", tt.errMsg, err)
 			}
@@ -480,12 +440,12 @@ func TestUploadCommand_ValidateRequiredFields(t *testing.T) {
 	}
 }
 
-// Test for rate limiter integration
+// Test for rate limiter integration with existing discogs rate limiter
 func TestRateLimiter_Integration(t *testing.T) {
-	limiter := NewRateLimiter(2, 2*time.Second) // 2 tokens, refill every 2 seconds
-	
+	limiter := ratelimit.NewRateLimiter(2, 2*time.Second) // 2 tokens, refill every 2 seconds
+
 	ctx := context.Background()
-	
+
 	// Should allow first two requests immediately
 	for i := 0; i < 2; i++ {
 		start := time.Now()
@@ -498,7 +458,7 @@ func TestRateLimiter_Integration(t *testing.T) {
 		}
 		limiter.OnResponse() // Simulate response received
 	}
-	
+
 	// Third request should wait
 	start := time.Now()
 	if err := limiter.Wait(ctx); err != nil {

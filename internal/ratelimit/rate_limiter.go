@@ -1,5 +1,5 @@
-// internal/uploader/rate_limiter.go
-package uploader
+// internal/ratelimit/rate_limiter.go
+package ratelimit
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 )
 
 // RateLimiter implements a leaky bucket rate limiter
-// Based on the existing discogs rate limiter pattern
 type RateLimiter struct {
 	capacity   int           // max tokens in bucket
 	refillRate time.Duration // time between token refills
@@ -18,10 +17,11 @@ type RateLimiter struct {
 }
 
 // NewRateLimiter creates a new rate limiter
-func NewRateLimiter(capacity int, refillRate time.Duration) *RateLimiter {
+// capacity is number of requests per interval
+func NewRateLimiter(capacity int, interval time.Duration) *RateLimiter {
 	return &RateLimiter{
 		capacity:   capacity,
-		refillRate: refillRate / time.Duration(capacity), // Per-token refill time
+		refillRate: interval / time.Duration(capacity), // Per-token refill time
 		tokens:     capacity,
 		lastRefill: time.Now(),
 	}
@@ -36,13 +36,12 @@ func (rl *RateLimiter) Wait(ctx context.Context) error {
 		now := time.Now()
 		elapsed := now.Sub(rl.lastRefill)
 		tokensToAdd := int(elapsed / rl.refillRate)
-		
-		if tokensToAdd > 0 {
+		if rl.tokens + tokensToAdd < rl.capacity {
 			rl.tokens += tokensToAdd
-			if rl.tokens > rl.capacity {
-				rl.tokens = rl.capacity
-			}
 			rl.lastRefill = rl.lastRefill.Add(time.Duration(tokensToAdd) * rl.refillRate)
+		} else {
+			rl.tokens = rl.capacity
+			rl.lastRefill = now
 		}
 		
 		// Check if we have a token available

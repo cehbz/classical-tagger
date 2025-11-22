@@ -1,6 +1,7 @@
 package discogs
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,17 +11,20 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/cehbz/classical-tagger/internal/cache"
 	"github.com/cehbz/classical-tagger/internal/domain"
+	"github.com/cehbz/classical-tagger/internal/ratelimit"
 )
-
-const defaultBaseURL = "https://api.discogs.com"
 
 // Client is a Discogs API client.
 type Client struct {
-	token   string
-	baseURL string
-	http    *http.Client
+	BaseURL     string
+	Token       string
+	HTTPClient  *http.Client
+	RateLimiter *ratelimit.RateLimiter // Use shared rate limiter
+	Cache       *cache.Cache           // Use shared cache
 }
 
 // Release represents a Discogs release.
@@ -78,16 +82,33 @@ type searchResult struct {
 // NewClient creates a new Discogs API client.
 func NewClient(token string) *Client {
 	return &Client{
-		token:   token,
-		baseURL: defaultBaseURL,
-		http:    &http.Client{},
+		BaseURL:     "https://api.discogs.com",
+		Token:       token,
+		HTTPClient:  &http.Client{Timeout: 30 * time.Second},
+		RateLimiter: ratelimit.NewRateLimiter(60, time.Minute), // 60 per minute
+		Cache:       cache.NewCache(24 * time.Hour),
 	}
 }
 
 // Search searches for releases by artist and album.
-func (c *Client) Search(artist, album string) ([]Release, error) {
+func (c *Client) Search(artist, album string) ([]*Release, error) {
+	// Create a cache key from the query
+	cacheKey := fmt.Sprintf("search_%s_%s", url.QueryEscape(artist), url.QueryEscape(album))
+
+	// Try cache first
+	var cached []*Release
+	if c.Cache.LoadFrom(cacheKey, &cached, "discogs") {
+		return cached, nil
+	}
+
+	// Rate limit
+	ctx := context.Background()
+	if err := c.RateLimiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	// Build search URL
-	u, err := url.Parse(c.baseURL + "/database/search")
+	u, err := url.Parse(c.BaseURL + "/database/search")
 	if err != nil {
 		return nil, err
 	}
@@ -106,11 +127,12 @@ func (c *Client) Search(artist, album string) ([]Release, error) {
 	}
 
 	// Add auth header
-	req.Header.Set("Authorization", "Discogs token="+c.token)
+	req.Header.Set("Authorization", "Discogs token="+c.Token)
 	req.Header.Set("User-Agent", "ClassicalTagger/1.0")
 
 	// Execute request
-	resp, err := c.http.Do(req)
+	resp, err := c.HTTPClient.Do(req)
+	c.RateLimiter.OnResponse()
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +140,7 @@ func (c *Client) Search(artist, album string) ([]Release, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Discogs API error: %d - %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("discogs API error: %d - %s", resp.StatusCode, string(body))
 	}
 
 	// Parse response
@@ -128,9 +150,9 @@ func (c *Client) Search(artist, album string) ([]Release, error) {
 	}
 
 	// Convert search results to releases
-	releases := make([]Release, len(searchResp.Results))
+	releases := make([]*Release, len(searchResp.Results))
 	for i, result := range searchResp.Results {
-		releases[i] = Release{
+		releases[i] = &Release{
 			ID:            result.ID,
 			Title:         result.Title,
 			Country:       result.Country,
@@ -151,13 +173,28 @@ func (c *Client) Search(artist, album string) ([]Release, error) {
 		}
 	}
 
+	c.Cache.SaveTo(cacheKey, releases, "discogs")
+
 	return releases, nil
 }
 
 // GetRelease fetches detailed information for a specific release.
 func (c *Client) GetRelease(releaseID int) (*Release, error) {
+	// Check cache first
+	cacheKey := fmt.Sprintf("release_%d", releaseID)
+	var cached Release
+	if c.Cache.LoadFrom(cacheKey, &cached, "discogs") {
+		return &cached, nil
+	}
+
+	// Apply rate limiting
+	ctx := context.Background()
+	if err := c.RateLimiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limiter error: %w", err)
+	}
+
 	// Build URL
-	u := fmt.Sprintf("%s/releases/%d", c.baseURL, releaseID)
+	u := fmt.Sprintf("%s/releases/%d", c.BaseURL, releaseID)
 
 	// Create request
 	req, err := http.NewRequest("GET", u, nil)
@@ -166,11 +203,12 @@ func (c *Client) GetRelease(releaseID int) (*Release, error) {
 	}
 
 	// Add auth header
-	req.Header.Set("Authorization", "Discogs token="+c.token)
+	req.Header.Set("Authorization", "Discogs token="+c.Token)
 	req.Header.Set("User-Agent", "ClassicalTagger/1.0")
 
 	// Execute request
-	resp, err := c.http.Do(req)
+	resp, err := c.HTTPClient.Do(req)
+	c.RateLimiter.OnResponse()
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +220,7 @@ func (c *Client) GetRelease(releaseID int) (*Release, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Discogs API error: %d - %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("discogs API error: %d - %s", resp.StatusCode, string(body))
 	}
 
 	// Parse response
@@ -196,6 +234,8 @@ func (c *Client) GetRelease(releaseID int) (*Release, error) {
 		release.Label = release.Labels[0].Name
 		release.CatalogNumber = release.Labels[0].CatalogNumber
 	}
+
+	c.Cache.SaveTo(cacheKey, release, "discogs")
 
 	return &release, nil
 }

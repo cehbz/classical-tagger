@@ -2,13 +2,11 @@
 package uploader
 
 import (
-	"time"
-
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-// TorrentMetadata represents data from the Redacted torrent endpoint
-type TorrentMetadata struct {
+// Torrent represents data from the Redacted torrent endpoint
+type Torrent struct {
 	// Group info from torrent response
 	GroupID   int      `json:"groupId"`
 	GroupName string   `json:"groupName"`
@@ -30,8 +28,8 @@ type TorrentMetadata struct {
 	Size                    int64  `json:"size"`
 }
 
-// GroupMetadata represents detailed data from the Redacted torrentgroup endpoint
-type GroupMetadata struct {
+// TorrentGroup represents detailed data from the Redacted torrentgroup endpoint
+type TorrentGroup struct {
 	ID            int            `json:"id"`
 	Name          string         `json:"name"`
 	Year          int            `json:"year"`
@@ -55,8 +53,8 @@ type ArtistCredit struct {
 	Role string `json:"role"` // "artists", "composer", "conductor", etc.
 }
 
-// MergedMetadata represents the final metadata ready for upload
-type MergedMetadata struct {
+// Metadata represents the final metadata ready for upload
+type Metadata struct {
 	// Core info
 	Title string `json:"title"`
 	Year  int    `json:"year"`
@@ -92,8 +90,8 @@ type MergedMetadata struct {
 	TorrentID   int    `json:"torrentId"` // ID being trumped
 }
 
-// UploadRequest represents the final upload payload
-type UploadRequest struct {
+// Upload represents the final upload payload
+type Upload struct {
 	// Torrent file
 	TorrentFile []byte `json:"-"` // Binary data, not JSON
 
@@ -144,26 +142,8 @@ func (e ValidationError) Error() string {
 	return e.Field + ": " + e.Message
 }
 
-// Cache represents the metadata cache
-type Cache struct {
-	dir string
-	ttl time.Duration
-}
-
-// CachedTorrentMetadata wraps metadata with timestamp
-type CachedTorrentMetadata struct {
-	Timestamp time.Time       `json:"timestamp"`
-	Data      TorrentMetadata `json:"data"`
-}
-
-// CachedGroupMetadata wraps group metadata with timestamp
-type CachedGroupMetadata struct {
-	Timestamp time.Time     `json:"timestamp"`
-	Data      GroupMetadata `json:"data"`
-}
-
-// mapRedactedRoleToOurRole converts Redacted artist roles to our domain roles
-func mapRedactedRoleToOurRole(redactedRole string) domain.Role {
+// DomainRole converts Redacted artist roles to our domain roles
+func DomainRole(redactedRole string) domain.Role {
 	switch redactedRole {
 	case "composer", "composers":
 		return domain.RoleComposer
@@ -182,8 +162,8 @@ func mapRedactedRoleToOurRole(redactedRole string) domain.Role {
 	}
 }
 
-// mapOurRoleToRedactedRole converts our domain roles to Redacted roles
-func mapOurRoleToRedactedRole(role domain.Role) string {
+// RedactedRole converts our domain roles to Redacted roles
+func RedactedRole(role domain.Role) string {
 	switch role {
 	case domain.RoleComposer:
 		return "composer"

@@ -13,41 +13,48 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/cehbz/classical-tagger/internal/cache"
+	"github.com/cehbz/classical-tagger/internal/ratelimit"
 )
 
 // RedactedClient handles API communication with Redacted
 type RedactedClient struct {
-	baseURL     string
-	apiKey      string
-	httpClient  *http.Client
-	rateLimiter *RateLimiter
+	BaseURL     string
+	APIKey      string
+	HTTPClient  *http.Client
+	RateLimiter *ratelimit.RateLimiter // Reuse the existing rate limiter
+	Cache       *cache.Cache
 }
 
 // NewRedactedClient creates a new Redacted API client
 func NewRedactedClient(apiKey string) *RedactedClient {
 	return &RedactedClient{
-		baseURL:    "https://redacted.sh",
-		apiKey:     apiKey,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
-		rateLimiter: NewRateLimiter(10, 10*time.Second), // 10 requests per 10 seconds
+		BaseURL:     "https://redacted.sh",
+		APIKey:      apiKey,
+		HTTPClient:  &http.Client{Timeout: 30 * time.Second},
+		RateLimiter: ratelimit.NewRateLimiter(10, 10*time.Second), // 10 requests per 10 seconds
+		Cache:       cache.NewCache(24 * time.Hour),
 	}
-}
-
-// SetBaseURL overrides the base URL (for testing)
-func (c *RedactedClient) SetBaseURL(url string) {
-	c.baseURL = url
 }
 
 // GetTorrent fetches torrent metadata from Redacted
-func (c *RedactedClient) GetTorrent(ctx context.Context, torrentID int) (*TorrentMetadata, error) {
+func (c *RedactedClient) GetTorrent(ctx context.Context, torrentID int) (*Torrent, error) {
+	// Create a cache key from the torrent ID
+	cacheKey := fmt.Sprintf("torrent_%d", torrentID)
+
+	// Try cache first
+	var cached Torrent
+	if c.Cache.LoadFrom(cacheKey, &cached, "redacted") {
+		return &cached, nil
+	}
 	// Apply rate limiting
-	if err := c.rateLimiter.Wait(ctx); err != nil {
+	if err := c.RateLimiter.Wait(ctx); err != nil {
 		return nil, fmt.Errorf("rate limiter error: %w", err)
 	}
-	defer c.rateLimiter.OnResponse()
 
 	// Build URL
-	u, err := url.Parse(c.baseURL + "/ajax.php")
+	u, err := url.Parse(c.BaseURL + "/ajax.php")
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +70,12 @@ func (c *RedactedClient) GetTorrent(ctx context.Context, torrentID int) (*Torren
 	}
 
 	// Add API key header
-	req.Header.Set("Authorization", c.apiKey)
+	req.Header.Set("Authorization", c.APIKey)
 	req.Header.Set("User-Agent", "ClassicalTagger/1.0")
 
 	// Execute request
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.HTTPClient.Do(req)
+	c.RateLimiter.OnResponse()
 	if err != nil {
 		return nil, err
 	}
@@ -97,18 +105,18 @@ func (c *RedactedClient) GetTorrent(ctx context.Context, torrentID int) (*Torren
 				Tags      []string `json:"tags"`
 			} `json:"group"`
 			Torrent struct {
-				ID          int    `json:"id"`
-				Format      string `json:"format"`
-				Encoding    string `json:"encoding"`
-				Media       string `json:"media"`
-				Remastered  bool   `json:"remastered"`
-				RemasterYear int   `json:"remasterYear"`
-				RemasterTitle string `json:"remasterTitle"`
-				RemasterRecordLabel string `json:"remasterRecordLabel"`
+				ID                      int    `json:"id"`
+				Format                  string `json:"format"`
+				Encoding                string `json:"encoding"`
+				Media                   string `json:"media"`
+				Remastered              bool   `json:"remastered"`
+				RemasterYear            int    `json:"remasterYear"`
+				RemasterTitle           string `json:"remasterTitle"`
+				RemasterRecordLabel     string `json:"remasterRecordLabel"`
 				RemasterCatalogueNumber string `json:"remasterCatalogueNumber"`
-				Description string `json:"description"`
-				FileList    string `json:"fileList"`
-				Size        int64  `json:"size"`
+				Description             string `json:"description"`
+				FileList                string `json:"fileList"`
+				Size                    int64  `json:"size"`
 			} `json:"torrent"`
 		} `json:"response"`
 	}
@@ -122,36 +130,48 @@ func (c *RedactedClient) GetTorrent(ctx context.Context, torrentID int) (*Torren
 	}
 
 	// Convert to our domain model
-	return &TorrentMetadata{
-		GroupID:     apiResp.Response.Group.GroupID,
-		GroupName:   apiResp.Response.Group.GroupName,
-		GroupYear:   apiResp.Response.Group.GroupYear,
-		Tags:        apiResp.Response.Group.Tags,
-		TorrentID:   apiResp.Response.Torrent.ID,
-		Format:      apiResp.Response.Torrent.Format,
-		Encoding:    apiResp.Response.Torrent.Encoding,
-		Media:       apiResp.Response.Torrent.Media,
-		Remastered:  apiResp.Response.Torrent.Remastered,
-		RemasterYear: apiResp.Response.Torrent.RemasterYear,
-		RemasterTitle: apiResp.Response.Torrent.RemasterTitle,
-		RemasterRecordLabel: apiResp.Response.Torrent.RemasterRecordLabel,
+	metadata := &Torrent{
+		GroupID:                 apiResp.Response.Group.GroupID,
+		GroupName:               apiResp.Response.Group.GroupName,
+		GroupYear:               apiResp.Response.Group.GroupYear,
+		Tags:                    apiResp.Response.Group.Tags,
+		TorrentID:               apiResp.Response.Torrent.ID,
+		Format:                  apiResp.Response.Torrent.Format,
+		Encoding:                apiResp.Response.Torrent.Encoding,
+		Media:                   apiResp.Response.Torrent.Media,
+		Remastered:              apiResp.Response.Torrent.Remastered,
+		RemasterYear:            apiResp.Response.Torrent.RemasterYear,
+		RemasterTitle:           apiResp.Response.Torrent.RemasterTitle,
+		RemasterRecordLabel:     apiResp.Response.Torrent.RemasterRecordLabel,
 		RemasterCatalogueNumber: apiResp.Response.Torrent.RemasterCatalogueNumber,
-		Description: apiResp.Response.Torrent.Description,
-		FileList:    apiResp.Response.Torrent.FileList,
-		Size:        apiResp.Response.Torrent.Size,
-	}, nil
+		Description:             apiResp.Response.Torrent.Description,
+		FileList:                apiResp.Response.Torrent.FileList,
+		Size:                    apiResp.Response.Torrent.Size,
+	}
+
+	c.Cache.SaveTo(cacheKey, metadata, "redacted")
+
+	return metadata, nil
 }
 
 // GetTorrentGroup fetches detailed group metadata from Redacted
-func (c *RedactedClient) GetTorrentGroup(ctx context.Context, groupID int) (*GroupMetadata, error) {
+func (c *RedactedClient) GetTorrentGroup(ctx context.Context, groupID int) (*TorrentGroup, error) {
+	// Create a cache key from the group ID
+	cacheKey := fmt.Sprintf("group_%d", groupID)
+
+	// Try cache first
+	var cached TorrentGroup
+	if c.Cache.LoadFrom(cacheKey, &cached, "redacted") {
+		return &cached, nil
+	}
+
 	// Apply rate limiting
-	if err := c.rateLimiter.Wait(ctx); err != nil {
+	if err := c.RateLimiter.Wait(ctx); err != nil {
 		return nil, fmt.Errorf("rate limiter error: %w", err)
 	}
-	defer c.rateLimiter.OnResponse()
 
 	// Build URL
-	u, err := url.Parse(c.baseURL + "/ajax.php")
+	u, err := url.Parse(c.BaseURL + "/ajax.php")
 	if err != nil {
 		return nil, err
 	}
@@ -167,11 +187,12 @@ func (c *RedactedClient) GetTorrentGroup(ctx context.Context, groupID int) (*Gro
 	}
 
 	// Add API key header
-	req.Header.Set("Authorization", c.apiKey)
+	req.Header.Set("Authorization", c.APIKey)
 	req.Header.Set("User-Agent", "ClassicalTagger/1.0")
 
 	// Execute request
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.HTTPClient.Do(req)
+	c.RateLimiter.OnResponse()
 	if err != nil {
 		return nil, err
 	}
@@ -195,21 +216,21 @@ func (c *RedactedClient) GetTorrentGroup(ctx context.Context, groupID int) (*Gro
 		Error    string `json:"error,omitempty"`
 		Response struct {
 			Group struct {
-				ID       int      `json:"id"`
-				Name     string   `json:"name"`
-				Year     int      `json:"year"`
-				Tags     []string `json:"tags"`
-				WikiBody string   `json:"wikiBody"`
-				MusicBrainzID string `json:"musicBrainzId"`
-				VanityHouse bool `json:"vanityHouse"`
-				MusicInfo struct {
-					Artists    []ArtistCredit `json:"artists"`
-					Composers  []ArtistCredit `json:"composers"`
-					Conductor  []ArtistCredit `json:"conductor"`
-					With       []ArtistCredit `json:"with"`
-					RemixedBy  []ArtistCredit `json:"remixedBy"`
-					Producer   []ArtistCredit `json:"producer"`
-					DJ         []ArtistCredit `json:"dj"`
+				ID            int      `json:"id"`
+				Name          string   `json:"name"`
+				Year          int      `json:"year"`
+				Tags          []string `json:"tags"`
+				WikiBody      string   `json:"wikiBody"`
+				MusicBrainzID string   `json:"musicBrainzId"`
+				VanityHouse   bool     `json:"vanityHouse"`
+				MusicInfo     struct {
+					Artists   []ArtistCredit `json:"artists"`
+					Composers []ArtistCredit `json:"composers"`
+					Conductor []ArtistCredit `json:"conductor"`
+					With      []ArtistCredit `json:"with"`
+					RemixedBy []ArtistCredit `json:"remixedBy"`
+					Producer  []ArtistCredit `json:"producer"`
+					DJ        []ArtistCredit `json:"dj"`
 				} `json:"musicInfo"`
 			} `json:"group"`
 		} `json:"response"`
@@ -224,7 +245,7 @@ func (c *RedactedClient) GetTorrentGroup(ctx context.Context, groupID int) (*Gro
 	}
 
 	// Convert to our domain model
-	return &GroupMetadata{
+	metadata := &TorrentGroup{
 		ID:            apiResp.Response.Group.ID,
 		Name:          apiResp.Response.Group.Name,
 		Year:          apiResp.Response.Group.Year,
@@ -239,16 +260,21 @@ func (c *RedactedClient) GetTorrentGroup(ctx context.Context, groupID int) (*Gro
 		WikiBody:      apiResp.Response.Group.WikiBody,
 		MusicBrainzID: apiResp.Response.Group.MusicBrainzID,
 		VanityHouse:   apiResp.Response.Group.VanityHouse,
-	}, nil
+	}
+
+	c.Cache.SaveTo(cacheKey, metadata, "redacted")
+
+	return metadata, nil
 }
 
-// UploadTorrent uploads a new torrent to Redacted
-func (c *RedactedClient) UploadTorrent(ctx context.Context, req *UploadRequest, torrentFilePath string) error {
+// Upload uploads a new torrent to Redacted
+func (c *RedactedClient) Upload(ctx context.Context, upload *Upload, torrentFilePath string) error {
+	// Do not cache upload requests
+
 	// Apply rate limiting
-	if err := c.rateLimiter.Wait(ctx); err != nil {
+	if err := c.RateLimiter.Wait(ctx); err != nil {
 		return fmt.Errorf("rate limiter error: %w", err)
 	}
-	defer c.rateLimiter.OnResponse()
 
 	// Read torrent file
 	torrentData, err := os.ReadFile(torrentFilePath)
@@ -271,46 +297,46 @@ func (c *RedactedClient) UploadTorrent(ctx context.Context, req *UploadRequest, 
 
 	// Add form fields
 	fields := map[string]string{
-		"type":          "Music",
-		"groupid":       strconv.Itoa(req.GroupID),
-		"title":         req.Title,
-		"year":          strconv.Itoa(req.Year),
-		"format":        req.Format,
-		"bitrate":       req.Encoding,
-		"media":         req.Media,
-		"release_desc":  req.ReleaseDescription,
-		"tags":          req.Tags,
+		"type":         "Music",
+		"groupid":      strconv.Itoa(upload.GroupID),
+		"title":        upload.Title,
+		"year":         strconv.Itoa(upload.Year),
+		"format":       upload.Format,
+		"bitrate":      upload.Encoding,
+		"media":        upload.Media,
+		"release_desc": upload.ReleaseDescription,
+		"tags":         upload.Tags,
 	}
 
 	// Add optional fields
-	if req.RecordLabel != "" {
-		fields["releasename"] = req.RecordLabel
+	if upload.RecordLabel != "" {
+		fields["releasename"] = upload.RecordLabel
 	}
-	if req.CatalogueNumber != "" {
-		fields["cataloguenumber"] = req.CatalogueNumber
+	if upload.CatalogueNumber != "" {
+		fields["cataloguenumber"] = upload.CatalogueNumber
 	}
 
 	// Add remaster fields if applicable
-	if req.Remastered {
+	if upload.Remastered {
 		fields["remaster"] = "on"
-		if req.RemasterYear > 0 {
-			fields["remaster_year"] = strconv.Itoa(req.RemasterYear)
+		if upload.RemasterYear > 0 {
+			fields["remaster_year"] = strconv.Itoa(upload.RemasterYear)
 		}
-		if req.RemasterTitle != "" {
-			fields["remaster_title"] = req.RemasterTitle
+		if upload.RemasterTitle != "" {
+			fields["remaster_title"] = upload.RemasterTitle
 		}
-		if req.RemasterLabel != "" {
-			fields["remaster_record_label"] = req.RemasterLabel
+		if upload.RemasterLabel != "" {
+			fields["remaster_record_label"] = upload.RemasterLabel
 		}
-		if req.RemasterCatalog != "" {
-			fields["remaster_catalogue_number"] = req.RemasterCatalog
+		if upload.RemasterCatalog != "" {
+			fields["remaster_catalogue_number"] = upload.RemasterCatalog
 		}
 	}
 
 	// Add trump fields if applicable
-	if req.TrumpTorrent > 0 {
-		fields["trump_torrent"] = strconv.Itoa(req.TrumpTorrent)
-		fields["trump_reason"] = req.TrumpReason
+	if upload.TrumpTorrent > 0 {
+		fields["trump_torrent"] = strconv.Itoa(upload.TrumpTorrent)
+		fields["trump_reason"] = upload.TrumpReason
 	}
 
 	// Write all fields
@@ -321,7 +347,7 @@ func (c *RedactedClient) UploadTorrent(ctx context.Context, req *UploadRequest, 
 	}
 
 	// Add artists arrays
-	for i, artist := range req.Artists {
+	for i, artist := range upload.Artists {
 		if err := w.WriteField(fmt.Sprintf("artists[%d]", i), artist); err != nil {
 			return err
 		}
@@ -331,14 +357,14 @@ func (c *RedactedClient) UploadTorrent(ctx context.Context, req *UploadRequest, 
 	}
 
 	// Add composers
-	for i, composer := range req.Composers {
+	for i, composer := range upload.Composers {
 		if err := w.WriteField(fmt.Sprintf("composers[%d]", i), composer); err != nil {
 			return err
 		}
 	}
 
 	// Add conductors
-	for i, conductor := range req.Conductors {
+	for i, conductor := range upload.Conductors {
 		if err := w.WriteField(fmt.Sprintf("conductors[%d]", i), conductor); err != nil {
 			return err
 		}
@@ -350,18 +376,19 @@ func (c *RedactedClient) UploadTorrent(ctx context.Context, req *UploadRequest, 
 	}
 
 	// Create HTTP request
-	uploadURL := c.baseURL + "/upload.php"
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", uploadURL, &b)
+	uploadURL := c.BaseURL + "/upload.php"
+	req, err := http.NewRequestWithContext(ctx, "POST", uploadURL, &b)
 	if err != nil {
 		return err
 	}
 
-	httpReq.Header.Set("Content-Type", w.FormDataContentType())
-	httpReq.Header.Set("Authorization", c.apiKey)
-	httpReq.Header.Set("User-Agent", "ClassicalTagger/1.0")
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Authorization", c.APIKey)
+	req.Header.Set("User-Agent", "ClassicalTagger/1.0")
 
 	// Execute request
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.HTTPClient.Do(req)
+	c.RateLimiter.OnResponse()
 	if err != nil {
 		return err
 	}

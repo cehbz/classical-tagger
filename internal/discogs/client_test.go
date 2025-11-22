@@ -64,7 +64,7 @@ func TestClient_Search(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-token")
-	client.baseURL = server.URL
+	client.BaseURL = server.URL
 
 	releases, err := client.Search("Bach", "Goldberg Variations")
 	if err != nil {
@@ -97,7 +97,7 @@ func TestClient_Search_NoResults(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-token")
-	client.baseURL = server.URL
+	client.BaseURL = server.URL
 
 	releases, err := client.Search("Unknown Artist", "Unknown Album")
 	if err != nil {
@@ -151,7 +151,7 @@ func TestClient_GetRelease(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-token")
-	client.baseURL = server.URL
+	client.BaseURL = server.URL
 
 	release, err := client.GetRelease(195873)
 	if err != nil {
@@ -180,7 +180,7 @@ func TestClient_GetRelease_NotFound(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-token")
-	client.baseURL = server.URL
+	client.BaseURL = server.URL
 
 	release, err := client.GetRelease(999999)
 	if err == nil {
