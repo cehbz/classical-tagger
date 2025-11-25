@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -13,6 +14,12 @@ type Config struct {
 	Discogs struct {
 		Token string `yaml:"token"`
 	} `yaml:"discogs"`
+	Redacted struct {
+		APIKey string `yaml:"api_key"`
+	} `yaml:"redacted"`
+	Cache struct {
+		TTLHours int `yaml:"ttl_hours"` // Default: 24 if not specified
+	} `yaml:"cache"`
 }
 
 // LoadDiscogsToken loads the Discogs personal access token from the config file.
@@ -42,6 +49,54 @@ func LoadDiscogsToken() (string, error) {
 	return cfg.Discogs.Token, nil
 }
 
+// LoadRedactedAPIKey loads the Redacted API key from the config file.
+func LoadRedactedAPIKey() (string, error) {
+	configPath := getConfigPath()
+
+	// Read config file
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("config file not found at %s: please create it with your Redacted API key", configPath)
+		}
+		return "", fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Parse YAML
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return "", fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// Check if API key exists
+	if cfg.Redacted.APIKey == "" {
+		return "", fmt.Errorf("redacted API key not found in config file: please add 'redacted.api_key' to %s", configPath)
+	}
+
+	return cfg.Redacted.APIKey, nil
+}
+
+// LoadCacheTTL loads the cache TTL from config file, returns default if not specified.
+func LoadCacheTTL() time.Duration {
+	configPath := getConfigPath()
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return 24 * time.Hour // Default
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return 24 * time.Hour // Default
+	}
+
+	if cfg.Cache.TTLHours <= 0 {
+		return 24 * time.Hour // Default
+	}
+
+	return time.Duration(cfg.Cache.TTLHours) * time.Hour
+}
+
 // getConfigPath returns the path to the config file.
 // Respects XDG Base Directory specification.
 func getConfigPath() string {
@@ -58,6 +113,12 @@ func getConfigPath() string {
 	}
 
 	return filepath.Join(homeDir, ".config", "classical-tagger", "config.yaml")
+}
+
+// GetConfigPathForDisplay returns the config file path for user display.
+// This is a public wrapper around getConfigPath().
+func GetConfigPathForDisplay() string {
+	return getConfigPath()
 }
 
 // CreateSampleConfig creates a sample config file at the appropriate location.
@@ -81,7 +142,18 @@ func CreateSampleConfig() error {
 # Discogs API Settings
 discogs:
   # Your personal access token from https://www.discogs.com/settings/developers
-  token: "your-token-here"
+  token: "your-discogs-token-here"
+
+# Redacted API Settings
+redacted:
+  # Your API key from Redacted user settings
+  # Generate at: https://redacted.sh/user.php?action=edit (Access Settings)
+  api_key: "your-redacted-api-key-here"
+
+# Cache Settings (optional)
+cache:
+  # Cache TTL in hours (default: 24)
+  ttl_hours: 24
 `
 
 	// Write sample config

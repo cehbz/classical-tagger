@@ -86,7 +86,7 @@ func NewClient(token string) *Client {
 		Token:       token,
 		HTTPClient:  &http.Client{Timeout: 30 * time.Second},
 		RateLimiter: ratelimit.NewRateLimiter(60, time.Minute), // 60 per minute
-		Cache:       cache.NewCache(24 * time.Hour),
+		Cache:       cache.NewCache(0),
 	}
 }
 

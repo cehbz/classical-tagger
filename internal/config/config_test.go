@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestLoadDiscogsToken(t *testing.T) {
@@ -18,7 +19,7 @@ func TestLoadDiscogsToken(t *testing.T) {
 	// Test case 1: Valid config file
 	configContent := `discogs:
   token: "test-token-123"`
-	
+
 	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
 	}
@@ -63,7 +64,7 @@ func TestLoadDiscogsToken_MissingToken(t *testing.T) {
 
 	configContent := `other:
   setting: "value"`
-	
+
 	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
 	}
@@ -80,12 +81,78 @@ func TestLoadDiscogsToken_MissingToken(t *testing.T) {
 	}
 }
 
+func TestLoadRedactedAPIKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, "classical-tagger")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("Failed to create test config directory: %v", err)
+	}
+	configFile := filepath.Join(configDir, "config.yaml")
+
+	configContent := `redacted:
+  api_key: "test-redacted-key"`
+
+	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to create test config: %v", err)
+	}
+
+	os.Setenv("XDG_CONFIG_HOME", tmpDir)
+	defer os.Unsetenv("XDG_CONFIG_HOME")
+
+	apiKey, err := LoadRedactedAPIKey()
+	if err != nil {
+		t.Fatalf("LoadRedactedAPIKey() error = %v", err)
+	}
+
+	if apiKey != "test-redacted-key" {
+		t.Errorf("Expected API key 'test-redacted-key', got %s", apiKey)
+	}
+}
+
+func TestLoadCacheTTL(t *testing.T) {
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, "classical-tagger")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("Failed to create test config directory: %v", err)
+	}
+	configFile := filepath.Join(configDir, "config.yaml")
+
+	configContent := `cache:
+  ttl_hours: 48`
+
+	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to create test config: %v", err)
+	}
+
+	os.Setenv("XDG_CONFIG_HOME", tmpDir)
+	defer os.Unsetenv("XDG_CONFIG_HOME")
+
+	ttl := LoadCacheTTL()
+	expected := 48 * time.Hour
+
+	if ttl != expected {
+		t.Errorf("Expected TTL %v, got %v", expected, ttl)
+	}
+}
+
+func TestLoadCacheTTL_Default(t *testing.T) {
+	os.Setenv("XDG_CONFIG_HOME", "/nonexistent/path")
+	defer os.Unsetenv("XDG_CONFIG_HOME")
+
+	ttl := LoadCacheTTL()
+	expected := 24 * time.Hour
+
+	if ttl != expected {
+		t.Errorf("Expected default TTL %v, got %v", expected, ttl)
+	}
+}
+
 func TestGetConfigPath(t *testing.T) {
 	tests := []struct {
-		name        string
-		xdgHome     string
-		home        string
-		expected    string
+		name     string
+		xdgHome  string
+		home     string
+		expected string
 	}{
 		{
 			name:     "XDG_CONFIG_HOME set",

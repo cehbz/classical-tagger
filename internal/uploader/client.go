@@ -34,7 +34,7 @@ func NewRedactedClient(apiKey string) *RedactedClient {
 		APIKey:      apiKey,
 		HTTPClient:  &http.Client{Timeout: 30 * time.Second},
 		RateLimiter: ratelimit.NewRateLimiter(10, 10*time.Second), // 10 requests per 10 seconds
-		Cache:       cache.NewCache(24 * time.Hour),
+		Cache:       cache.NewCache(0),
 	}
 }
 

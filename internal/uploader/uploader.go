@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/cehbz/classical-tagger/internal/cache"
 	"github.com/cehbz/classical-tagger/internal/domain"
@@ -30,7 +29,7 @@ type UploadCommand struct {
 // NewUploadCommand creates a new upload command
 func NewUploadCommand(apiKey string, torrentDir string, torrentID int) *UploadCommand {
 	// Use common cache implementation
-	cacheImpl := cache.NewCache(24 * time.Hour)
+	cacheImpl := cache.NewCache(0)
 
 	return &UploadCommand{
 		Client:     NewRedactedClient(apiKey),

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cehbz/classical-tagger/internal/config"
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
 )
@@ -25,8 +26,11 @@ type Cache struct {
 }
 
 // NewCache creates a new cache with the specified TTL
+// Pass 0 to use config file TTL (or default 24h if not in config)
 func NewCache(ttl time.Duration) *Cache {
-	// Determine base cache directory using XDG standard
+	if ttl == 0 {
+		ttl = config.LoadCacheTTL()
+	}
 	baseDir := os.Getenv("XDG_CACHE_HOME")
 	if baseDir == "" {
 		home, _ := os.UserHomeDir()
