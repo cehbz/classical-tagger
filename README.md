@@ -7,6 +7,7 @@ Go applications for validating, tagging, and extracting metadata for classical m
 - `validate` - Validates tags in a downloaded torrent directory
 - `tag` - Applies JSON metadata to audio files  
 - `extract` - Extracts JSON metadata from web pages
+- `upload` - Upload corrected torrent to tracker
 
 ## Getting Started
 
