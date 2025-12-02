@@ -121,7 +121,7 @@ Options:
 		}
 
 		c := cache.NewCache(0)
-		if err := c.Clear("redacted-uploader"); err != nil {
+		if err := c.Clear("redacted"); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to clear cache: %v\n", err)
 		}
 	}

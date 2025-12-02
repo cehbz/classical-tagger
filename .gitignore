@@ -2,7 +2,8 @@
 extract
 tag
 validate
-extract_*.json
+upload
+*.json
 *.diff
 outputs/
 .vscode/

@@ -3,7 +3,6 @@ package uploader
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -33,13 +32,9 @@ func TestRedactedClient_GetTorrent(t *testing.T) {
 				"status": "success",
 				"response": {
 					"group": {
-						"groupId": 98765,
-						"groupName": "Christmas Album",
-						"groupYear": 2013,
-						"artists": [
-							{"name": "RIAS Kammerchor", "id": 1},
-							{"name": "Hans-Christoph Rademann", "id": 2}
-						],
+						"id": 98765,
+						"name": "Christmas Album",
+						"year": 2013,
 						"tags": ["classical", "choral", "sacred"]
 					},
 					"torrent": {
@@ -94,7 +89,7 @@ func TestRedactedClient_GetTorrent(t *testing.T) {
 				}
 
 				// Verify endpoint
-				expectedPath := fmt.Sprintf("/ajax.php")
+				expectedPath := "/ajax.php"
 				if r.URL.Path != expectedPath {
 					t.Errorf("expected path %s, got %s", expectedPath, r.URL.Path)
 				}
@@ -224,7 +219,7 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 	tests := []struct {
 		name            string
 		redactedArtists []ArtistCredit
-		taggedArtists   []domain.Artist
+		taggedArtists   map[domain.Artist]struct{}
 		wantErrors      int
 	}{
 		{
@@ -234,10 +229,10 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 				{Name: "Hans-Christoph Rademann", Role: "conductor"},
 				{Name: "Felix Mendelssohn", Role: "composer"},
 			},
-			taggedArtists: []domain.Artist{
-				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
-				{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor},
-				{Name: "Felix Mendelssohn", Role: domain.RoleComposer},
+			taggedArtists: map[domain.Artist]struct{}{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble}:          {},
+				{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor}: {},
+				{Name: "Felix Mendelssohn", Role: domain.RoleComposer}:        {},
 			},
 			wantErrors: 0,
 		},
@@ -246,8 +241,8 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 			redactedArtists: []ArtistCredit{
 				{Name: "Hans-Christoph Rademann", Role: "conductor"},
 			},
-			taggedArtists: []domain.Artist{
-				{Name: "Hans-Christoph Rademann", Role: domain.RoleComposer}, // Wrong role
+			taggedArtists: map[domain.Artist]struct{}{
+				{Name: "Hans-Christoph Rademann", Role: domain.RoleComposer}: {}, // Wrong role
 			},
 			wantErrors: 1,
 		},
@@ -257,8 +252,8 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 				{Name: "RIAS Kammerchor", Role: "artists"},
 				{Name: "Missing Artist", Role: "conductor"},
 			},
-			taggedArtists: []domain.Artist{
-				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+			taggedArtists: map[domain.Artist]struct{}{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble}: {},
 			},
 			wantErrors: 1,
 		},
@@ -267,18 +262,18 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 			redactedArtists: []ArtistCredit{
 				{Name: "RIAS Kammerchor", Role: "artists"},
 			},
-			taggedArtists: []domain.Artist{
-				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
-				{Name: "Extra Artist", Role: domain.RoleConductor}, // Not in Redacted
+			taggedArtists: map[domain.Artist]struct{}{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble}: {},
+				{Name: "Extra Artist", Role: domain.RoleConductor}:   {}, // Not in Redacted - allowed (superset)
 			},
-			wantErrors: 1,
+			wantErrors: 0, // Extra artists are allowed (superset)
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &UploadCommand{}
-			errors := cmd.validateArtists(tt.redactedArtists, tt.taggedArtists)
+			errors := cmd.validateArtistsSuperset(tt.redactedArtists, tt.taggedArtists)
 
 			if len(errors) != tt.wantErrors {
 				t.Errorf("expected %d errors, got %d: %v", tt.wantErrors, len(errors), errors)
@@ -312,6 +307,9 @@ func TestUploadCommand_MergeMetadata(t *testing.T) {
 	localTorrent := &domain.Torrent{
 		Title:        "Christmas Album",
 		OriginalYear: 2013,
+		AlbumArtist: []domain.Artist{
+			{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+		},
 		Edition: &domain.Edition{
 			Label:         "Harmonia Mundi",
 			CatalogNumber: "HMC 902170",
@@ -322,6 +320,9 @@ func TestUploadCommand_MergeMetadata(t *testing.T) {
 				File:  domain.File{Path: "01-Track.flac"},
 				Track: 1,
 				Title: "First Track",
+				Artists: []domain.Artist{
+					{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+				},
 			},
 		},
 	}

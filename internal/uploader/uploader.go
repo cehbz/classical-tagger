@@ -3,15 +3,16 @@ package uploader
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/cehbz/classical-tagger/internal/cache"
 	"github.com/cehbz/classical-tagger/internal/domain"
+	"github.com/cehbz/classical-tagger/internal/tagging"
 )
 
 // UploadCommand handles the upload workflow
@@ -64,12 +65,11 @@ func (c *UploadCommand) Execute(ctx context.Context) error {
 		return fmt.Errorf("failed to load local torrent: %w", err)
 	}
 
-	// Step 3: Validate artists
+	// Step 3: Validate that local artists are a superset of Redacted artists
 	c.log("Validating artist consistency...")
-	validationErrors := c.validateArtists(
-		c.combineArtists(groupMeta),
-		localTorrent.AlbumArtist,
-	)
+	allLocalArtists := c.collectAllLocalArtists(localTorrent)
+	redactedArtists := c.combineArtists(groupMeta)
+	validationErrors := c.validateArtistsSuperset(redactedArtists, allLocalArtists)
 
 	if len(validationErrors) > 0 {
 		for _, e := range validationErrors {
@@ -124,7 +124,7 @@ func (c *UploadCommand) fetchTorrentMetadata(ctx context.Context) (*Torrent, err
 	cacheKey := fmt.Sprintf("torrent_%d", c.TorrentID)
 
 	var cached Torrent
-	if c.Cache.Load(cacheKey, &cached) {
+	if c.Cache.LoadFrom(cacheKey, &cached, "redacted") {
 		c.log("Using cached torrent metadata")
 		return &cached, nil
 	}
@@ -135,7 +135,7 @@ func (c *UploadCommand) fetchTorrentMetadata(ctx context.Context) (*Torrent, err
 	}
 
 	// Save to cache
-	c.Cache.Save(cacheKey, meta)
+	c.Cache.SaveTo(cacheKey, meta, "redacted")
 
 	return meta, nil
 }
@@ -145,7 +145,7 @@ func (c *UploadCommand) fetchGroupMetadata(ctx context.Context, groupID int) (*T
 	cacheKey := fmt.Sprintf("group_%d", groupID)
 
 	var cached TorrentGroup
-	if c.Cache.Load(cacheKey, &cached) {
+	if c.Cache.LoadFrom(cacheKey, &cached, "redacted") {
 		c.log("Using cached group metadata")
 		return &cached, nil
 	}
@@ -156,7 +156,7 @@ func (c *UploadCommand) fetchGroupMetadata(ctx context.Context, groupID int) (*T
 	}
 
 	// Save to cache
-	c.Cache.Save(cacheKey, meta)
+	c.Cache.SaveTo(cacheKey, meta, "redacted")
 
 	return meta, nil
 }
@@ -168,37 +168,9 @@ func (c *UploadCommand) loadLocalTorrent() (*domain.Torrent, error) {
 		RootPath: c.TorrentDir,
 	}
 
-	// Look for Discogs JSON
-	discogsPath := filepath.Join(c.TorrentDir, "discogs.json")
-	if data, err := os.ReadFile(discogsPath); err == nil {
-		if err := json.Unmarshal(data, torrent); err != nil {
-			c.log("Warning: failed to parse discogs.json: %v", err)
-		}
-	}
-
-	// Look for local extraction JSON
-	localPath := filepath.Join(c.TorrentDir, "metadata.json")
-	if data, err := os.ReadFile(localPath); err == nil {
-		var localMeta domain.Torrent
-		if err := json.Unmarshal(data, &localMeta); err == nil {
-			// Merge with priority to local
-			if torrent.Title == "" {
-				torrent.Title = localMeta.Title
-			}
-			if torrent.OriginalYear == 0 {
-				torrent.OriginalYear = localMeta.OriginalYear
-			}
-			if len(torrent.Files) == 0 {
-				torrent.Files = localMeta.Files
-			}
-		}
-	}
-
-	// If no metadata files, extract from FLAC files
-	if torrent.Title == "" || len(torrent.Files) == 0 {
-		if err := c.extractFromFLACs(torrent); err != nil {
-			return nil, err
-		}
+	// Extract from FLAC files
+	if err := c.extractFromFLACs(torrent); err != nil {
+		return nil, err
 	}
 
 	return torrent, nil
@@ -206,6 +178,9 @@ func (c *UploadCommand) loadLocalTorrent() (*domain.Torrent, error) {
 
 // extractFromFLACs extracts metadata directly from FLAC files
 func (c *UploadCommand) extractFromFLACs(torrent *domain.Torrent) error {
+	reader := tagging.NewFLACReader()
+	var firstFileMetadata *tagging.Metadata
+
 	// Walk directory to find FLAC files
 	err := filepath.Walk(c.TorrentDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -215,15 +190,24 @@ func (c *UploadCommand) extractFromFLACs(torrent *domain.Torrent) error {
 		if strings.HasSuffix(strings.ToLower(path), ".flac") {
 			relPath, _ := filepath.Rel(c.TorrentDir, path)
 
-			// Create a track entry
-			track := &domain.Track{
-				File: domain.File{
-					Path: relPath,
-				},
+			// Read metadata from FLAC file
+			metadata, err := reader.ReadFile(path)
+			if err != nil {
+				c.log("Warning: failed to read tags from %s: %v", relPath, err)
+				return nil // Continue with other files
 			}
 
-			// TODO: Use go-flac to extract metadata
-			// For now, we rely on pre-extracted JSON files
+			// Store first file's metadata for album-level info
+			if firstFileMetadata == nil {
+				firstFileMetadata = &metadata
+			}
+
+			// Convert to domain Track
+			track, err := metadata.ToTrack(relPath)
+			if err != nil {
+				c.log("Warning: failed to convert metadata for %s: %v", relPath, err)
+				return nil // Continue with other files
+			}
 
 			torrent.Files = append(torrent.Files, track)
 		}
@@ -231,7 +215,30 @@ func (c *UploadCommand) extractFromFLACs(torrent *domain.Torrent) error {
 		return nil
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Extract album-level metadata from first file if not already set
+	if firstFileMetadata != nil {
+		if torrent.Title == "" && firstFileMetadata.Album != "" {
+			torrent.Title = firstFileMetadata.Album
+		}
+		if torrent.OriginalYear == 0 && firstFileMetadata.Year != "" {
+			if year, err := strconv.Atoi(firstFileMetadata.Year); err == nil && year > 0 {
+				torrent.OriginalYear = year
+			}
+		}
+		if len(torrent.AlbumArtist) == 0 && firstFileMetadata.AlbumArtist != "" {
+			// Parse album artist field (may contain multiple artists)
+			// For now, treat as single artist - could be enhanced to parse properly
+			torrent.AlbumArtist = []domain.Artist{
+				{Name: firstFileMetadata.AlbumArtist, Role: domain.RoleUnknown},
+			}
+		}
+	}
+
+	return nil
 }
 
 // combineArtists combines all artist credits from group metadata
@@ -262,59 +269,101 @@ func (c *UploadCommand) combineArtists(group *TorrentGroup) []ArtistCredit {
 	return artists
 }
 
-// validateArtists validates artist consistency between Redacted and local
-func (c *UploadCommand) validateArtists(redacted []ArtistCredit, local []domain.Artist) []error {
+// collectAllLocalArtists collects all artists from album and tracks (union)
+func (c *UploadCommand) collectAllLocalArtists(torrent *domain.Torrent) map[domain.Artist]struct{} {
+	artistMap := make(map[domain.Artist]struct{})
+
+	// Add album artists
+	for _, a := range torrent.AlbumArtist {
+		artistMap[a] = struct{}{}
+	}
+
+	// Add track artists
+	for _, fileLike := range torrent.Files {
+		if track, ok := fileLike.(*domain.Track); ok {
+			for _, a := range track.Artists {
+				artistMap[a] = struct{}{}
+			}
+		}
+	}
+
+	return artistMap
+}
+
+// validateArtistsSuperset validates that local artists are a superset of Redacted artists
+// Local can have additional artists, but must contain all Redacted artists
+func (c *UploadCommand) validateArtistsSuperset(redacted []ArtistCredit, local map[domain.Artist]struct{}) []error {
 	var errors []error
 
-	// Build maps for comparison
-	redactedMap := make(map[string]string) // name -> role
-	for _, a := range redacted {
-		redactedMap[a.Name] = a.Role
+	// Build a map of local artists by name for lookup
+	localByName := make(map[string][]domain.Artist)
+	for a := range local {
+		localByName[a.Name] = append(localByName[a.Name], a)
 	}
 
-	localMap := make(map[string]domain.Role) // name -> role
-	for _, a := range local {
-		localMap[a.Name] = a.Role
-	}
-
-	// Check each Redacted artist exists in local with matching role
+	// Check each Redacted artist exists in local
 	for _, ra := range redacted {
-		localRole, exists := localMap[ra.Name]
+		localArtists, exists := localByName[ra.Name]
 		if !exists {
 			errors = append(errors, fmt.Errorf("artist %q with role %q not found in local tags", ra.Name, ra.Role))
 			continue
 		}
 
+		// Check if any local artist with this name has a compatible role
 		expectedRole := DomainRole(ra.Role)
-		if localRole != expectedRole {
-			errors = append(errors, fmt.Errorf("artist %q role mismatch: Redacted has %q (mapped to %v), local has %v",
-				ra.Name, ra.Role, expectedRole, localRole))
+		found := false
+		for _, localArtist := range localArtists {
+			if c.rolesCompatible(expectedRole, localArtist.Role) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			errors = append(errors, fmt.Errorf("artist %q with role %q not found in local tags (found with incompatible role)", ra.Name, ra.Role))
 		}
 	}
 
-	// Check for extra artists in local not in Redacted
-	for name, role := range localMap {
-		if _, exists := redactedMap[name]; !exists {
-			errors = append(errors, fmt.Errorf("local artist %q with role %v not found in Redacted metadata", name, role))
-		}
-	}
-
+	// Note: We don't error on extra local artists - that's allowed (superset)
 	return errors
 }
 
+// rolesCompatible checks if two roles are compatible (allows some flexibility)
+func (c *UploadCommand) rolesCompatible(redactedRole, localRole domain.Role) bool {
+	// Exact match
+	if redactedRole == localRole {
+		return true
+	}
+
+	// "artists" in Redacted (mapped to RoleEnsemble) can match ensemble, soloist, or performer in local
+	// TODO: double check this logic
+	if redactedRole == domain.RoleEnsemble {
+		if localRole == domain.RoleEnsemble || localRole == domain.RoleSoloist || localRole == domain.RolePerformer {
+			return true
+		}
+	}
+
+	return false
+}
+
 // mergeMetadata merges all metadata sources
+// Uses local artists for upload (local is superset of Redacted)
 func (c *UploadCommand) mergeMetadata(torrent *Torrent, group *TorrentGroup, local *domain.Torrent, trumpReason string) *Metadata {
+	// Collect all local artists and group by role
+	allLocalArtists := c.collectAllLocalArtists(local)
+	localArtistsByRole := c.groupArtistsByRole(allLocalArtists)
+
 	merged := &Metadata{
 		// From local/extracted
 		Title: local.Title,
 		Year:  local.OriginalYear,
 
-		// From Redacted group
-		Artists:    group.Artists,
-		Composers:  group.Composers,
-		Conductors: group.Conductors,
-		With:       group.With,
-		Producer:   group.Producer,
+		// From local files (superset of Redacted)
+		Artists:    localArtistsByRole["artists"],
+		Composers:  localArtistsByRole["composer"],
+		Conductors: localArtistsByRole["conductor"],
+		With:       localArtistsByRole["with"],
+		Producer:   localArtistsByRole["producer"],
 
 		// From Redacted torrent
 		Format:    torrent.Format,
@@ -348,6 +397,43 @@ func (c *UploadCommand) mergeMetadata(torrent *Torrent, group *TorrentGroup, loc
 	}
 
 	return merged
+}
+
+// groupArtistsByRole groups domain artists by their role and converts to ArtistCredit
+func (c *UploadCommand) groupArtistsByRole(artists map[domain.Artist]struct{}) map[string][]ArtistCredit {
+	result := make(map[string][]ArtistCredit)
+
+	for a := range artists {
+		// Map domain role to Redacted role string
+		redactedRole := c.domainRoleToRedactedRole(a.Role)
+
+		credit := ArtistCredit{
+			Name: a.Name,
+			Role: redactedRole,
+			ID:   0, // Local artists don't have Redacted IDs
+		}
+
+		result[redactedRole] = append(result[redactedRole], credit)
+	}
+
+	return result
+}
+
+// domainRoleToRedactedRole maps domain.Role to Redacted role string
+func (c *UploadCommand) domainRoleToRedactedRole(role domain.Role) string {
+	switch role {
+	case domain.RoleComposer:
+		return "composer"
+	case domain.RoleConductor:
+		return "conductor"
+	case domain.RoleEnsemble, domain.RoleSoloist, domain.RolePerformer:
+		return "artists"
+	case domain.RoleProducer:
+		return "producer"
+	default:
+		// Default to "artists" for unknown roles
+		return "artists"
+	}
 }
 
 // generateTrumpReason generates an automatic trump reason

@@ -99,9 +99,9 @@ func (c *RedactedClient) GetTorrent(ctx context.Context, torrentID int) (*Torren
 		Error    string `json:"error,omitempty"`
 		Response struct {
 			Group struct {
-				GroupID   int      `json:"groupId"`
-				GroupName string   `json:"groupName"`
-				GroupYear int      `json:"groupYear"`
+				GroupID   int      `json:"id"`
+				GroupName string   `json:"name"`
+				GroupYear int      `json:"year"`
 				Tags      []string `json:"tags"`
 			} `json:"group"`
 			Torrent struct {
