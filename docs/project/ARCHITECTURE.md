@@ -275,14 +275,18 @@ func (v *Validator) Rule_RuleName(t *domain.Torrent) []domain.ValidationIssue
 - `go-flac/flacvorbis` for Vorbis comments
 
 ### `/internal/scraping`
-**Purpose:** Web metadata extraction.
+**Purpose:** Metadata extraction from various sources.
 
 **Contains:**
-- `Extractor` interface
+- `Extractor` interface - For web-based extractors (returns `ExtractionResult`)
 - Site-specific extractors (Discogs, Harmonia Mundi, etc.)
-- `LocalExtractor` - Extracts from existing FLAC files
+- `LocalExtractor` - Extracts from existing FLAC files (returns `domain.Album`)
 
-**Pattern:** Each extractor is independent, registered in a central registry.
+**Pattern:** 
+- Web extractors implement `Extractor` interface and return `ExtractionResult`
+- `LocalExtractor` extracts directly to `domain.Album`, which can be converted to `domain.Torrent` via `ToTorrent()` method
+- `DiscogsClient` extracts to `discogs.Release` (source-specific DTO), which converts to `domain.Torrent` via `DomainTorrent()` method
+- The difference: `LocalExtractor` uses the domain model directly (no external API structure to mirror), while `DiscogsClient` uses a DTO to mirror the external API structure
 
 ### `/internal/storage`
 **Purpose:** Persistence (JSON serialization).

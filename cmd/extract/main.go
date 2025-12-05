@@ -57,11 +57,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Extracting metadata from: %s\n", *dir)
 	}
 
-	localResult := extractFromDirectory(*dir)
+	localTorrent := extractFromDirectory(*dir)
 
 	// Save local extraction
 	localFile := baseName + ".json"
-	if err := localResult.Torrent.Save(localFile); err != nil {
+	if err := localTorrent.Save(localFile); err != nil {
 		fmt.Fprintf(os.Stderr, "Error saving local metadata: %v\n", err)
 		os.Exit(1)
 	}
@@ -98,18 +98,18 @@ func main() {
 		releases = append(releases, release)
 	} else {
 		// Search using extracted metadata
-		artist := extractArtist(localResult.Torrent)
-		album := localResult.Torrent.Title
-		
+		artist := extractArtist(localTorrent)
+		album := localTorrent.Title
+
 		if artist == "" || album == "" {
 			fmt.Fprintf(os.Stderr, "Warning: Cannot search Discogs without artist and album information\n")
 			return
 		}
-		
+
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "Searching Discogs for: artist=%q album=%q\n", artist, album)
 		}
-		
+
 		releases, err = client.Search(artist, album)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Discogs search failed: %v\n", err)
@@ -181,53 +181,30 @@ func usage() {
 }
 
 // extractFromDirectory extracts metadata from local FLAC files
-func extractFromDirectory(dirPath string) *scraping.ExtractionResult {
-	extractor := scraping.NewLocalExtractor()
-	result, err := extractor.ExtractFromDirectory(dirPath)
+func extractFromDirectory(dirPath string) *domain.Torrent {
+	album, err := scraping.ExtractFromDirectory(dirPath)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error extracting from directory: %v\n", err)
-		os.Exit(1)
+		if !*force {
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "Forcing local extraction.\n")
 	}
+
+	// Convert domain.Album to domain.Torrent
+	torrent := album.ToTorrent(filepath.Base(dirPath))
 
 	// Display extraction summary
-	if result.Torrent != nil {
-		fmt.Fprintf(os.Stderr, "✓ Extracted: %s", result.Torrent.Title)
-		if result.Torrent.OriginalYear > 0 {
-			fmt.Fprintf(os.Stderr, " (%d)", result.Torrent.OriginalYear)
+	if torrent != nil {
+		fmt.Fprintf(os.Stderr, "✓ Extracted: %s", torrent.Title)
+		if torrent.OriginalYear > 0 {
+			fmt.Fprintf(os.Stderr, " (%d)", torrent.OriginalYear)
 		}
-		fmt.Fprintf(os.Stderr, " - %d tracks\n", len(result.Torrent.Tracks()))
+		fmt.Fprintf(os.Stderr, " - %d tracks\n", len(torrent.Tracks()))
 	}
 
-	// Show warnings/errors
-	for _, warning := range result.Warnings {
-		fmt.Fprintf(os.Stderr, "  Warning: %s\n", warning)
-	}
-
-	for _, err := range result.Errors {
-		if err.Required && !*force {
-			fmt.Fprintf(os.Stderr, "  ERROR: %s - %s\n", err.Field, err.Message)
-		} else {
-			fmt.Fprintf(os.Stderr, "  Warning: %s - %s\n", err.Field, err.Message)
-		}
-	}
-
-	// Fail if required errors and not forced
-	hasRequiredErrors := false
-	for _, err := range result.Errors {
-		if err.Required {
-			hasRequiredErrors = true
-			break
-		}
-	}
-
-	if hasRequiredErrors && !*force {
-		fmt.Fprintf(os.Stderr, "\n❌ ERROR: Extraction failed due to required field errors\n")
-		fmt.Fprintf(os.Stderr, "Use -force to create output anyway\n")
-		os.Exit(1)
-	}
-
-	return result
+	return torrent
 }
 
 // extractArtist attempts to get a searchable artist from the torrent

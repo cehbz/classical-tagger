@@ -2,13 +2,9 @@ package scraping
 
 import (
 	"testing"
-
-	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
-func TestLocalExtractor_ParseDirectoryName(t *testing.T) {
-	extractor := NewLocalExtractor()
-
+func TestParseDirectoryName(t *testing.T) {
 	tests := []struct {
 		Name           string
 		DirPath        string
@@ -55,7 +51,7 @@ func TestLocalExtractor_ParseDirectoryName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			gotFolder, gotTitle, gotYear := extractor.parseDirectoryName(tt.DirPath)
+			gotFolder, gotTitle, gotYear := parseDirectoryName(tt.DirPath)
 
 			if gotFolder != tt.WantFolderName {
 				t.Errorf("parseDirectoryName() folder = %v, want %v", gotFolder, tt.WantFolderName)
@@ -71,9 +67,7 @@ func TestLocalExtractor_ParseDirectoryName(t *testing.T) {
 	}
 }
 
-func TestLocalExtractor_ExtractTrackNumberFromFilename(t *testing.T) {
-	extractor := NewLocalExtractor()
-
+func TestExtractTrackNumberFromFilename(t *testing.T) {
 	tests := []struct {
 		Name     string
 		Filename string
@@ -92,7 +86,7 @@ func TestLocalExtractor_ExtractTrackNumberFromFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := extractor.extractTrackNumberFromFilename(tt.Filename)
+			got := extractTrackNumberFromFilename(tt.Filename)
 			if got != tt.Want {
 				t.Errorf("extractTrackNumberFromFilename(%q) = %v, want %v", tt.Filename, got, tt.Want)
 			}
@@ -100,9 +94,7 @@ func TestLocalExtractor_ExtractTrackNumberFromFilename(t *testing.T) {
 	}
 }
 
-func TestLocalExtractor_ExtractDiscFromPath(t *testing.T) {
-	extractor := NewLocalExtractor()
-
+func TestExtractDiscFromPath(t *testing.T) {
 	tests := []struct {
 		Name string
 		Path string
@@ -120,7 +112,7 @@ func TestLocalExtractor_ExtractDiscFromPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := extractor.extractDiscFromPath(tt.Path)
+			got := extractDiscFromPath(tt.Path)
 			if got != tt.Want {
 				t.Errorf("extractDiscFromPath(%q) = %v, want %v", tt.Path, got, tt.Want)
 			}
@@ -128,9 +120,7 @@ func TestLocalExtractor_ExtractDiscFromPath(t *testing.T) {
 	}
 }
 
-func TestLocalExtractor_ExtractTitleFromFilename(t *testing.T) {
-	extractor := NewLocalExtractor()
-
+func TestExtractTitleFromFilename(t *testing.T) {
 	tests := []struct {
 		Name     string
 		Filename string
@@ -146,7 +136,7 @@ func TestLocalExtractor_ExtractTitleFromFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := extractor.extractTitleFromFilename(tt.Filename)
+			got := extractTitleFromFilename(tt.Filename)
 			if got != tt.Want {
 				t.Errorf("extractTitleFromFilename(%q) = %v, want %v", tt.Filename, got, tt.Want)
 			}
@@ -154,41 +144,7 @@ func TestLocalExtractor_ExtractTitleFromFilename(t *testing.T) {
 	}
 }
 
-func TestLocalExtractor_InferRoleFromName(t *testing.T) {
-	extractor := NewLocalExtractor()
-
-	tests := []struct {
-		Name       string
-		ArtistName string
-		Want       domain.Role
-	}{
-		{"conductor explicit", "Herbert von Karajan, conductor", domain.RoleConductor},
-		{"orchestra", "Berlin Philharmonic Orchestra", domain.RoleEnsemble},
-		{"philharmonic", "Vienna Philharmonic", domain.RoleEnsemble},
-		{"symphony", "London Symphony Orchestra", domain.RoleEnsemble},
-		{"choir", "RIAS Kammerchor", domain.RoleEnsemble},
-		{"chorus", "Westminster Choir", domain.RoleEnsemble},
-		{"quartet", "Emerson String Quartet", domain.RoleEnsemble},
-		{"trio", "Beaux Arts Trio", domain.RoleEnsemble},
-		{"chamber", "English Chamber Orchestra", domain.RoleEnsemble},
-		{"consort", "Gabrieli Consort", domain.RoleEnsemble},
-		{"soloist", "Maurizio Pollini", domain.RoleSoloist},
-		{"soloist name", "Anne-Sophie Mutter", domain.RoleSoloist},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got := extractor.inferRoleFromName(tt.ArtistName)
-			if got != tt.Want {
-				t.Errorf("inferRoleFromName(%q) = %v, want %v", tt.ArtistName, got, tt.Want)
-			}
-		})
-	}
-}
-
-func TestLocalExtractor_ExtractEditionFromTags(t *testing.T) {
-	extractor := NewLocalExtractor()
-
+func TestExtractEditionFromTags(t *testing.T) {
 	tests := []struct {
 		Name        string
 		Tags        map[string]string
@@ -288,7 +244,7 @@ func TestLocalExtractor_ExtractEditionFromTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := extractor.extractEditionFromTags(tt.Tags)
+			got := extractEditionFromTags(tt.Tags)
 
 			if tt.WantNil {
 				if got != nil {
@@ -314,9 +270,7 @@ func TestLocalExtractor_ExtractEditionFromTags(t *testing.T) {
 	}
 }
 
-func TestLocalExtractor_ExtractEditionFromComment(t *testing.T) {
-	extractor := NewLocalExtractor()
-
+func TestExtractEditionFromComment(t *testing.T) {
 	tests := []struct {
 		Name        string
 		Comment     string
@@ -361,7 +315,7 @@ func TestLocalExtractor_ExtractEditionFromComment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := extractor.extractEditionFromComment(tt.Comment)
+			got := extractEditionFromComment(tt.Comment)
 
 			if tt.WantNil {
 				if got != nil {
