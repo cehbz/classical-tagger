@@ -21,6 +21,7 @@ const (
 	RoleProducer
 	RoleArranger
 	RoleRemixer
+	RoleMax = RoleRemixer
 )
 
 func (r Role) IsPerformer() bool {

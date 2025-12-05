@@ -550,7 +550,7 @@ func (c *UploadCommand) printMergedMetadata(meta *Metadata) {
 
 	fmt.Printf("\nArtists:\n")
 	// Group by role for display
-	byRole := make([][]string, domain.RoleUnknown+1)
+	byRole := make([][]string, domain.RoleMax+1)
 	for _, a := range meta.Artists {
 		byRole[int(a.Role)] = append(byRole[int(a.Role)], a.Name)
 	}

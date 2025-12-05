@@ -190,6 +190,9 @@ func extractFromDirectory(dirPath string) *domain.Torrent {
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stderr, "Forcing local extraction.\n")
+		album = &domain.Album{
+			Title: filepath.Base(dirPath),
+		}
 	}
 
 	// Convert domain.Album to domain.Torrent
