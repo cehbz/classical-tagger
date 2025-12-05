@@ -349,7 +349,7 @@ func (c *UploadCommand) validateArtistsSuperset(redacted []domain.Artist, local 
 		}
 
 		if !found {
-			errors = append(errors, fmt.Errorf("artist %q with role %q not found in local tags (found with incompatible role)", ra.Name, ra.Role))
+			errors = append(errors, fmt.Errorf("artist %q with role %q not found in local tags (found with incompatible role)", ra.Name, ra.Role.String()))
 		}
 	}
 
