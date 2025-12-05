@@ -178,7 +178,6 @@ func (c *UploadCommand) loadLocalTorrent() (*domain.Torrent, error) {
 
 // extractFromFLACs extracts metadata directly from FLAC files
 func (c *UploadCommand) extractFromFLACs(torrent *domain.Torrent) error {
-	reader := tagging.NewFLACReader()
 	var firstFileMetadata *tagging.Metadata
 
 	// Walk directory to find FLAC files
@@ -191,7 +190,7 @@ func (c *UploadCommand) extractFromFLACs(torrent *domain.Torrent) error {
 			relPath, _ := filepath.Rel(c.TorrentDir, path)
 
 			// Read metadata from FLAC file
-			metadata, err := reader.ReadFile(path)
+			metadata, err := tagging.ReadMetadata(path)
 			if err != nil {
 				c.log("Warning: failed to read tags from %s: %v", relPath, err)
 				return nil // Continue with other files
@@ -207,6 +206,41 @@ func (c *UploadCommand) extractFromFLACs(torrent *domain.Torrent) error {
 			if err != nil {
 				c.log("Warning: failed to convert metadata for %s: %v", relPath, err)
 				return nil // Continue with other files
+			}
+
+			// Parse composers (may be comma-separated) - ToTrack only gets first one
+			// Replace the single composer from ToTrack with all composers
+			trackArtists := make([]domain.Artist, 0)
+			if metadata.Composer != "" {
+				composerArtists := domain.ParseArtistField(metadata.Composer)
+				for _, comp := range composerArtists {
+					trackArtists = append(trackArtists, domain.Artist{
+						Name: comp.Name,
+						Role: domain.RoleComposer,
+					})
+				}
+			}
+
+			// Parse performers (ARTIST field) - may be comma/semicolon separated
+			if metadata.Artist != "" {
+				performerArtists := domain.ParseArtistField(metadata.Artist)
+				for _, perf := range performerArtists {
+					// Default to ensemble role for ARTIST field performers
+					// Roles will be inferred from context later if needed
+					role := perf.Role
+					if role == domain.RoleUnknown {
+						role = domain.RoleEnsemble // Default for ARTIST field
+					}
+					trackArtists = append(trackArtists, domain.Artist{
+						Name: perf.Name,
+						Role: role,
+					})
+				}
+			}
+
+			// Update track with properly parsed artists
+			if len(trackArtists) > 0 {
+				track.Artists = trackArtists
 			}
 
 			torrent.Files = append(torrent.Files, track)
@@ -230,41 +264,37 @@ func (c *UploadCommand) extractFromFLACs(torrent *domain.Torrent) error {
 			}
 		}
 		if len(torrent.AlbumArtist) == 0 && firstFileMetadata.AlbumArtist != "" {
-			// Parse album artist field (may contain multiple artists)
-			// For now, treat as single artist - could be enhanced to parse properly
-			torrent.AlbumArtist = []domain.Artist{
-				{Name: firstFileMetadata.AlbumArtist, Role: domain.RoleUnknown},
-			}
+			// Parse album artist field (may contain multiple artists, comma or semicolon separated)
+			torrent.AlbumArtist = domain.ParseArtistField(firstFileMetadata.AlbumArtist)
 		}
 	}
 
 	return nil
 }
 
-// combineArtists combines all artist credits from group metadata
-func (c *UploadCommand) combineArtists(group *TorrentGroup) []ArtistCredit {
-	var artists []ArtistCredit
+// creditsToArtists converts a slice of ArtistCredit to a slice of domain.Artist
+func creditsToArtists(ac []ArtistCredit) []domain.Artist {
+	var artists []domain.Artist
+	for _, a := range ac {
+		artists = append(artists, domain.Artist{
+			Name: a.Name,
+			Role: DomainRole(a.Role),
+		})
+	}
+	return artists
+}
 
-	for _, a := range group.Artists {
-		a.Role = "artists"
-		artists = append(artists, a)
-	}
-	for _, a := range group.Composers {
-		a.Role = "composer"
-		artists = append(artists, a)
-	}
-	for _, a := range group.Conductors {
-		a.Role = "conductor"
-		artists = append(artists, a)
-	}
-	for _, a := range group.With {
-		a.Role = "with"
-		artists = append(artists, a)
-	}
-	for _, a := range group.Producer {
-		a.Role = "producer"
-		artists = append(artists, a)
-	}
+// combineArtists combines all artist credits from group metadata and converts to domain.Artist
+func (c *UploadCommand) combineArtists(group *TorrentGroup) []domain.Artist {
+	var artists []domain.Artist
+
+	artists = append(artists, creditsToArtists(group.Artists)...)
+	artists = append(artists, creditsToArtists(group.Composers)...)
+	artists = append(artists, creditsToArtists(group.Conductors)...)
+	artists = append(artists, creditsToArtists(group.With)...)
+	artists = append(artists, creditsToArtists(group.Producer)...)
+	artists = append(artists, creditsToArtists(group.DJ)...)
+	artists = append(artists, creditsToArtists(group.RemixedBy)...)
 
 	return artists
 }
@@ -292,7 +322,7 @@ func (c *UploadCommand) collectAllLocalArtists(torrent *domain.Torrent) map[doma
 
 // validateArtistsSuperset validates that local artists are a superset of Redacted artists
 // Local can have additional artists, but must contain all Redacted artists
-func (c *UploadCommand) validateArtistsSuperset(redacted []ArtistCredit, local map[domain.Artist]struct{}) []error {
+func (c *UploadCommand) validateArtistsSuperset(redacted []domain.Artist, local map[domain.Artist]struct{}) []error {
 	var errors []error
 
 	// Build a map of local artists by name for lookup
@@ -310,10 +340,9 @@ func (c *UploadCommand) validateArtistsSuperset(redacted []ArtistCredit, local m
 		}
 
 		// Check if any local artist with this name has a compatible role
-		expectedRole := DomainRole(ra.Role)
 		found := false
 		for _, localArtist := range localArtists {
-			if c.rolesCompatible(expectedRole, localArtist.Role) {
+			if c.rolesCompatible(ra.Role, localArtist.Role) {
 				found = true
 				break
 			}
@@ -335,9 +364,9 @@ func (c *UploadCommand) rolesCompatible(redactedRole, localRole domain.Role) boo
 		return true
 	}
 
-	// "artists" in Redacted (mapped to RoleEnsemble) can match ensemble, soloist, or performer in local
-	// TODO: double check this logic
-	if redactedRole == domain.RoleEnsemble {
+	// "artists" in Redacted (mapped to RolePerformer) can match ensemble, soloist, or performer in local
+	// Redacted doesn't distinguish between these, so we allow flexible matching
+	if redactedRole == domain.RolePerformer {
 		if localRole == domain.RoleEnsemble || localRole == domain.RoleSoloist || localRole == domain.RolePerformer {
 			return true
 		}
@@ -348,22 +377,20 @@ func (c *UploadCommand) rolesCompatible(redactedRole, localRole domain.Role) boo
 
 // mergeMetadata merges all metadata sources
 // Uses local artists for upload (local is superset of Redacted)
-func (c *UploadCommand) mergeMetadata(torrent *Torrent, group *TorrentGroup, local *domain.Torrent, trumpReason string) *Metadata {
-	// Collect all local artists and group by role
-	allLocalArtists := c.collectAllLocalArtists(local)
-	localArtistsByRole := c.groupArtistsByRole(allLocalArtists)
+func (c *UploadCommand) mergeMetadata(torrent *Torrent, _ *TorrentGroup, local *domain.Torrent, trumpReason string) *Metadata {
+	// Collect all local artists (flat list)
+	allLocalArtistsMap := c.collectAllLocalArtists(local)
+	allLocalArtists := make([]domain.Artist, 0, len(allLocalArtistsMap))
+	for a := range allLocalArtistsMap {
+		allLocalArtists = append(allLocalArtists, a)
+	}
 
 	merged := &Metadata{
 		// From local/extracted
 		Title: local.Title,
 		Year:  local.OriginalYear,
 
-		// From local files (superset of Redacted)
-		Artists:    localArtistsByRole["artists"],
-		Composers:  localArtistsByRole["composer"],
-		Conductors: localArtistsByRole["conductor"],
-		With:       localArtistsByRole["with"],
-		Producer:   localArtistsByRole["producer"],
+		Artists: allLocalArtists,
 
 		// From Redacted torrent
 		Format:    torrent.Format,
@@ -399,45 +426,8 @@ func (c *UploadCommand) mergeMetadata(torrent *Torrent, group *TorrentGroup, loc
 	return merged
 }
 
-// groupArtistsByRole groups domain artists by their role and converts to ArtistCredit
-func (c *UploadCommand) groupArtistsByRole(artists map[domain.Artist]struct{}) map[string][]ArtistCredit {
-	result := make(map[string][]ArtistCredit)
-
-	for a := range artists {
-		// Map domain role to Redacted role string
-		redactedRole := c.domainRoleToRedactedRole(a.Role)
-
-		credit := ArtistCredit{
-			Name: a.Name,
-			Role: redactedRole,
-			ID:   0, // Local artists don't have Redacted IDs
-		}
-
-		result[redactedRole] = append(result[redactedRole], credit)
-	}
-
-	return result
-}
-
-// domainRoleToRedactedRole maps domain.Role to Redacted role string
-func (c *UploadCommand) domainRoleToRedactedRole(role domain.Role) string {
-	switch role {
-	case domain.RoleComposer:
-		return "composer"
-	case domain.RoleConductor:
-		return "conductor"
-	case domain.RoleEnsemble, domain.RoleSoloist, domain.RolePerformer:
-		return "artists"
-	case domain.RoleProducer:
-		return "producer"
-	default:
-		// Default to "artists" for unknown roles
-		return "artists"
-	}
-}
-
 // generateTrumpReason generates an automatic trump reason
-func (c *UploadCommand) generateTrumpReason(torrent *domain.Torrent) string {
+func (c *UploadCommand) generateTrumpReason(_ *domain.Torrent) string {
 	// TODO: Analyze what was fixed based on validation results
 	return "Corrected tags and filenames according to classical music guidelines"
 }
@@ -464,8 +454,8 @@ func (c *UploadCommand) validateRequiredFields(meta *Metadata) error {
 	if len(meta.Tags) == 0 {
 		missing = append(missing, "tags")
 	}
-	if len(meta.Artists) == 0 && len(meta.Composers) == 0 {
-		missing = append(missing, "artists or composers")
+	if len(meta.Artists) == 0 {
+		missing = append(missing, "artists")
 	}
 
 	if len(missing) > 0 {
@@ -502,15 +492,12 @@ func (c *UploadCommand) prepareUploadRequest(meta *Metadata) *Upload {
 		TrumpReason:  meta.TrumpReason,
 	}
 
-	// Convert artist credits to string arrays
+	// Convert artists to string arrays with importance values
+	// All artists go in artists[] with appropriate importance values:
+	// 1 = Main, 2 = Guest, 4 = Composer, 5 = Conductor, 7 = Producer
 	for _, a := range meta.Artists {
 		req.Artists = append(req.Artists, a.Name)
-	}
-	for _, c := range meta.Composers {
-		req.Composers = append(req.Composers, c.Name)
-	}
-	for _, c := range meta.Conductors {
-		req.Conductors = append(req.Conductors, c.Name)
+		req.Importance = append(req.Importance, RedactedImportance(a.Role))
 	}
 
 	return req
@@ -562,21 +549,28 @@ func (c *UploadCommand) printMergedMetadata(meta *Metadata) {
 	}
 
 	fmt.Printf("\nArtists:\n")
+	// Group by role for display
+	byRole := make([][]string, domain.RoleUnknown+1)
 	for _, a := range meta.Artists {
-		fmt.Printf("  - %s\n", a.Name)
+		byRole[int(a.Role)] = append(byRole[int(a.Role)], a.Name)
 	}
 
-	if len(meta.Composers) > 0 {
-		fmt.Printf("\nComposers:\n")
-		for _, c := range meta.Composers {
-			fmt.Printf("  - %s\n", c.Name)
+	for role, artists := range byRole {
+		if role == int(domain.RoleUnknown) || len(artists) == 0 {
+			continue
+		}
+		fmt.Printf("\n%s:\n", domain.Role(role).String())
+		for _, a := range artists {
+			fmt.Printf("  - %s\n", a)
 		}
 	}
 
-	if len(meta.Conductors) > 0 {
-		fmt.Printf("\nConductors:\n")
-		for _, c := range meta.Conductors {
-			fmt.Printf("  - %s\n", c.Name)
+	// Display any unknown roles
+	artists := byRole[domain.RoleUnknown]
+	if len(artists) > 0 {
+		fmt.Printf("\nUnknown:\n")
+		for _, a := range artists {
+			fmt.Printf("  - %s\n", a)
 		}
 	}
 

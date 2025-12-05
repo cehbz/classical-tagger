@@ -31,3 +31,33 @@ func ParseArtist(name, roleStr string) (Artist, error) {
 		Role: role,
 	}, nil
 }
+
+// ParseArtistField parses a comma or semicolon-separated artist tag field into individual artists.
+// Handles formats like "Soloist; Orchestra; Conductor" or "Soloist, Orchestra, Conductor".
+// Returns a slice of artists with RoleUnknown (roles should be inferred from context).
+// This is used for parsing FLAC tags where multiple artists may be stored in a single tag.
+func ParseArtistField(artistField string) []Artist {
+	artists := make([]Artist, 0)
+
+	// Try semicolon separator first (more reliable)
+	names := strings.Split(artistField, ";")
+	if len(names) == 1 {
+		names = strings.Split(artistField, ",")
+	}
+
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+
+		// Do not infer roles from names; preserve original order and mark as Unknown
+		// Roles should be inferred from context (e.g., ALBUMARTIST vs ARTIST vs COMPOSER tags)
+		artists = append(artists, Artist{
+			Name: name,
+			Role: RoleUnknown,
+		})
+	}
+
+	return artists
+}

@@ -98,16 +98,8 @@ func parseTrackNumber(s string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(s))
 }
 
-// FLACReader reads tags from FLAC files.
-type FLACReader struct{}
-
-// NewFLACReader creates a new FLACReader.
-func NewFLACReader() *FLACReader {
-	return &FLACReader{}
-}
-
 // ReadFile reads metadata from a FLAC file.
-func (r *FLACReader) ReadFile(path string) (Metadata, error) {
+func ReadMetadata(path string) (Metadata, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return Metadata{}, fmt.Errorf("failed to open file: %w", err)
@@ -137,8 +129,8 @@ func (r *FLACReader) ReadFile(path string) (Metadata, error) {
 }
 
 // ReadTrackFromFile reads a FLAC file and returns a domain Track.
-func (r *FLACReader) ReadTrackFromFile(path string, expectedDisc, expectedTrack int) (*domain.Track, error) {
-	metadata, err := r.ReadFile(path)
+func ReadTrackFromFile(path string, expectedDisc, expectedTrack int) (*domain.Track, error) {
+	metadata, err := ReadMetadata(path)
 	if err != nil {
 		return nil, err
 	}

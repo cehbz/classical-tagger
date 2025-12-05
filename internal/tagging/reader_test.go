@@ -6,21 +6,18 @@ import (
 	"testing"
 )
 
-func TestFLACReader_ReadFile(t *testing.T) {
+func TestReadMetadata(t *testing.T) {
 	// Note: These tests require actual FLAC files to run.
 	// For now, we test the interface and error handling.
-
-	reader := NewFLACReader()
-
 	t.Run("non-existent file", func(t *testing.T) {
-		_, err := reader.ReadFile("nonexistent.flac")
+		_, err := ReadMetadata("nonexistent.flac")
 		if err == nil {
 			t.Error("Expected error for non-existent file")
 		}
 	})
 }
 
-func TestFLACReader_ReadTrackFromFile(t *testing.T) {
+func TestReadTrackFromFile(t *testing.T) {
 	// This test would need a real FLAC file with proper tags
 	// For CI/CD, you'd want to include a test fixture
 

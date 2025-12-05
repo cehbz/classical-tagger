@@ -346,26 +346,18 @@ func (c *RedactedClient) Upload(ctx context.Context, upload *Upload, torrentFile
 		}
 	}
 
-	// Add artists arrays
+	// Add artists arrays with importance values
+	// The Importance array should match the Artists array length
 	for i, artist := range upload.Artists {
 		if err := w.WriteField(fmt.Sprintf("artists[%d]", i), artist); err != nil {
 			return err
 		}
-		if err := w.WriteField(fmt.Sprintf("importance[%d]", i), "1"); err != nil {
-			return err
+		// Use importance from array if available, default to "1" (main artist)
+		importance := "1"
+		if i < len(upload.Importance) {
+			importance = upload.Importance[i]
 		}
-	}
-
-	// Add composers
-	for i, composer := range upload.Composers {
-		if err := w.WriteField(fmt.Sprintf("composers[%d]", i), composer); err != nil {
-			return err
-		}
-	}
-
-	// Add conductors
-	for i, conductor := range upload.Conductors {
-		if err := w.WriteField(fmt.Sprintf("conductors[%d]", i), conductor); err != nil {
+		if err := w.WriteField(fmt.Sprintf("importance[%d]", i), importance); err != nil {
 			return err
 		}
 	}

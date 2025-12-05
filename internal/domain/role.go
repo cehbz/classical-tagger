@@ -8,20 +8,23 @@ import (
 // Role represents the role of an artist in a performance.
 type Role int
 
+// in display order
 const (
 	RoleUnknown Role = iota
 	RoleComposer
-	RoleSoloist
-	RoleEnsemble
 	RoleConductor
-	RoleArranger
-	RoleGuest
-	RoleProducer
+	RoleEnsemble
+	RoleSoloist
 	RolePerformer
+	RoleGuest
+	RoleDJ
+	RoleProducer
+	RoleArranger
+	RoleRemixer
 )
 
 func (r Role) IsPerformer() bool {
-	return r != RoleComposer && r != RoleArranger && r != RoleUnknown
+	return r == RoleSoloist || r == RoleEnsemble || r == RolePerformer || r == RoleGuest || r == RoleConductor
 }
 
 // String returns the lowercase string representation of the role.
@@ -29,16 +32,24 @@ func (r Role) String() string {
 	switch r {
 	case RoleComposer:
 		return "composer"
-	case RoleSoloist:
-		return "soloist"
-	case RoleEnsemble:
-		return "ensemble"
 	case RoleConductor:
 		return "conductor"
-	case RoleArranger:
-		return "arranger"
+	case RoleEnsemble:
+		return "ensemble"
+	case RoleSoloist:
+		return "soloist"
+	case RolePerformer:
+		return "performer"
 	case RoleGuest:
 		return "guest"
+	case RoleDJ:
+		return "dj"
+	case RoleProducer:
+		return "producer"
+	case RoleArranger:
+		return "arranger"
+	case RoleRemixer:
+		return "remixer"
 	default:
 		return "unknown"
 	}
@@ -59,6 +70,12 @@ func ParseRole(s string) (Role, error) {
 		return RoleArranger, nil
 	case "guest":
 		return RoleGuest, nil
+	case "dj":
+		return RoleDJ, nil
+	case "producer":
+		return RoleProducer, nil
+	case "remixer":
+		return RoleRemixer, nil
 	case "unknown":
 		return RoleUnknown, nil
 	default:

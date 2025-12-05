@@ -2,6 +2,8 @@
 package uploader
 
 import (
+	"strings"
+
 	"github.com/cehbz/classical-tagger/internal/domain"
 )
 
@@ -59,12 +61,7 @@ type Metadata struct {
 	Title string `json:"title"`
 	Year  int    `json:"year"`
 
-	// Artists - from Redacted
-	Artists    []ArtistCredit `json:"artists"`
-	Composers  []ArtistCredit `json:"composers,omitempty"`
-	Conductors []ArtistCredit `json:"conductors,omitempty"`
-	With       []ArtistCredit `json:"with,omitempty"`
-	Producer   []ArtistCredit `json:"producer,omitempty"`
+	Artists []domain.Artist `json:"artists"`
 
 	// Release info - from local files/Discogs
 	Label         string `json:"recordLabel,omitempty"`
@@ -117,10 +114,7 @@ type Upload struct {
 
 	// Artists - these are arrays of strings in the API
 	Artists    []string `json:"artists[]"`
-	Importance []string `json:"importance[]"` // "1" for main, "2" for guest, etc.
-	Composers  []string `json:"composers[]"`
-	Conductors []string `json:"conductors[]"`
-	DJ         []string `json:"dj[]"`
+	Importance []string `json:"importance[]"` // Must match artists[] length
 
 	// Description and tags
 	ReleaseDescription string `json:"release_desc"`
@@ -142,40 +136,84 @@ func (e ValidationError) Error() string {
 	return e.Field + ": " + e.Message
 }
 
-// DomainRole converts Redacted artist roles to our domain roles
-func DomainRole(redactedRole string) domain.Role {
-	switch redactedRole {
-	case "composer", "composers":
-		return domain.RoleComposer
-	case "conductor", "conductors":
-		return domain.RoleConductor
-	case "artists", "artist":
-		return domain.RoleEnsemble // Or RolePerformer based on context
-	case "with", "guest":
-		return domain.RolePerformer
-	case "producer":
-		return domain.RoleProducer
-	case "dj":
-		return domain.RolePerformer
-	default:
-		return domain.RoleUnknown
+// Note: "artists" role string appears with both importance 1 (main) and 2 (guest)
+// So importance is 1:1 with role categories, but not with role strings.
+var (
+	// domainRoleToRedactedRole maps domain.Role to Redacted role string
+	// Used for display/logging. For upload, use domainRoleToImportance instead.
+	domainRoleToRedactedRole = map[domain.Role]string{
+		domain.RoleComposer:  "composer",
+		domain.RoleConductor: "conductor",
+		domain.RoleEnsemble:  "artists",
+		domain.RoleSoloist:   "artists",
+		domain.RolePerformer: "artists",
+		domain.RoleGuest:     "with",
+		domain.RoleProducer:  "producer",
+		domain.RoleDJ:        "dj",
+		domain.RoleArranger:  "arranger",
+		domain.RoleRemixer:   "remixer",
+		domain.RoleUnknown:   "artists", // default to main artists
 	}
+
+	// domainRoleToImportance maps domain.Role to Redacted importance value
+	// This is the primary mapping for uploads - all artists go in artists[] with importance[]
+	domainRoleToImportance = map[domain.Role]string{
+		domain.RoleComposer:  "4",
+		domain.RoleConductor: "5",
+		domain.RoleEnsemble:  "1",
+		domain.RoleSoloist:   "1",
+		domain.RolePerformer: "1",
+		domain.RoleGuest:     "2",
+		domain.RoleRemixer:   "3",
+		domain.RoleProducer:  "7",
+		domain.RoleDJ:        "6",
+		domain.RoleArranger:  "8",
+		domain.RoleUnknown:   "1",
+	}
+
+	// redactedRoleToDomainRole maps Redacted role strings to domain.Role
+	// Handles variations like "composer"/"composers", "artists"/"artist"
+	redactedRoleToDomainRole = map[string]domain.Role{
+		"composer":   domain.RoleComposer,
+		"composers":  domain.RoleComposer,
+		"conductor":  domain.RoleConductor,
+		"conductors": domain.RoleConductor,
+		"artists":    domain.RolePerformer,
+		"artist":     domain.RolePerformer,
+		"with":       domain.RoleGuest,
+		"guest":      domain.RoleGuest,
+		"producer":   domain.RoleProducer,
+		"dj":         domain.RoleDJ,
+		"remixer":    domain.RoleRemixer,
+		"remixedby":  domain.RoleRemixer,
+		"arranger":   domain.RoleArranger,
+		"arrangers":  domain.RoleArranger,
+	}
+)
+
+// DomainRole converts Redacted artist role strings to our domain roles
+func DomainRole(redactedRole string) domain.Role {
+	if role, ok := redactedRoleToDomainRole[strings.ToLower(redactedRole)]; ok {
+		return role
+	}
+	return domain.RoleUnknown // Default
 }
 
-// RedactedRole converts our domain roles to Redacted roles
+// RedactedRole converts our domain roles to Redacted role strings
+// Note: For uploads, use RedactedImportance() instead - all artists go in artists[]
+// with importance[] values. This function is for display/logging purposes.
 func RedactedRole(role domain.Role) string {
-	switch role {
-	case domain.RoleComposer:
-		return "composer"
-	case domain.RoleConductor:
-		return "conductor"
-	case domain.RoleEnsemble:
-		return "artists"
-	case domain.RolePerformer, domain.RoleSoloist:
-		return "artists"
-	case domain.RoleProducer:
-		return "producer"
-	default:
-		return "artists"
+	if redactedRole, ok := domainRoleToRedactedRole[role]; ok {
+		return redactedRole
 	}
+	return "artists" // Default
+}
+
+// RedactedImportance converts our domain roles to Redacted importance values
+// This is the primary mapping for uploads - all artists go in artists[] with importance[]
+func RedactedImportance(role domain.Role) string {
+	if importance, ok := domainRoleToImportance[role]; ok {
+		return importance
+	}
+	return "1" // Default to main artist
 }

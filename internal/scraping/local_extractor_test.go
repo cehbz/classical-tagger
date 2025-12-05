@@ -186,66 +186,6 @@ func TestLocalExtractor_InferRoleFromName(t *testing.T) {
 	}
 }
 
-func TestLocalExtractor_ParseArtistField(t *testing.T) {
-	extractor := NewLocalExtractor()
-
-	tests := []struct {
-		Name      string
-		Field     string
-		WantCount int
-		WantFirst string
-		WantRole  domain.Role
-	}{
-        {
-            Name:      "semicolon separated",
-            Field:     "Pollini; Berlin Phil; Karajan",
-            WantCount: 3,
-            WantFirst: "Pollini",
-            WantRole:  domain.RoleUnknown,
-        },
-        {
-            Name:      "comma separated",
-            Field:     "Pollini, Berlin Philharmonic, Karajan",
-            WantCount: 3,
-            WantFirst: "Pollini",
-            WantRole:  domain.RoleUnknown,
-        },
-        {
-            Name:      "single artist",
-            Field:     "Maurizio Pollini",
-            WantCount: 1,
-            WantFirst: "Maurizio Pollini",
-            WantRole:  domain.RoleUnknown,
-        },
-        {
-            Name:      "with ensemble",
-            Field:     "RIAS Kammerchor; Hans-Christoph Rademann",
-            WantCount: 2,
-            WantFirst: "RIAS Kammerchor",
-            WantRole:  domain.RoleUnknown,
-        },
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got := extractor.parseArtistField(tt.Field)
-
-			if len(got) != tt.WantCount {
-				t.Errorf("parseArtistField(%q) returned %d artists, want %d", tt.Field, len(got), tt.WantCount)
-			}
-
-			if len(got) > 0 {
-				if got[0].Name != tt.WantFirst {
-					t.Errorf("First artist name = %v, want %v", got[0].Name, tt.WantFirst)
-				}
-				if got[0].Role != tt.WantRole {
-					t.Errorf("First artist role = %v, want %v", got[0].Role, tt.WantRole)
-				}
-			}
-		})
-	}
-}
-
 func TestLocalExtractor_ExtractEditionFromTags(t *testing.T) {
 	extractor := NewLocalExtractor()
 
@@ -313,15 +253,15 @@ func TestLocalExtractor_ExtractEditionFromTags(t *testing.T) {
 		{
 			Name: "no edition tags",
 			Tags: map[string]string{
-				"TITLE": "Some Title",
+				"TITLE":  "Some Title",
 				"ARTIST": "Some Artist",
 			},
 			WantNil: true,
 		},
 		{
-			Name:        "empty tags",
-			Tags:        map[string]string{},
-			WantNil:     true,
+			Name:    "empty tags",
+			Tags:    map[string]string{},
+			WantNil: true,
 		},
 		{
 			Name: "invalid date",

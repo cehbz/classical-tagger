@@ -14,6 +14,10 @@ func TestRole_String(t *testing.T) {
 		{"conductor", RoleConductor, "conductor"},
 		{"arranger", RoleArranger, "arranger"},
 		{"guest", RoleGuest, "guest"},
+		{"remixer", RoleRemixer, "remixer"},
+		{"unknown", RoleUnknown, "unknown"},
+		{"dj", RoleDJ, "dj"},
+		{"producer", RoleProducer, "producer"},
 	}
 
 	for _, tt := range tests {
@@ -37,7 +41,10 @@ func TestRole_IsPerformer(t *testing.T) {
 		{"conductor", RoleConductor, true},
 		{"arranger", RoleArranger, false},
 		{"guest", RoleGuest, true},
+		{"remixer", RoleRemixer, false},
 		{"unknown", RoleUnknown, false},
+		{"dj", RoleDJ, false},
+		{"producer", RoleProducer, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -61,6 +68,7 @@ func TestParseRole(t *testing.T) {
 		{"valid conductor", "conductor", RoleConductor, false},
 		{"valid arranger", "arranger", RoleArranger, false},
 		{"valid guest", "guest", RoleGuest, false},
+		{"valid remixer", "remixer", RoleRemixer, false},
 		{"case insensitive", "COMPOSER", RoleComposer, false},
 		{"mixed case", "Soloist", RoleSoloist, false},
 		{"invalid role", "pianist", Role(0), true},

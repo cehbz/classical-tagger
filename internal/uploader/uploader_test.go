@@ -218,16 +218,16 @@ func TestRedactedClient_GetTorrentGroup(t *testing.T) {
 func TestUploadCommand_ValidateArtists(t *testing.T) {
 	tests := []struct {
 		name            string
-		redactedArtists []ArtistCredit
+		redactedArtists []domain.Artist
 		taggedArtists   map[domain.Artist]struct{}
 		wantErrors      int
 	}{
 		{
 			name: "exact match",
-			redactedArtists: []ArtistCredit{
-				{Name: "RIAS Kammerchor", Role: "artists"},
-				{Name: "Hans-Christoph Rademann", Role: "conductor"},
-				{Name: "Felix Mendelssohn", Role: "composer"},
+			redactedArtists: []domain.Artist{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+				{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor},
+				{Name: "Felix Mendelssohn", Role: domain.RoleComposer},
 			},
 			taggedArtists: map[domain.Artist]struct{}{
 				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble}:          {},
@@ -238,8 +238,8 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 		},
 		{
 			name: "role conflict",
-			redactedArtists: []ArtistCredit{
-				{Name: "Hans-Christoph Rademann", Role: "conductor"},
+			redactedArtists: []domain.Artist{
+				{Name: "Hans-Christoph Rademann", Role: domain.RoleConductor},
 			},
 			taggedArtists: map[domain.Artist]struct{}{
 				{Name: "Hans-Christoph Rademann", Role: domain.RoleComposer}: {}, // Wrong role
@@ -248,9 +248,9 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 		},
 		{
 			name: "missing artist in tags",
-			redactedArtists: []ArtistCredit{
-				{Name: "RIAS Kammerchor", Role: "artists"},
-				{Name: "Missing Artist", Role: "conductor"},
+			redactedArtists: []domain.Artist{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
+				{Name: "Missing Artist", Role: domain.RoleConductor},
 			},
 			taggedArtists: map[domain.Artist]struct{}{
 				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble}: {},
@@ -259,8 +259,8 @@ func TestUploadCommand_ValidateArtists(t *testing.T) {
 		},
 		{
 			name: "extra artist in tags",
-			redactedArtists: []ArtistCredit{
-				{Name: "RIAS Kammerchor", Role: "artists"},
+			redactedArtists: []domain.Artist{
+				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble},
 			},
 			taggedArtists: map[domain.Artist]struct{}{
 				{Name: "RIAS Kammerchor", Role: domain.RoleEnsemble}: {},
@@ -392,7 +392,7 @@ func TestUploadCommand_ValidateRequiredFields(t *testing.T) {
 				Encoding:    "Lossless",
 				Media:       "CD",
 				Tags:        []string{"classical"},
-				Artists:     []ArtistCredit{{Name: "Artist", Role: "artists"}},
+				Artists:     []domain.Artist{{Name: "Artist", Role: domain.RoleEnsemble}},
 				Description: "Description",
 			},
 			wantErr: false,

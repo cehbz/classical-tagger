@@ -155,7 +155,7 @@ func (e *LocalExtractor) extractFromFiles(files []string, dirPath string) (*Extr
 
 		if len(data.AlbumArtist) == 0 {
 			// Album-level ALBUMARTIST not set, but tracks have it - parse from track value
-			data.AlbumArtist = e.parseArtistField(trackAlbumArtistStr)
+			data.AlbumArtist = domain.ParseArtistField(trackAlbumArtistStr)
 		} else {
 			// Compare formatted strings
 			albumArtistStr := domain.FormatArtists(data.AlbumArtist)
@@ -295,7 +295,7 @@ func (e *LocalExtractor) extractAlbumMetadata(filePath string) (albumMetadata, s
 	// Extract album artist
 	if albumArtistStr := metadata.AlbumArtist(); albumArtistStr != "" {
 		// Parse the string into artists (roles will be inferred)
-		meta.AlbumArtist = e.parseArtistField(albumArtistStr)
+		meta.AlbumArtist = domain.ParseArtistField(albumArtistStr)
 	}
 
 	// Extract edition info - prioritize direct tags, fall back to COMMENT parsing
@@ -469,10 +469,10 @@ func (e *LocalExtractor) extractTrackMetadataWithAlbumArtist(filePath string, ba
 
 	// Extract artists
 	if artist := metadata.Artist(); artist != "" {
-		track.Artists = append(track.Artists, e.parseArtistField(artist)...)
+		track.Artists = append(track.Artists, domain.ParseArtistField(artist)...)
 	} else if albumArtist := metadata.AlbumArtist(); albumArtist != "" {
 		// Fallback to album artist if artist tag missing
-		track.Artists = append(track.Artists, e.parseArtistField(albumArtist)...)
+		track.Artists = append(track.Artists, domain.ParseArtistField(albumArtist)...)
 	}
 
 	// Extract ALBUMARTIST value for verification (but don't store in track)
@@ -547,39 +547,6 @@ func (e *LocalExtractor) extractTitleFromFilename(filePath string) string {
 	filename = strings.TrimSpace(filename)
 
 	return filename
-}
-
-// parseArtistField parses the artist tag field into individual artists.
-// Handles formats like "Soloist; Orchestra; Conductor" or "Soloist, Orchestra, Conductor"
-// Returns immutable slice.
-func (e *LocalExtractor) parseArtistField(artistField string) []domain.Artist {
-	artists := make([]domain.Artist, 0)
-
-	// Try semicolon separator first (more reliable)
-	var names []string
-	if strings.Contains(artistField, ";") {
-		names = strings.Split(artistField, ";")
-	} else if strings.Contains(artistField, ",") {
-		names = strings.Split(artistField, ",")
-	} else {
-		// Single artist
-		names = []string{artistField}
-	}
-
-	for _, name := range names {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
-
-		// Do not infer roles from names; preserve original order and mark as Unknown
-		artists = append(artists, domain.Artist{
-			Name: name,
-			Role: domain.RoleUnknown,
-		})
-	}
-
-	return artists
 }
 
 // inferRoleFromName attempts to infer artist role from their name.

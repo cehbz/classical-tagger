@@ -9,7 +9,8 @@ The uploader is the final step in the classical music torrent workflow. After ex
 ## Features
 
 - **Metadata Preservation**: Fetches and preserves existing torrent and group metadata from Redacted
-- **Artist Validation**: Strict validation of artist roles to prevent incorrect metadata changes
+- **Artist Validation**: Validates that local artists are a superset of Redacted artists with role compatibility checking
+- **Domain Model**: Uses `domain.Artist` with type-safe role enums throughout the codebase
 - **Smart Caching**: 24-hour cache of API responses to minimize repeated calls
 - **Rate Limiting**: Built-in rate limiter respecting Redacted's API limits (10 requests/10 seconds)
 - **Dry Run Mode**: Preview what would be uploaded without making changes
@@ -152,38 +153,46 @@ upload --dir ./tagged_album --torrent 123456
    - Discogs data (if available)
 
 3. **Merge with Precedence**
-   - Site metadata (artist names, tags) from Redacted
+   - Artists from local files (superset of Redacted)
+   - Site metadata (tags, format info) from Redacted
    - Audio metadata from validated/tagged files
    - Fill gaps with Discogs/extracted data
 
 4. **Validate Consistency**
-   - Strict artist role matching
+   - Local artists must be a superset of Redacted artists
+   - Role compatibility checking (allows some flexibility)
    - Required fields presence
    - No conflicting metadata
 
 5. **Upload**
    - Create .torrent file
+   - Convert domain artists to API format with importance values
    - Submit with merged metadata
    - Preserve original description + trump notes
 
 ### Artist Role Mapping
 
-| Redacted Role | Domain Role | Notes |
-|--------------|-------------|--------|
-| artists | Ensemble/Performer | Main performers |
-| composer | Composer | Work composers |
-| conductor | Conductor | Conductors |
-| with | Performer | Guest/featured |
-| producer | Producer | Producers |
+| Domain Role | Redacted Importance | Redacted Role String | Notes |
+|-------------|---------------------|----------------------|-------|
+| Composer | 4 | composer | Work composers |
+| Conductor | 5 | conductor | Conductors |
+| Ensemble/Soloist/Performer | 1 | artists | Main performers |
+| Guest | 2 | with | Guest/featured artists |
+| Producer | 7 | producer | Producers |
+
+The uploader uses `domain.Artist` internally, which provides type-safe role enums. When uploading, artists are converted to Redacted's format:
+- All artists go in `artists[]` array
+- Each artist has a corresponding `importance[]` value (1-8)
+- Importance determines how Redacted categorizes the artist
 
 ### Validation Rules
 
-The uploader enforces strict validation:
+The uploader enforces validation:
 
-- **Artist Consistency**: Every artist in Redacted must match local tags
-- **Role Matching**: Artist roles must align exactly
-- **Required Fields**: Title, year, format, encoding, media, tags
-- **No Extra Artists**: Local tags can't have artists not in Redacted
+- **Artist Superset**: Local artists must contain all Redacted artists (can have more)
+- **Role Compatibility**: Artist roles must be compatible (allows some flexibility, e.g., Redacted "artists" can match local "ensemble", "soloist", or "performer")
+- **Required Fields**: Title, year, format, encoding, media, tags, at least one artist
+- **Extra Artists Allowed**: Local tags can have additional artists not in Redacted (superset validation)
 
 Validation failures block upload unless `--dry-run` is used.
 
@@ -217,9 +226,9 @@ Wait and retry, or check if you're running multiple instances.
 
 **Artist Mismatch**
 ```
-Validation error: artist "Name" role mismatch: Redacted has "composer", local has "conductor"
+Validation error: artist "Name" with role "composer" not found in local tags (found with incompatible role)
 ```
-Fix tags with `tag` command or investigate the discrepancy.
+Fix tags with `tag` command or investigate the discrepancy. Ensure all Redacted artists are present in local files with compatible roles.
 
 **Missing Required Fields**
 ```
