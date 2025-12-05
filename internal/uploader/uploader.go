@@ -335,7 +335,7 @@ func (c *UploadCommand) validateArtistsSuperset(redacted []domain.Artist, local 
 	for _, ra := range redacted {
 		localArtists, exists := localByName[ra.Name]
 		if !exists {
-			errors = append(errors, fmt.Errorf("artist %q with role %q not found in local tags", ra.Name, ra.Role))
+			errors = append(errors, fmt.Errorf("artist %q with role %q not found in local tags", ra.Name, ra.Role.String()))
 			continue
 		}
 
