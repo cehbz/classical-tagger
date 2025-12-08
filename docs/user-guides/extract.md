@@ -1,12 +1,11 @@
-# Extract CLI - Metadata Extraction from Websites
+# Extract CLI - Metadata Extraction from FLAC Files and Discogs
 
 **Status:** ✅ Complete and functional  
-**Version:** 1.0  
-**Integration:** Works with HarmoniaMundiParser
+**Version:** 1.0
 
 ## Overview
 
-The `extract` CLI tool fetches and parses classical music album metadata from supported websites, converting it to the standard JSON format used by the tagger.
+The `extract` CLI tool extracts metadata from FLAC files in a directory and optionally enriches it with data from Discogs. It creates two JSON files: one with local metadata extracted from FLAC tags, and another with Discogs metadata if available.
 
 ## Installation
 
@@ -20,93 +19,122 @@ go build -o extract
 ### Basic Usage
 
 ```bash
-# Extract to stdout
-extract -url "https://www.harmoniamundi.com/album/..."
+# Extract from directory with automatic Discogs lookup
+extract -dir "/path/to/album"
 
-# Extract to file
-extract -url "https://www.harmoniamundi.com/album/..." -output album.json
+# Extract with specific Discogs release ID
+extract -dir "/path/to/album" -release-id 11245120
+
+# Local extraction only (skip Discogs)
+extract -dir "/path/to/album" -no-api
 ```
 
 ### Options
 
 ```
--url string
-    URL to extract from (required)
+-dir string
+    Directory containing FLAC files (required)
+
+-release-id int
+    Specific Discogs release ID to use (skips search)
 
 -output string
-    Output JSON file (default: stdout)
-
--validate
-    Validate extracted metadata against domain rules (default: true)
+    Base name for output files (default: directory name)
 
 -verbose
-    Verbose output including parsing notes (default: false)
+    Enable verbose output (default: false)
 
 -force
-    Create output even with required field errors (default: false)
+    Create output even if required fields are missing (default: false)
 
--timeout duration
-    HTTP request timeout (default: 30s)
+-no-api
+    Skip Discogs API lookup (default: false)
 ```
 
 ### Examples
 
 ```bash
-# Simple extraction
-extract -url "https://www.harmoniamundi.com/..." -output album.json
+# Basic extraction with automatic Discogs search
+extract -dir "/music/Bach - Goldberg Variations"
 
-# Verbose mode with parsing details
-extract -url "https://www.harmoniamundi.com/..." -output album.json -verbose
+# Use specific Discogs release
+extract -dir "/music/Bach - Goldberg Variations" -release-id 195873
 
-# Force output despite errors
-extract -url "https://www.harmoniamundi.com/..." -output album.json -force
+# Verbose mode to see search process
+extract -dir "/music/album" -verbose
 
-# Skip validation
-extract -url "https://www.harmoniamundi.com/..." -output album.json -validate=false
-
-# Custom timeout
-extract -url "https://www.harmoniamundi.com/..." -timeout 60s -output album.json
+# Local extraction only
+extract -dir "/music/album" -no-api
 ```
 
-## Supported Sites
+## Discogs Integration
 
-### Currently Supported
+### Search Behavior
 
-1. **Harmonia Mundi** (harmoniamundi.com)
-   - Album metadata
-   - Track listings
-   - Composer information
-   - Catalog numbers
-   - Edition information
+The extract command searches Discogs using two strategies:
 
-### Coming Soon
+1. **Advanced Search** (first attempt): Uses separate `artist` and `release_title` parameters with format restriction (CD). This is precise but strict about spelling.
 
-See `METADATA_SOURCES.md` for the complete list of planned sources:
-- Classical Archives
-- Naxos
-- ArkivMusic
-- Presto Classical
+2. **Simple Search** (fallback): If advanced search finds no results, automatically tries a simple search using a combined `query` parameter with both artist and album title. This is more forgiving of spelling variations and doesn't restrict by format.
+
+**Example:** If searching for "Weinachten" fails, the fallback search with "RIAS Kammerchor Weinachten" may find the release titled "Weihnachten".
+
+### Role Determination
+
+When converting Discogs releases, artist roles are determined with the following priority:
+
+1. **Discogs main artist role**: If the artist has an explicit role in Discogs main artists list, use it.
+2. **Discogs extraartists role**: If the artist appears in Discogs extraartists with a role, use that role.
+3. **File metadata role**: If the artist exists in the local FLAC file metadata with a role, use that role.
+4. **Error**: If no role can be determined from any source, the extraction fails with an error listing which artists have unknown roles.
+
+This ensures that roles are always properly determined and prevents silent data quality issues.
+
+### Error Handling
+
+If Discogs data cannot determine roles for all artists, the extraction will fail with a clear error message:
+
+```
+Error saving Discogs data: failed to convert Discogs release: cannot determine role for album artist 'Artist Name'. Discogs has no role, extraartists has no matching entry, and file metadata has no matching entry
+```
+
+**Solutions:**
+- Use `--release-id` with a different Discogs release that has better role information
+- Ensure your FLAC files have proper artist role tags
+- Manually edit the Discogs release on discogs.com to add role information
 
 ## Output Format
 
-The tool produces JSON in the standard album metadata format:
+The tool creates two JSON files:
+
+1. **`<name>.json`**: Local metadata extracted from FLAC files
+2. **`<name>_discogs.json`**: Metadata from Discogs API (if available)
+
+Both files use the standard torrent metadata format:
 
 ```json
 {
-  "title": "Noël ! Weihnachten ! Christmas!",
+  "title": "Noël! Christmas! Weihnachten!",
   "original_year": 2013,
   "edition": {
-    "label": "harmonia mundi",
-    "catalog_number": "HMC902170",
-    "edition_year": 2013
+    "label": "Harmonia Mundi",
+    "catalog_number": "HMC 902170",
+    "year": 2013
   },
-  "tracks": [
+  "album_artist": [
+    {"name": "RIAS-Kammerchor", "role": "ensemble"},
+    {"name": "Hans-Christoph Rademann", "role": "conductor"}
+  ],
+  "files": [
     {
       "disc": 1,
       "track": 1,
-      "title": "Frohlocket, ihr Völker auf Erden, op.79/1",
-      "composer": "Felix Mendelssohn Bartholdy",
-      "artists": []
+      "title": "Frohlocket, Ihr Völker Auf Erden (op.79/1)",
+      "artists": [
+        {"name": "Felix Mendelssohn-Bartholdy", "role": "composer"},
+        {"name": "RIAS-Kammerchor", "role": "ensemble"},
+        {"name": "Hans-Christoph Rademann", "role": "conductor"}
+      ]
     }
   ]
 }
@@ -116,52 +144,60 @@ The tool produces JSON in the standard album metadata format:
 
 ### Extraction Features
 
-- ✅ Album title extraction
-- ✅ Release year parsing
-- ✅ Track listing with composers
-- ✅ Edition information (label, catalog number)
-- ✅ Artist role inference
+- ✅ Metadata extraction from FLAC files
+- ✅ Album title, year, and track information from tags
+- ✅ Artist and composer information
+- ✅ Discogs API integration for metadata enrichment
+- ✅ Automatic Discogs search with fallback
+- ✅ Role determination from multiple sources
 - ✅ Multi-disc detection
-- ✅ HTML entity decoding (UTF-8 characters)
-- ✅ Composer name formatting (ALL CAPS → Title Case)
+- ✅ Edition information (label, catalog number)
+
+### Discogs Integration
+
+- ✅ Automatic search by artist and album title
+- ✅ Fallback to simple search if advanced search fails
+- ✅ Support for specific release ID lookup
+- ✅ Role determination with priority: Discogs > file metadata
+- ✅ Validation to ensure all roles are determined
+- ✅ Clear error messages when roles cannot be determined
 
 ### Error Handling
 
 - ✅ Required vs optional field errors
-- ✅ Detailed error messages
+- ✅ Detailed error messages for role determination failures
 - ✅ Warning collection
-- ✅ Parsing notes for debugging
+- ✅ Verbose mode for debugging search process
 - ✅ Domain validation
-- ✅ Graceful degradation
+- ✅ Graceful degradation (can skip Discogs with `--no-api`)
 
 ### User Experience
 
 - ✅ Clear progress messages
-- ✅ Colored output
-- ✅ Verbose mode for debugging
+- ✅ Verbose mode shows search attempts
 - ✅ Force mode for problematic extractions
-- ✅ Validation before output
-- ✅ Helpful next-step suggestions
+- ✅ Helpful error messages with solutions
 
 ## Workflow Integration
 
 ### Complete Tagger Workflow
 
 ```bash
-# Step 1: Extract metadata from web
-extract -url "https://www.harmoniamundi.com/..." -output album.json
+# Step 1: Extract metadata from FLAC files and Discogs
+extract -dir "/path/to/album" -verbose
 
-# Step 2: Review/edit the JSON (optional)
-nano album.json
+# This creates:
+# - album.json (local metadata)
+# - album_discogs.json (Discogs metadata)
 
-# Step 3: Validate album directory
-validate /path/to/album
+# Step 2: Validate the Discogs metadata
+validate album_discogs.json album.json
 
-# Step 4: Apply tags
-tag -metadata album.json -dir /path/to/album
+# Step 3: Apply tags using Discogs metadata
+tag -metadata album_discogs.json -dir /path/to/album -output /path/to/tagged
 
-# Step 5: Verify result
-validate /path/to/album_tagged
+# Step 4: Verify result
+validate /path/to/tagged
 ```
 
 ## Exit Codes
@@ -205,90 +241,90 @@ done < urls.txt
 
 ## Troubleshooting
 
-### "No parser available for this URL"
+### "No Discogs releases found"
 
-**Problem:** The URL is not from a supported website.
+**Problem:** Discogs search found no matching releases.
 
-**Solution:**
-- Check that you're using a URL from harmoniamundi.com
-- See `METADATA_SOURCES.md` for planned additional sites
-- To add support for a new site, create a new parser following the pattern in `internal/scraping/harmoniamundi_parser.go`
+**Solutions:**
+- Check that your FLAC files have proper artist and album tags
+- Try using `-release-id` with a specific Discogs release ID if you know it
+- The fallback simple search should help with spelling variations
+- Use `-verbose` to see what search terms are being used
+- Check Discogs manually to find the correct release ID
 
-### "HTTP 403 Forbidden" or "HTTP 404 Not Found"
+### "Cannot determine role for artist"
 
-**Problem:** The website blocked the request or the page doesn't exist.
+**Problem:** Discogs and file metadata don't have role information for an artist.
 
-**Solution:**
-- Verify the URL in your browser first
-- Check that the URL is correct and complete
-- Some sites may block automated requests
-- Try increasing the timeout: `-timeout 60s`
+**Solutions:**
+- Use `--release-id` with a different Discogs release that has better role information
+- Ensure your FLAC files have proper artist role tags (ARTIST, COMPOSER, etc.)
+- Manually edit the Discogs release on discogs.com to add role information
+- The error message will list which artists need roles
 
-### "Extraction failed due to required field errors"
+### "Cannot search Discogs without artist and album information"
 
-**Problem:** Critical metadata fields (title, year, tracks) could not be extracted.
+**Problem:** FLAC files don't have sufficient metadata to search Discogs.
 
-**Solution:**
-- Use `-verbose` to see detailed parsing notes
-- Check if the website structure has changed
-- Use `-force` to create output anyway (not recommended for tagging)
-- File an issue if this is a regression
+**Solutions:**
+- Ensure your FLAC files have ALBUM and ARTIST tags
+- Use `--no-api` to skip Discogs lookup and work with local metadata only
+- Use `--release-id` if you know the Discogs release ID
 
-### "Domain conversion failed"
+### "Discogs search failed"
 
-**Problem:** Extracted metadata doesn't meet domain validation rules.
+**Problem:** Network error or API issue when searching Discogs.
 
-**Solution:**
-- Review validation errors shown
-- Edit the JSON file manually to fix issues
-- Use `-validate=false` to skip validation (not recommended)
-- Use `-force` to create output despite errors
+**Solutions:**
+- Check your internet connection
+- Verify your Discogs API token is configured in `~/.config/classical-tagger/config.yaml`
+- Check Discogs API status
+- Use `--no-api` to skip Discogs lookup temporarily
 
-### Slow Extraction
+### "Error saving Discogs data"
 
-**Problem:** Extraction takes a long time.
+**Problem:** Failed to convert or save Discogs release data.
 
-**Solution:**
-- Increase timeout: `-timeout 120s`
-- Check your network connection
-- The website may be slow to respond
-
-### UTF-8 Encoding Issues
-
-**Problem:** Special characters appear garbled (é, ö, ü, ñ, etc.).
-
-**Solution:**
-- This should be handled automatically
-- If you see issues, file a bug report with the URL
-- The parser includes comprehensive HTML entity decoding
+**Solutions:**
+- Check the error message for specific issues (usually role determination)
+- Use `-verbose` to see more details
+- Try a different release ID if roles cannot be determined
+- Ensure file permissions allow writing to the output directory
 
 ## Technical Details
 
-### HTTP Client Configuration
+### Discogs API Configuration
 
-- **Timeout:** 30 seconds (configurable)
-- **User-Agent:** `classical-tagger/0.1 (metadata extraction tool)`
-- **Follow redirects:** Yes (automatic)
-- **SSL verification:** Yes
+- **Rate Limiting:** 60 requests per minute (automatic)
+- **Caching:** Search results and release data are cached
+- **User-Agent:** `ClassicalTagger/1.0`
+- **Authentication:** Requires Discogs API token in config file
 
-### Parsing Strategy
+### Extraction Process
 
-1. **Fetch HTML** from URL
-2. **Detect site** based on URL pattern
-3. **Select parser** (Harmonia Mundi, etc.)
-4. **Parse HTML** using goquery and regex
-5. **Extract metadata** (title, year, tracks, etc.)
-6. **Infer artist roles** using pattern matching
-7. **Detect disc structure** from track numbering
-8. **Convert to domain model** (validates business rules)
-9. **Serialize to JSON** using standard format
+1. **Extract local metadata** from FLAC files in directory
+2. **Save local metadata** to `<name>.json`
+3. **Search Discogs** using artist and album from local metadata
+   - First tries advanced search (artist + release_title + format)
+   - Falls back to simple search (query parameter) if no results
+4. **Fetch release details** if single match found
+5. **Determine artist roles** with priority:
+   - Discogs main artist role
+   - Discogs extraartists role
+   - File metadata role
+6. **Validate roles** - fail if any artist has unknown role
+7. **Convert to domain model** and save to `<name>_discogs.json`
 
-### Error Handling Levels
+### Role Determination Priority
 
-1. **Required Field Errors** - Block output unless `--force`
-2. **Optional Field Warnings** - Noted but don't block output
-3. **Low Confidence Warnings** - Artist role inferences
-4. **Parsing Notes** - Available with `--verbose`
+When converting Discogs releases, roles are determined in this order:
+
+1. **Discogs main artist role**: Explicit role in `release.Artists[].role`
+2. **Discogs extraartists role**: Role from `release.ExtraArtists[]` if artist name matches
+3. **File metadata role**: Role from local FLAC tags if artist name matches
+4. **Error**: Extraction fails if no role can be determined
+
+This ensures data quality and prevents silent role assignment issues.
 
 ## Development
 

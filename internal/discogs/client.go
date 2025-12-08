@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/cehbz/classical-tagger/internal/cache"
 	"github.com/cehbz/classical-tagger/internal/domain"
@@ -42,10 +43,12 @@ type Release struct {
 	Labels        []Label  `json:"labels,omitempty"`
 }
 
+type Role string
+
 // Artist represents an artist/performer.
 type Artist struct {
 	Name string `json:"name"`
-	Role string `json:"role,omitempty"`
+	Role Role   `json:"role,omitempty"`
 }
 
 // Track represents a track in the release.
@@ -178,6 +181,95 @@ func (c *Client) Search(artist, album string) ([]*Release, error) {
 	return releases, nil
 }
 
+// SearchSimple searches for releases using a simple query parameter.
+// This is more forgiving than the advanced search with separate artist and release_title parameters.
+// No format restriction is applied.
+func (c *Client) SearchSimple(query string) ([]*Release, error) {
+	// Create a cache key from the query
+	cacheKey := fmt.Sprintf("search_simple_%s", url.QueryEscape(query))
+
+	// Try cache first
+	var cached []*Release
+	if c.Cache.LoadFrom(cacheKey, &cached, "discogs") {
+		return cached, nil
+	}
+
+	// Rate limit
+	ctx := context.Background()
+	if err := c.RateLimiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
+	// Build search URL
+	u, err := url.Parse(c.BaseURL + "/database/search")
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("query", query)
+	q.Set("type", "release")
+	// Note: No format restriction for fallback search
+	u.RawQuery = q.Encode()
+
+	// Create request
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add auth header
+	req.Header.Set("Authorization", "Discogs token="+c.Token)
+	req.Header.Set("User-Agent", "ClassicalTagger/1.0")
+
+	// Execute request
+	resp, err := c.HTTPClient.Do(req)
+	c.RateLimiter.OnResponse()
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("discogs API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var searchResp searchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+		return nil, fmt.Errorf("failed to parse search response: %w", err)
+	}
+
+	// Convert search results to releases
+	releases := make([]*Release, len(searchResp.Results))
+	for i, result := range searchResp.Results {
+		releases[i] = &Release{
+			ID:            result.ID,
+			Title:         result.Title,
+			Country:       result.Country,
+			CatalogNumber: result.Catno,
+			Format:        result.Format,
+		}
+
+		// Parse year
+		if result.Year != "" {
+			if year, err := strconv.Atoi(result.Year); err == nil {
+				releases[i].Year = year
+			}
+		}
+
+		// Get first label if available
+		if len(result.Label) > 0 {
+			releases[i].Label = result.Label[0]
+		}
+	}
+
+	c.Cache.SaveTo(cacheKey, releases, "discogs")
+
+	return releases, nil
+}
+
 // GetRelease fetches detailed information for a specific release.
 func (c *Client) GetRelease(releaseID int) (*Release, error) {
 	// Check cache first
@@ -242,15 +334,6 @@ func (c *Client) GetRelease(releaseID int) (*Release, error) {
 
 type ArtistMap map[string]map[domain.Role]struct{}
 
-func (a *ArtistMap) removeUnknownRoles() {
-	// get rid of any unknown roles if there's a known role for that name
-	for _, roles := range *a {
-		if len(roles) > 1 {
-			delete(roles, domain.RoleUnknown)
-		}
-	}
-}
-
 func (a ArtistMap) Artists() []domain.Artist {
 	artists := make([]domain.Artist, 0, len(a))
 	for name, roles := range a {
@@ -279,11 +362,71 @@ func (a *ArtistMap) Add(name string, role domain.Role) {
 	(*a)[name][role] = struct{}{}
 }
 
-// convertDiscogsRelease converts a Discogs Release to a domain Torrent
-func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
+// normalizeArtistName normalizes an artist name for comparison (case-insensitive)
+func normalizeArtistName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+// DomainRole determines the role for an artist with preference order:
+// 1. Discogs main artist role (if present)
+// 2. Discogs extraartists role (if artist name matches)
+// 3. Local file metadata role (if artist name matches)
+// 4. RoleUnknown (will cause error)
+func (artist Artist) DomainRole(release *Release, localTorrent *domain.Torrent) domain.Role {
+	// 1. Check if main artist has explicit role
+	if role := artist.Role.DomainRole(); role != domain.RoleUnknown {
+		return role
+	}
+
+	// 2. Check extraartists for matching name
+	normalizedName := normalizeArtistName(artist.Name)
+	if release != nil {
+		for _, extraArtist := range release.ExtraArtists {
+			if normalizeArtistName(extraArtist.Name) == normalizedName {
+				if role := extraArtist.Role.DomainRole(); role != domain.RoleUnknown {
+					return role
+				}
+			}
+		}
+	}
+
+	// 3. Check local file metadata for matching name
+	if localTorrent != nil {
+		// Check album artists
+		for _, localArtist := range localTorrent.AlbumArtist {
+			if normalizeArtistName(localArtist.Name) == normalizedName {
+				if localArtist.Role != domain.RoleUnknown {
+					return localArtist.Role
+				}
+			}
+		}
+		// Check track artists
+		for _, track := range localTorrent.Tracks() {
+			for _, localArtist := range track.Artists {
+				if normalizeArtistName(localArtist.Name) == normalizedName {
+					if localArtist.Role != domain.RoleUnknown {
+						return localArtist.Role
+					}
+				}
+			}
+		}
+	}
+
+	// 4. Infer from name
+	if role := inferRoleFromName(artist.Name); role != domain.RoleUnknown {
+		return role
+	}
+
+	// 5. Return unknown (will cause error)
+	return domain.RoleUnknown
+}
+
+// DomainTorrent converts a Discogs Release to a domain Torrent
+// localTorrent is optional and used to fill in missing role information from file metadata
+func (release *Release) DomainTorrent(rootPath string, localTorrent *domain.Torrent) (*domain.Torrent, error) {
 
 	if release == nil {
-		return nil
+		return nil, fmt.Errorf("release is nil")
 	}
 
 	// Convert edition
@@ -300,18 +443,27 @@ func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
 	// Use a map to deduplicate by name and role
 	albumArtistMap := make(ArtistMap)
 
-	// Add main artists (typically performers)
+	// Add main artists (typically performers) with role determination
 	for _, discogArtist := range release.Artists {
-		albumArtistMap.Add(discogArtist.Name, discogArtist.DomainRole())
+		role := discogArtist.DomainRole(release, localTorrent)
+		albumArtistMap.Add(discogArtist.Name, role)
 	}
 
+	// Add extraartists with role determination
 	for _, discogArtist := range release.ExtraArtists {
-		albumArtistMap.Add(discogArtist.Name, discogArtist.DomainRole())
+		role := discogArtist.DomainRole(release, localTorrent)
+		albumArtistMap.Add(discogArtist.Name, role)
 	}
 
 	// Convert map to slice
-	albumArtistMap.removeUnknownRoles()
 	albumArtists := albumArtistMap.Artists()
+
+	// Validate no unknown roles in album artists
+	for _, artist := range albumArtists {
+		if artist.Role == domain.RoleUnknown {
+			return nil, fmt.Errorf("cannot determine role for album artist '%s'. Discogs has no role, extraartists has no matching entry, and file metadata has no matching entry", artist.Name)
+		}
+	}
 
 	// Convert tracks
 	tracks := make([]domain.FileLike, 0, len(release.Tracklist))
@@ -319,9 +471,9 @@ func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
 
 		trackArtistsMap := albumArtistMap.Copy()
 
-		// add all track artists to track
+		// add all track artists to track with role determination
 		for _, artist := range discogsTrack.Artists {
-			role := artist.DomainRole()
+			role := artist.DomainRole(release, localTorrent)
 			trackArtistsMap.Add(artist.Name, role)
 		}
 
@@ -340,11 +492,17 @@ func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
 			subTrackArtistsMap := trackArtistsMap.Copy()
 
 			for _, artist := range subtrack.Artists {
-				role := artist.DomainRole()
+				role := artist.DomainRole(release, localTorrent)
 				subTrackArtistsMap.Add(artist.Name, role)
 			}
-			subTrackArtistsMap.removeUnknownRoles()
 			subTrackArtists := subTrackArtistsMap.Artists()
+
+			// Validate no unknown roles in subtrack artists
+			for _, artist := range subTrackArtists {
+				if artist.Role == domain.RoleUnknown {
+					return nil, fmt.Errorf("cannot determine role for track artist '%s' in subtrack '%s'. Discogs has no role, extraartists has no matching entry, and file metadata has no matching entry", artist.Name, subTrackTitle)
+				}
+			}
 			// Generate a path from track number and title
 			path := generateTrackPath(subTrackNum, subTrackTitle)
 
@@ -369,8 +527,14 @@ func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
 		// Generate a path from track number and title (since we don't have actual files)
 		path := generateTrackPath(trackNum, discogsTrack.Title)
 
-		trackArtistsMap.removeUnknownRoles()
 		trackArtists := trackArtistsMap.Artists()
+
+		// Validate no unknown roles in track artists
+		for _, artist := range trackArtists {
+			if artist.Role == domain.RoleUnknown {
+				return nil, fmt.Errorf("cannot determine role for track artist '%s' in track '%s'. Discogs has no role, extraartists has no matching entry, and file metadata has no matching entry", artist.Name, discogsTrack.Title)
+			}
+		}
 
 		track := &domain.Track{
 			File: domain.File{
@@ -396,16 +560,11 @@ func (release *Release) DomainTorrent(rootPath string) *domain.Torrent {
 	// Generate root_path using the same logic as directory naming
 	torrent.RootPath = path.Join(rootPath, torrent.DirectoryName())
 
-	return torrent
+	return torrent, nil
 }
 
-// mapDiscogsRoleToDomain maps Discogs role strings to domain Role enum
-func (artist *Artist) DomainRole() domain.Role {
-	roleLower := strings.ToLower(strings.TrimSpace(artist.Role))
-	nameLower := strings.ToLower(artist.Name)
-
-	// Map explicit Discogs roles
-	switch roleLower {
+func (role Role) DomainRole() domain.Role {
+	switch strings.ToLower(strings.TrimSpace(string(role))) {
 	case "composed by", "composer":
 		return domain.RoleComposer
 	case "conductor", "conducted by", "chorus master":
@@ -418,31 +577,38 @@ func (artist *Artist) DomainRole() domain.Role {
 		return domain.RoleArranger
 	case "guest":
 		return domain.RoleGuest
+	default:
+		return domain.RoleUnknown
 	}
-
-	// Infer from name if role is empty or unknown
-	if roleLower == "" {
-		// Check for ensemble keywords in name
-		ensembleKeywords := []string{
-			"orchestra", "orchestre", "orchester", "philharmonic", "symphony",
-			"choir", "chorus", "kammerchor", "ensemble", "quartet", "trio",
-			"quintet", "sextet", "consort", "academy", "chamber",
-		}
-		for _, keyword := range ensembleKeywords {
-			if strings.Contains(nameLower, keyword) {
-				return domain.RoleEnsemble
-			}
-		}
-	}
-
-	return domain.RoleUnknown
 }
 
-func (artist *Artist) DomainArtist() domain.Artist {
-	return domain.Artist{
-		Name: artist.Name,
-		Role: artist.DomainRole(),
+// inferRoleFromName tries to determine the role of an artist from their name
+// Returns domain.RoleUnknown if no role can be determined
+func inferRoleFromName(name string) domain.Role {
+	ensembleKeywords := map[string]Role{
+		"orchestra":    "ensemble",
+		"orchestre":    "ensemble",
+		"orchester":    "ensemble",
+		"philharmonic": "ensemble",
+		"symphony":     "ensemble",
+		"choir":        "ensemble",
+		"chorus":       "ensemble",
+		"kammerchor":   "ensemble",
+		"ensemble":     "ensemble",
+		"quartet":      "ensemble",
+		"trio":         "ensemble",
+		"quintet":      "ensemble",
+		"sextet":       "ensemble",
+		"consort":      "ensemble",
+		"academy":      "ensemble",
+		"chamber":      "ensemble",
 	}
+	for _, field := range strings.FieldsFunc(name, func(r rune) bool { return !unicode.IsLetter(r) }) {
+		if role, ok := ensembleKeywords[strings.ToLower(field)]; ok {
+			return role.DomainRole()
+		}
+	}
+	return domain.RoleUnknown
 }
 
 // parseDiscogsPosition parses a Discogs position string (e.g., "1", "1-1", "A1", "CD1-1")
@@ -495,11 +661,14 @@ func generateTrackPath(track int, title string) string {
 }
 
 // saveDiscogsRelease converts Discogs release to domain Torrent and saves to file
-func (release *Release) SaveToFile(filename string, rootPath string) error {
+func (release *Release) SaveToFile(filename string, rootPath string, localTorrent *domain.Torrent) error {
 	// Convert to domain Torrent format
-	torrent := release.DomainTorrent(rootPath)
+	torrent, err := release.DomainTorrent(rootPath, localTorrent)
+	if err != nil {
+		return fmt.Errorf("failed to convert Discogs release: %w", err)
+	}
 	if torrent == nil {
-		return fmt.Errorf("failed to convert Discogs release")
+		return fmt.Errorf("failed to convert Discogs release: returned nil")
 	}
 
 	return torrent.Save(filename)

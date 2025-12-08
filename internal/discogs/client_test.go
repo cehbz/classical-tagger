@@ -109,6 +109,74 @@ func TestClient_Search_NoResults(t *testing.T) {
 	}
 }
 
+func TestClient_SearchSimple(t *testing.T) {
+	mockResponse := `{
+		"results": [
+			{
+				"id": 11245120,
+				"title": "Noël! Christmas! Weihnachten!",
+				"year": "2013",
+				"label": ["Harmonia Mundi"],
+				"catno": "HMC 902170",
+				"format": ["CD", "Album"],
+				"country": "Germany"
+			}
+		]
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request
+		if r.URL.Path != "/database/search" {
+			t.Errorf("Expected path /database/search, got %s", r.URL.Path)
+		}
+
+		// Check auth header
+		auth := r.Header.Get("Authorization")
+		if auth != "Discogs token=test-token" {
+			t.Errorf("Expected auth header, got %s", auth)
+		}
+
+		// Check query params - should use "query" parameter, not "artist" or "release_title"
+		q := r.URL.Query()
+		if q.Get("query") == "" {
+			t.Errorf("Expected query parameter, got none")
+		}
+		if q.Get("query") != "RIAS Kammerchor Noël Christmas Weihnachten" {
+			t.Errorf("Expected query='RIAS Kammerchor Noël Christmas Weihnachten', got %s", q.Get("query"))
+		}
+		if q.Get("type") != "release" {
+			t.Errorf("Expected type=release, got %s", q.Get("type"))
+		}
+		// Should NOT have format restriction
+		if q.Get("format") != "" {
+			t.Errorf("Expected no format parameter in simple search, got %s", q.Get("format"))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(mockResponse))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.BaseURL = server.URL
+
+	releases, err := client.SearchSimple("RIAS Kammerchor Noël Christmas Weihnachten")
+	if err != nil {
+		t.Fatalf("SearchSimple() error = %v", err)
+	}
+
+	if len(releases) != 1 {
+		t.Fatalf("Expected 1 release, got %d", len(releases))
+	}
+
+	if releases[0].ID != 11245120 {
+		t.Errorf("Expected ID 11245120, got %d", releases[0].ID)
+	}
+	if releases[0].Title != "Noël! Christmas! Weihnachten!" {
+		t.Errorf("Expected title 'Noël! Christmas! Weihnachten!', got %s", releases[0].Title)
+	}
+}
+
 func TestClient_GetRelease(t *testing.T) {
 	// Mock detailed release response
 	mockResponse := `{
@@ -299,7 +367,10 @@ func TestRelease_DomainTorrent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			torrent := tt.release.DomainTorrent("test-path")
+			torrent, err := tt.release.DomainTorrent("test-path", nil)
+			if err != nil {
+				t.Fatalf("DomainTorrent() error = %v", err)
+			}
 			if torrent == nil {
 				t.Fatal("DomainTorrent returned nil")
 			}

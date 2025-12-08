@@ -116,8 +116,21 @@ func main() {
 			return
 		}
 		if len(releases) == 0 {
-			fmt.Fprintf(os.Stderr, "No Discogs releases found for: %s - %s\n", artist, album)
-			return
+			// Try fallback simple search with combined query
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "Advanced search found no results, trying simple search...\n")
+			}
+			// Combine artist and album for simple query search
+			combinedQuery := artist + " " + album
+			releases, err = client.SearchSimple(combinedQuery)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Discogs fallback search failed: %v\n", err)
+				return
+			}
+			if len(releases) == 0 {
+				fmt.Fprintf(os.Stderr, "No Discogs releases found for: %s - %s\n", artist, album)
+				return
+			}
 		}
 	}
 
@@ -154,7 +167,7 @@ func main() {
 	discogsFile := baseName + "_discogs.json"
 	// Use parent directory as rootPath so generated directory is a sibling of local directory
 	parentDir := filepath.Dir(*dir)
-	if err := release.SaveToFile(discogsFile, parentDir); err != nil {
+	if err := release.SaveToFile(discogsFile, parentDir, localTorrent); err != nil {
 		fmt.Fprintf(os.Stderr, "Error saving Discogs data: %v\n", err)
 		os.Exit(1)
 	}

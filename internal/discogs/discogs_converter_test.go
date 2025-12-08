@@ -24,26 +24,30 @@ func TestConvertDiscogsRelease_DeduplicateAlbumArtists(t *testing.T) {
 		},
 	}
 
-	torrent := release.DomainTorrent("test-path")
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
 	if torrent == nil {
 		t.Fatal("convertDiscogsRelease returned nil")
 	}
 
 	// Should have deduplicated artists - RIAS-Kammerchor should appear once with ensemble role
 	// Hans-Christoph Rademann should appear once with conductor role (Chorus Master -> conductor)
+	// Roles should come from ExtraArtists since main artists have no roles
 	riasCount := 0
 	hansCount := 0
 	for _, artist := range torrent.AlbumArtist {
 		if artist.Name == "RIAS-Kammerchor" {
 			riasCount++
 			if artist.Role != domain.RoleEnsemble {
-				t.Errorf("RIAS-Kammerchor should have ensemble role, got %v", artist.Role)
+				t.Errorf("RIAS-Kammerchor should have ensemble role (from extraartists), got %v", artist.Role)
 			}
 		}
 		if artist.Name == "Hans-Christoph Rademann" {
 			hansCount++
 			if artist.Role != domain.RoleConductor {
-				t.Errorf("Hans-Christoph Rademann should have conductor role, got %v", artist.Role)
+				t.Errorf("Hans-Christoph Rademann should have conductor role (from extraartists), got %v", artist.Role)
 			}
 		}
 	}
@@ -53,6 +57,104 @@ func TestConvertDiscogsRelease_DeduplicateAlbumArtists(t *testing.T) {
 	}
 	if hansCount != 1 {
 		t.Errorf("Expected Hans-Christoph Rademann to appear once, got %d times", hansCount)
+	}
+}
+
+func TestConvertDiscogsRelease_RoleFromExtraArtists(t *testing.T) {
+	release := &Release{
+		Title: "Test Album",
+		Year:  2013,
+		Artists: []Artist{
+			{Name: "RIAS-Kammerchor"}, // No role in main artists
+		},
+		ExtraArtists: []Artist{
+			{Name: "RIAS-Kammerchor", Role: "Choir"}, // Role in extraartists
+		},
+		Tracklist: []Track{
+			{Position: "1", Title: "Track 1"},
+		},
+	}
+
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
+
+	// Should use role from extraartists
+	found := false
+	for _, artist := range torrent.AlbumArtist {
+		if artist.Name == "RIAS-Kammerchor" {
+			found = true
+			if artist.Role != domain.RoleEnsemble {
+				t.Errorf("RIAS-Kammerchor should have ensemble role from extraartists, got %v", artist.Role)
+			}
+		}
+	}
+	if !found {
+		t.Error("RIAS-Kammerchor should be in album artists")
+	}
+}
+
+func TestConvertDiscogsRelease_RoleFromLocalMetadata(t *testing.T) {
+	release := &Release{
+		Title: "Test Album",
+		Year:  2013,
+		Artists: []Artist{
+			{Name: "RIAS-Kammerchor"}, // No role
+		},
+		Tracklist: []Track{
+			{Position: "1", Title: "Track 1"},
+		},
+	}
+
+	// Local metadata has role information
+	localTorrent := &domain.Torrent{
+		AlbumArtist: []domain.Artist{
+			{Name: "RIAS-Kammerchor", Role: domain.RoleEnsemble},
+		},
+	}
+
+	torrent, err := release.DomainTorrent("test-path", localTorrent)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
+
+	// Should use role from local metadata
+	found := false
+	for _, artist := range torrent.AlbumArtist {
+		if artist.Name == "RIAS-Kammerchor" {
+			found = true
+			if artist.Role != domain.RoleEnsemble {
+				t.Errorf("RIAS-Kammerchor should have ensemble role from local metadata, got %v", artist.Role)
+			}
+		}
+	}
+	if !found {
+		t.Error("RIAS-Kammerchor should be in album artists")
+	}
+}
+
+func TestConvertDiscogsRelease_ErrorOnUnknownRole(t *testing.T) {
+	release := &Release{
+		Title: "Test Album",
+		Year:  2013,
+		Artists: []Artist{
+			{Name: "Unknown Artist"}, // No role, no extraartists match, no local metadata
+		},
+		Tracklist: []Track{
+			{Position: "1", Title: "Track 1"},
+		},
+	}
+
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err == nil {
+		t.Error("Expected error for unknown role, got nil")
+	}
+	if torrent != nil {
+		t.Error("Expected nil torrent when error occurs")
+	}
+	if err != nil && !strings.Contains(err.Error(), "cannot determine role") {
+		t.Errorf("Expected error message about role determination, got: %v", err)
 	}
 }
 
@@ -74,7 +176,10 @@ func TestConvertDiscogsRelease_SkipParentWorkEntries(t *testing.T) {
 		},
 	}
 
-	torrent := release.DomainTorrent("test-path")
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
 	if torrent == nil {
 		t.Fatal("convertDiscogsRelease returned nil")
 	}
@@ -123,7 +228,10 @@ func TestConvertDiscogsRelease_MultipleParentWorks(t *testing.T) {
 		},
 	}
 
-	torrent := release.DomainTorrent("test-path")
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
 	if torrent == nil {
 		t.Fatal("convertDiscogsRelease returned nil")
 	}
@@ -170,26 +278,26 @@ func TestConvertDiscogsRelease_MultipleParentWorks(t *testing.T) {
 
 func TestParseDiscogsPosition(t *testing.T) {
 
-/*
-12.2.9. The standard Discogs positions are:
+	/*
+	   12.2.9. The standard Discogs positions are:
 
-Without sides (for example, CD): 1, 2, 3…
-With sides (for example, LP, 7", cassette): A1, A2…, B1, B2…
-Multiple 12", LP, etc., just continue the letters: …C1, C2, D1, D2, etc.
-With programs (for example, 8-track cartridge and 4-track cartridge): A1, A2…, B1, B2…, C1, C2...
-Multiple CDs, etc.: 1-1, 1-2…, 2-1, 2-2…
-Multi-disc or multi-format releases: Use a clear and simple position numbering scheme which 
-  differentiates each item, for example, CD1-1, DVD1-1, etc.
-Sub tracks, for example, DJ mixes that comprise one track on a CD: Separate songs or tunes that 
-  are rolled into one track on a CD, LP, etc., should be listed using a point and then a number: 
-  1, 2, 3.1, 3.2, 3.3, 4,… Letters can also be used, with or without a point: A3.a, A3.b or A3a, A3b,…
-Enhanced CDs containing extra material, use a prefix in the Track Position field that denotes what the 
-  extra material is, for example, "Video 1", "Video 2". Enter the enhanced tracks after the audio material. 
-  In the Release Notes, mention any specific software and / or the technology required in order to use the 
-  material, for example, "Video material viewable on PC and Mac. Videos launched automatically in a new Window".
-*/
+	   Without sides (for example, CD): 1, 2, 3…
+	   With sides (for example, LP, 7", cassette): A1, A2…, B1, B2…
+	   Multiple 12", LP, etc., just continue the letters: …C1, C2, D1, D2, etc.
+	   With programs (for example, 8-track cartridge and 4-track cartridge): A1, A2…, B1, B2…, C1, C2...
+	   Multiple CDs, etc.: 1-1, 1-2…, 2-1, 2-2…
+	   Multi-disc or multi-format releases: Use a clear and simple position numbering scheme which
+	     differentiates each item, for example, CD1-1, DVD1-1, etc.
+	   Sub tracks, for example, DJ mixes that comprise one track on a CD: Separate songs or tunes that
+	     are rolled into one track on a CD, LP, etc., should be listed using a point and then a number:
+	     1, 2, 3.1, 3.2, 3.3, 4,… Letters can also be used, with or without a point: A3.a, A3.b or A3a, A3b,…
+	   Enhanced CDs containing extra material, use a prefix in the Track Position field that denotes what the
+	     extra material is, for example, "Video 1", "Video 2". Enter the enhanced tracks after the audio material.
+	     In the Release Notes, mention any specific software and / or the technology required in order to use the
+	     material, for example, "Video material viewable on PC and Mac. Videos launched automatically in a new Window".
+	*/
 
-tests := []struct {
+	tests := []struct {
 		name      string
 		position  string
 		wantDisc  int
@@ -244,7 +352,10 @@ func TestConvertDiscogsRelease_ProcessSubtracks(t *testing.T) {
 		},
 	}
 
-	torrent := release.DomainTorrent("test-path")
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
 	if torrent == nil {
 		t.Fatal("convertDiscogsRelease returned nil")
 	}
@@ -326,7 +437,10 @@ func TestConvertDiscogsRelease_AlbumArtistsInTracks(t *testing.T) {
 		},
 	}
 
-	torrent := release.DomainTorrent("test-path")
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
 	if torrent == nil {
 		t.Fatal("convertDiscogsRelease returned nil")
 	}
@@ -401,7 +515,10 @@ func TestConvertDiscogsRelease_RootPathGenerated(t *testing.T) {
 		},
 	}
 
-	torrent := release.DomainTorrent("test-path")
+	torrent, err := release.DomainTorrent("test-path", nil)
+	if err != nil {
+		t.Fatalf("DomainTorrent() error = %v", err)
+	}
 	if torrent == nil {
 		t.Fatal("convertDiscogsRelease returned nil")
 	}
@@ -452,7 +569,7 @@ func TestMapDiscogsRoleToDomain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.artist.DomainRole()
+			got := tt.artist.DomainRole(nil, nil)
 			if got != tt.want {
 				t.Errorf("Artist{Name: %q, Role: %q}.DomainRole() = %v, want %v", tt.artist.Name, tt.artist.Role, got, tt.want)
 			}
